@@ -17,6 +17,7 @@ subroutine shallow_water_model_step(tau)
 
     !diffslpr = 1.0d+3
     diffslpr = 0.0d0
+    r_diss = 0.0d0
 
 !---------------------- Shallow water equ solver -------------------------------
     !call start_timer(time_count)

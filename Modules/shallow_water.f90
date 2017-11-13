@@ -73,12 +73,43 @@ module shallow_water
         real(8) bp, bp0, grx, gry, slx, sly, slxn, slyn
 
         real*8 time_count
+        integer step, nstep, bnd_step
         integer ierr
 
+        nstep  = bnd_length / 2
+        bnd_step = bnd_length - 1
+
+        ! Extra sync
+        call syncborder_extra_real8(ubrtr, 1, bnd_length)
+        call syncborder_extra_real8(vbrtr, 1, bnd_length)
+        call syncborder_extra_real8(ssh, 1, bnd_length)
+        call syncborder_extra_real8(hhq, 1, bnd_length)
+        call syncborder_extra_real8(hhu, 1, bnd_length)
+        call syncborder_extra_real8(hhv, 1, bnd_length)
+        call syncborder_extra_real8(hhh, 1, bnd_length)
+
+        call syncborder_extra_real8(ubrtrp, 1, bnd_length)
+        call syncborder_extra_real8(vbrtrp, 1, bnd_length)
+        call syncborder_extra_real8(sshp, 1, bnd_length)
+        call syncborder_extra_real8(hhqp, 1, bnd_length)
+        call syncborder_extra_real8(hhup, 1, bnd_length)
+        call syncborder_extra_real8(hhvp, 1, bnd_length)
+        call syncborder_extra_real8(hhhp, 1, bnd_length)
+
+        call syncborder_extra_real8(hhqn, 1, bnd_length)
+        call syncborder_extra_real8(hhun, 1, bnd_length)
+        call syncborder_extra_real8(hhvn, 1, bnd_length)
+        call syncborder_extra_real8(hhhn, 1, bnd_length)
+
+        ! Need cyclize
+        !
+        !
+
+    do step = 1, nstep
         !computing ssh
         !$omp parallel do
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
+        do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
+            do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
 
                 if(lu(m,n)>0.5) then
                     sshn(m,n) = sshp(m,n) + 2.0d0*tau*( wflux(m,n)/RefDen*dfloat(full_free_surface)   &
@@ -90,30 +121,31 @@ module shallow_water
         enddo
         !$omp end parallel do
 
-        call syncborder_real8(sshn, 1)
-        if(periodicity_x/=0) then
-            call cyclize8_x(sshn,nx,ny,1,mmm,mm)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize8_y(sshn,nx,ny,1,nnn,nn)
-        endif
+        !call syncborder_real8(sshn, 1)
+        !if(periodicity_x/=0) then
+        !    call cyclize8_x(sshn,nx,ny,1,mmm,mm)
+        !endif
+        !if(periodicity_y/=0) then
+        !    call cyclize8_y(sshn,nx,ny,1,nnn,nn)
+        !endif
 
         if(full_free_surface>0) then
-            call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest)
+            call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest, bnd_step-1)
         endif
 
         !computing advective and lateral-viscous terms for 2d-velocity
-        ! call stress_components(ubrtrp, vbrtrp, str_t2d,str_s2d,1)
+        ! call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1, bnd_step)
 
         !computing advective and lateral-viscous terms for 2d-velocity
         call uv_trans(ubrtr, vbrtr, vort,     &
                       hhq, hhu, hhv, hhh,     &
-                      RHSx_adv, RHSy_adv, 1)
+                      RHSx_adv, RHSy_adv, 1, bnd_step)
 
-        ! call uv_diff2( mu, str_t2d, str_s2d,  &
-        !               hhq, hhu, hhv, hhh,     &
-        !               RHSx_dif, RHSy_dif, 1  )
+        call uv_diff2( mu, str_t2d, str_s2d,  &
+                       hhq, hhu, hhv, hhh,     &
+                       RHSx_dif, RHSy_dif, 1, bnd_step - 1)
 
+        ! Need rewrite uv_diff4 ...
         ! if(ksw4>0) then
         !   call uv_diff4( mu4, str_t2d, str_s2d,  &
         !                  fx, fy, hhq, hhu, hhv, hhh,    &
@@ -124,8 +156,8 @@ module shallow_water
         !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
 
         !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
+        do n = max(bnd_y1, ny_start - (bnd_step-1)), min(bnd_y2, ny_end + (bnd_step-1))
+            do m = max(bnd_x1, nx_start - (bnd_step-1)), min(bnd_x2, nx_end + (bnd_step-1))
                 !zonal flux
                 if(lcu(m,n)>0.5) then
                     bp  = hhun(m,n)*dxt(m,n)*dyh(m,n)/2.0d0/tau
@@ -159,22 +191,23 @@ module shallow_water
         enddo
         !$omp end parallel do
 
-        call syncborder_real8(ubrtrn, 1)
-        call syncborder_real8(vbrtrn, 1)
-        if(periodicity_x/=0) then
-            call cyclize8_x(ubrtrn,nx,ny,1,mmm,mm)
-            call cyclize8_x(vbrtrn,nx,ny,1,mmm,mm)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize8_y(ubrtrn,nx,ny,1,nnn,nn)
-            call cyclize8_y(vbrtrn,nx,ny,1,nnn,nn)
-        endif
+        !call syncborder_real8(ubrtrn, 1)
+        !call syncborder_real8(vbrtrn, 1)
+        !if(periodicity_x/=0) then
+        !    call cyclize8_x(ubrtrn,nx,ny,1,mmm,mm)
+        !    call cyclize8_x(vbrtrn,nx,ny,1,mmm,mm)
+        !endif
+        !if(periodicity_y/=0) then
+        !    call cyclize8_y(ubrtrn,nx,ny,1,nnn,nn)
+        !    call cyclize8_y(vbrtrn,nx,ny,1,nnn,nn)
+        !endif
 
         !shifting time indices
         !$omp parallel do private(m, n)
-        do n=ny_start-1,ny_end+1
-            do m=nx_start-1,nx_end+1
-
+        !do n=ny_start-1,ny_end+1
+        !    do m=nx_start-1,nx_end+1
+        do n = max(bnd_y1, ny_start - (bnd_step - 1)), min(bnd_y2, ny_end + (bnd_step - 1))
+            do m = max(bnd_x1, nx_start - (bnd_step - 1)), min(bnd_x2, nx_end + (bnd_step - 1))
                 if(lu(m,n)>0.5) then
                     sshp(m,n) = ssh(m,n)+time_smooth*(sshn(m,n)-2.0d0*ssh(m,n)+sshp(m,n))/2.0d0
                     ssh(m,n) = sshn(m,n)
@@ -198,8 +231,13 @@ module shallow_water
             call hh_shift(hhq, hhqp, hhqn,   &
                           hhu, hhup, hhun,   &
                           hhv, hhvp, hhvn,   &
-                          hhh, hhhp, hhhn)
+                          hhh, hhhp, hhhn,   &
+                          bnd_step - 1)
         endif
+
+        bnd_step = bnd_step - 2
+
+    enddo
 
         !call syncborder_real8(ubrtr_i, 1)
         !call syncborder_real8(vbrtr_i, 1)

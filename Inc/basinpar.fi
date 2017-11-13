@@ -10,7 +10,7 @@ integer, parameter:: nx=148,   &	 !number of total points in x-direction in base
                    nn=ny-2,    &     !end of significant area in y-direction
           nx_glob=mm-mmm+1,    &     !Size of significant area in x-direction
           ny_glob=nn-nnn+1,    &     !Size of significant area in y-direction
-           periodicity_x=1,    &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
+           periodicity_x=0,    &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
            periodicity_y=0           !Periodicity on y-direction (0 - non-periodic, 1 - periodic)
 
  real(8), parameter:: rlon = -178.75d0,   &     !first calcutable t-point (m=mmm) on latitude  (in degrees) !-178.75d0
