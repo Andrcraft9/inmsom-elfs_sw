@@ -104,140 +104,142 @@ module shallow_water
         ! Need cyclize
         !
         !
+        !
+        !
 
-    do step = 1, nstep
-        !computing ssh
-        !$omp parallel do
-        do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
-            do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
+        do step = 1, nstep
+            !computing ssh
+            !$omp parallel do
+            do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
+                do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
 
-                if(lu(m,n)>0.5) then
-                    sshn(m,n) = sshp(m,n) + 2.0d0*tau*( wflux(m,n)/RefDen*dfloat(full_free_surface)   &
-                    - ( ubrtr(m,n)*hhu(m,n)*dyh(m,n) - ubrtr(m-1,n)*hhu(m-1,n)*dyh(m-1,n)             &
-                      + vbrtr(m,n)*hhv(m,n)*dxh(m,n) - vbrtr(m,n-1)*hhv(m,n-1)*dxh(m,n-1) )/(dx(m,n)*dy(m,n))  )
-                endif
+                    if(lu(m,n)>0.5) then
+                        sshn(m,n) = sshp(m,n) + 2.0d0*tau*( wflux(m,n)/RefDen*dfloat(full_free_surface)   &
+                        - ( ubrtr(m,n)*hhu(m,n)*dyh(m,n) - ubrtr(m-1,n)*hhu(m-1,n)*dyh(m-1,n)             &
+                          + vbrtr(m,n)*hhv(m,n)*dxh(m,n) - vbrtr(m,n-1)*hhv(m,n-1)*dxh(m,n-1) )/(dx(m,n)*dy(m,n))  )
+                    endif
 
+                enddo
             enddo
-        enddo
-        !$omp end parallel do
+            !$omp end parallel do
 
-        !call syncborder_real8(sshn, 1)
-        !if(periodicity_x/=0) then
-        !    call cyclize8_x(sshn,nx,ny,1,mmm,mm)
-        !endif
-        !if(periodicity_y/=0) then
-        !    call cyclize8_y(sshn,nx,ny,1,nnn,nn)
-        !endif
+            !call syncborder_real8(sshn, 1)
+            !if(periodicity_x/=0) then
+            !    call cyclize8_x(sshn,nx,ny,1,mmm,mm)
+            !endif
+            !if(periodicity_y/=0) then
+            !    call cyclize8_y(sshn,nx,ny,1,nnn,nn)
+            !endif
 
-        if(full_free_surface>0) then
-            call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest, bnd_step-1)
-        endif
+            if(full_free_surface>0) then
+                call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest, bnd_step-1)
+            endif
 
-        !computing advective and lateral-viscous terms for 2d-velocity
-        ! call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1, bnd_step)
+            !computing advective and lateral-viscous terms for 2d-velocity
+            call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1, bnd_step)
 
-        !computing advective and lateral-viscous terms for 2d-velocity
-        call uv_trans(ubrtr, vbrtr, vort,     &
-                      hhq, hhu, hhv, hhh,     &
-                      RHSx_adv, RHSy_adv, 1, bnd_step)
+            !computing advective and lateral-viscous terms for 2d-velocity
+            call uv_trans(ubrtr, vbrtr, vort,     &
+                          hhq, hhu, hhv, hhh,     &
+                          RHSx_adv, RHSy_adv, 1, bnd_step)
 
-        call uv_diff2( mu, str_t2d, str_s2d,  &
-                       hhq, hhu, hhv, hhh,     &
-                       RHSx_dif, RHSy_dif, 1, bnd_step - 1)
+            call uv_diff2( mu, str_t2d, str_s2d,  &
+                           hhq, hhu, hhv, hhh,     &
+                           RHSx_dif, RHSy_dif, 1, bnd_step - 1)
 
-        ! Need rewrite uv_diff4 ...
-        ! if(ksw4>0) then
-        !   call uv_diff4( mu4, str_t2d, str_s2d,  &
-        !                  fx, fy, hhq, hhu, hhv, hhh,    &
-        !                  RHSx_dif, RHSy_dif, 1 )
-        ! endif
+            ! Need rewrite uv_diff4 ...
+            ! if(ksw4>0) then
+            !   call uv_diff4( mu4, str_t2d, str_s2d,  &
+            !                  fx, fy, hhq, hhu, hhv, hhh,    &
+            !                  RHSx_dif, RHSy_dif, 1 )
+            ! endif
 
-        ! compute BottomFriction (bfc)
-        !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
+            ! compute BottomFriction (bfc)
+            !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
 
-        !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
-        do n = max(bnd_y1, ny_start - (bnd_step-1)), min(bnd_y2, ny_end + (bnd_step-1))
-            do m = max(bnd_x1, nx_start - (bnd_step-1)), min(bnd_x2, nx_end + (bnd_step-1))
-                !zonal flux
-                if(lcu(m,n)>0.5) then
-                    bp  = hhun(m,n)*dxt(m,n)*dyh(m,n)/2.0d0/tau
-                    bp0 = hhup(m,n)*dxt(m,n)*dyh(m,n)/2.0d0/tau
+            !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
+            do n = max(bnd_y1, ny_start - (bnd_step-1)), min(bnd_y2, ny_end + (bnd_step-1))
+                do m = max(bnd_x1, nx_start - (bnd_step-1)), min(bnd_x2, nx_end + (bnd_step-1))
+                    !zonal flux
+                    if(lcu(m,n)>0.5) then
+                        bp  = hhun(m,n)*dxt(m,n)*dyh(m,n)/2.0d0/tau
+                        bp0 = hhup(m,n)*dxt(m,n)*dyh(m,n)/2.0d0/tau
 
-                    slx = - FreeFallAcc * ( ssh(m+1,n) - ssh(m,n))*dyh(m,n)* hhu(m,n)
-                    !slxn= - FreeFallAcc * (sshn(m+1,n) -sshn(m,n))*dyh(m,n)*hhun_e(m,n)
-                    grx = RHSx(m,n) + slx + RHSx_dif(m,n) + RHSx_adv(m,n)      &
-                        - (rdis(m,n)+rdis(m+1,n))/2.0d0 *ubrtrp(m,n)*dxt(m,n)*dyh(m,n)*hhu(m,n)        &
-                        + ( rlh_s(m,n  )*hhh(m,n  )*dxb(m,n  )*dyb(m,n  )*(vbrtr(m+1,n  ) + vbrtr(m,n  ))          &
-                        +   rlh_s(m,n-1)*hhh(m,n-1)*dxb(m,n-1)*dyb(m,n-1)*(vbrtr(m+1,n-1) + vbrtr(m,n-1)) )/4.0d0
+                        slx = - FreeFallAcc * ( ssh(m+1,n) - ssh(m,n))*dyh(m,n)* hhu(m,n)
+                        !slxn= - FreeFallAcc * (sshn(m+1,n) -sshn(m,n))*dyh(m,n)*hhun_e(m,n)
+                        grx = RHSx(m,n) + slx + RHSx_dif(m,n) + RHSx_adv(m,n)      &
+                            - (rdis(m,n)+rdis(m+1,n))/2.0d0 *ubrtrp(m,n)*dxt(m,n)*dyh(m,n)*hhu(m,n)        &
+                            + ( rlh_s(m,n  )*hhh(m,n  )*dxb(m,n  )*dyb(m,n  )*(vbrtr(m+1,n  ) + vbrtr(m,n  ))          &
+                            +   rlh_s(m,n-1)*hhh(m,n-1)*dxb(m,n-1)*dyb(m,n-1)*(vbrtr(m+1,n-1) + vbrtr(m,n-1)) )/4.0d0
 
-                    ubrtrn(m,n) = (ubrtrp(m,n)*bp0 + grx )/(bp - RHSx_bfc(m, n))
-                endif
+                        ubrtrn(m,n) = (ubrtrp(m,n)*bp0 + grx )/(bp - RHSx_bfc(m, n))
+                    endif
 
-                !meridional flux
-                if(lcv(m,n)>0.5) then
-                    bp  = hhvn(m,n)*dyt(m,n)*dxh(m,n)/2.0d0/tau
-                    bp0 = hhvp(m,n)*dyt(m,n)*dxh(m,n)/2.0d0/tau
+                    !meridional flux
+                    if(lcv(m,n)>0.5) then
+                        bp  = hhvn(m,n)*dyt(m,n)*dxh(m,n)/2.0d0/tau
+                        bp0 = hhvp(m,n)*dyt(m,n)*dxh(m,n)/2.0d0/tau
 
-                    sly = - FreeFallAcc * ( ssh(m,n+1)- ssh(m,n))*dxh(m,n)* hhv(m,n)
-                    !slyn= - FreeFallAcc * (sshn(m,n+1)-sshn(m,n))*dxh(m,n)*hhvn_e(m,n)
-                    gry = RHSy(m,n) + sly  + RHSy_dif(m,n) + RHSy_adv(m,n)      &
-                        - (rdis(m,n)+rdis(m,n+1))/2.0d0 *vbrtrp(m,n)*dxh(m,n)*dyt(m,n)*hhv(m,n)        &
-                        - ( rlh_s(m  ,n)*hhh(m  ,n)*dxb(m  ,n)*dyb(m  ,n)*(ubrtr(m  ,n+1)+ubrtr(m  ,n))             &
-                        +   rlh_s(m-1,n)*hhh(m-1,n)*dxb(m-1,n)*dyb(m-1,n)*(ubrtr(m-1,n+1)+ubrtr(m-1,n)) )/4.0d0
+                        sly = - FreeFallAcc * ( ssh(m,n+1)- ssh(m,n))*dxh(m,n)* hhv(m,n)
+                        !slyn= - FreeFallAcc * (sshn(m,n+1)-sshn(m,n))*dxh(m,n)*hhvn_e(m,n)
+                        gry = RHSy(m,n) + sly  + RHSy_dif(m,n) + RHSy_adv(m,n)      &
+                            - (rdis(m,n)+rdis(m,n+1))/2.0d0 *vbrtrp(m,n)*dxh(m,n)*dyt(m,n)*hhv(m,n)        &
+                            - ( rlh_s(m  ,n)*hhh(m  ,n)*dxb(m  ,n)*dyb(m  ,n)*(ubrtr(m  ,n+1)+ubrtr(m  ,n))             &
+                            +   rlh_s(m-1,n)*hhh(m-1,n)*dxb(m-1,n)*dyb(m-1,n)*(ubrtr(m-1,n+1)+ubrtr(m-1,n)) )/4.0d0
 
-                    vbrtrn(m,n) = (vbrtrp(m,n)*bp0 + gry )/(bp - RHSy_bfc(m, n))
-                endif
+                        vbrtrn(m,n) = (vbrtrp(m,n)*bp0 + gry )/(bp - RHSy_bfc(m, n))
+                    endif
+                enddo
             enddo
-        enddo
-        !$omp end parallel do
+            !$omp end parallel do
 
-        !call syncborder_real8(ubrtrn, 1)
-        !call syncborder_real8(vbrtrn, 1)
-        !if(periodicity_x/=0) then
-        !    call cyclize8_x(ubrtrn,nx,ny,1,mmm,mm)
-        !    call cyclize8_x(vbrtrn,nx,ny,1,mmm,mm)
-        !endif
-        !if(periodicity_y/=0) then
-        !    call cyclize8_y(ubrtrn,nx,ny,1,nnn,nn)
-        !    call cyclize8_y(vbrtrn,nx,ny,1,nnn,nn)
-        !endif
+            !call syncborder_real8(ubrtrn, 1)
+            !call syncborder_real8(vbrtrn, 1)
+            !if(periodicity_x/=0) then
+            !    call cyclize8_x(ubrtrn,nx,ny,1,mmm,mm)
+            !    call cyclize8_x(vbrtrn,nx,ny,1,mmm,mm)
+            !endif
+            !if(periodicity_y/=0) then
+            !    call cyclize8_y(ubrtrn,nx,ny,1,nnn,nn)
+            !    call cyclize8_y(vbrtrn,nx,ny,1,nnn,nn)
+            !endif
 
-        !shifting time indices
-        !$omp parallel do private(m, n)
-        !do n=ny_start-1,ny_end+1
-        !    do m=nx_start-1,nx_end+1
-        do n = max(bnd_y1, ny_start - (bnd_step - 1)), min(bnd_y2, ny_end + (bnd_step - 1))
-            do m = max(bnd_x1, nx_start - (bnd_step - 1)), min(bnd_x2, nx_end + (bnd_step - 1))
-                if(lu(m,n)>0.5) then
-                    sshp(m,n) = ssh(m,n)+time_smooth*(sshn(m,n)-2.0d0*ssh(m,n)+sshp(m,n))/2.0d0
-                    ssh(m,n) = sshn(m,n)
-                endif
-                if(lcu(m,n)>0.5) then
-                    !up(m,n) =  hhu_e(m,n)*u(m,n)+time_smooth*(hhun_e(m,n)*un(m,n)-2.0d0*hhu_e(m,n)*u(m,n)+hhup_e(m,n)*up(m,n))/2.0d0/dfloat(nstep)
-                    ubrtrp(m,n) = ubrtr(m,n) + time_smooth*(ubrtrn(m,n)-2.0d0*ubrtr(m,n)+ubrtrp(m,n))/2.0d0
-                    ubrtr(m,n) = ubrtrn(m,n)
-                endif
-                if(lcv(m,n)>0.5) then
-                    !vp(m,n) =  hhv_e(m,n)*v(m,n)+time_smooth*(hhvn_e(m,n)*vn(m,n)-2.0d0*hhv_e(m,n)*v(m,n)+hhvp_e(m,n)*vp(m,n))/2.0d0/dfloat(nstep)
-                    vbrtrp(m,n) = vbrtr(m,n) + time_smooth*(vbrtrn(m,n)-2.0d0*vbrtr(m,n)+vbrtrp(m,n))/2.0d0
-                    vbrtr(m,n) = vbrtrn(m,n)
-                endif
+            !shifting time indices
+            !$omp parallel do private(m, n)
+            !do n=ny_start-1,ny_end+1
+            !    do m=nx_start-1,nx_end+1
+            do n = max(bnd_y1, ny_start - (bnd_step - 1)), min(bnd_y2, ny_end + (bnd_step - 1))
+                do m = max(bnd_x1, nx_start - (bnd_step - 1)), min(bnd_x2, nx_end + (bnd_step - 1))
+                    if(lu(m,n)>0.5) then
+                        sshp(m,n) = ssh(m,n)+time_smooth*(sshn(m,n)-2.0d0*ssh(m,n)+sshp(m,n))/2.0d0
+                        ssh(m,n) = sshn(m,n)
+                    endif
+                    if(lcu(m,n)>0.5) then
+                        !up(m,n) =  hhu_e(m,n)*u(m,n)+time_smooth*(hhun_e(m,n)*un(m,n)-2.0d0*hhu_e(m,n)*u(m,n)+hhup_e(m,n)*up(m,n))/2.0d0/dfloat(nstep)
+                        ubrtrp(m,n) = ubrtr(m,n) + time_smooth*(ubrtrn(m,n)-2.0d0*ubrtr(m,n)+ubrtrp(m,n))/2.0d0
+                        ubrtr(m,n) = ubrtrn(m,n)
+                    endif
+                    if(lcv(m,n)>0.5) then
+                        !vp(m,n) =  hhv_e(m,n)*v(m,n)+time_smooth*(hhvn_e(m,n)*vn(m,n)-2.0d0*hhv_e(m,n)*v(m,n)+hhvp_e(m,n)*vp(m,n))/2.0d0/dfloat(nstep)
+                        vbrtrp(m,n) = vbrtr(m,n) + time_smooth*(vbrtrn(m,n)-2.0d0*vbrtr(m,n)+vbrtrp(m,n))/2.0d0
+                        vbrtr(m,n) = vbrtrn(m,n)
+                    endif
 
+                enddo
             enddo
+            !$omp end parallel do
+
+            if(full_free_surface>0) then
+                call hh_shift(hhq, hhqp, hhqn,   &
+                              hhu, hhup, hhun,   &
+                              hhv, hhvp, hhvn,   &
+                              hhh, hhhp, hhhn,   &
+                              bnd_step - 1)
+            endif
+
+            bnd_step = bnd_step - 2
+
         enddo
-        !$omp end parallel do
-
-        if(full_free_surface>0) then
-            call hh_shift(hhq, hhqp, hhqn,   &
-                          hhu, hhup, hhun,   &
-                          hhv, hhvp, hhvn,   &
-                          hhh, hhhp, hhhn,   &
-                          bnd_step - 1)
-        endif
-
-        bnd_step = bnd_step - 2
-
-    enddo
 
         !call syncborder_real8(ubrtr_i, 1)
         !call syncborder_real8(vbrtr_i, 1)

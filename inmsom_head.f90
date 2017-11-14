@@ -245,7 +245,7 @@ do while(num_step<num_step_max)
 
 !-----------------------------------------------------------
 !moving to the next time step
- num_step=num_step+1
+ num_step=num_step + bnd_length / 2
  key_time_print=0
  call model_time_def(   num_step,           &     !step counter,            input
                        time_step,           &    !time step in seconds,    input
