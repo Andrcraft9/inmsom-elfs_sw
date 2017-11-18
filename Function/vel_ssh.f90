@@ -1,29 +1,31 @@
 !===============================================================================
 ! RHS for implicit bfc scheme
-subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy)
+subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     implicit none
 
     real(8) u(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       & !Transporting zonal velocity
-        v(bnd_x1:bnd_x2,bnd_y1:bnd_y2)          !Transporting meridional velocity
+            v(bnd_x1:bnd_x2,bnd_y1:bnd_y2)          !Transporting meridional velocity
 
     real(8) RHSx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
-        RHSy(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+            RHSy(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
     real(8) hq(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
-        hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
-        hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
-        hh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+            hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+            hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+            hh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
     integer :: m, n
+    integer :: bnd_step
+
     real*8 :: k_bfc, s
     real*8 :: k1, k2
 
     !$omp parallel do private(m, n, k_bfc, s, k1, k2)
-    do n=ny_start, ny_end
-        do m=nx_start, nx_end
+    do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
+        do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
             if (lcu(m,n)>0.5) then
                 ! Discretization in h-points
                 k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
