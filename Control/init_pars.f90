@@ -150,7 +150,7 @@ real(8) :: hx2, hy2
 !   array4=0.0
 !   call prdstd(' ',bottom_topography_file,1,array4,lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
 !   hhq_rest=dble(array4)
-!   call syncborder_real8(hhq_rest, 1)
+!   call syncborder_extra_real8(hhq_rest, 1, bnd_length)
 !   if(periodicity_x/=0) then
 !       call cyclize8_x(hhq_rest,nx,ny,1,mmm,mm)
 !   end if
@@ -272,9 +272,10 @@ subroutine sw_test2
       enddo
     enddo
 
-    call syncborder_real8(ubrtr, 1)
-    call syncborder_real8(vbrtr, 1)
-    call syncborder_real8(ssh, 1)
+    call syncborder_extra_real8(ubrtr, 1, bnd_length)
+    call syncborder_extra_real8(vbrtr, 1, bnd_length)
+    call syncborder_extra_real8(ssh, 1, bnd_length)
+
     if(periodicity_x/=0) then
         call cyclize8_x(ssh, nx, ny, 1, mmm, mm)
         call cyclize8_x(ubrtr, nx, ny, 1, mmm, mm)
@@ -326,7 +327,9 @@ subroutine sw_only_inicond(flag_init, path2ocp)
         ssh = 0.0d0
     endif
 
-    call syncborder_real8(ssh, 1)
+    !call syncborder_real8(ssh, 1)
+    call syncborder_extra_real8(ssh, 1, bnd_length)
+
     if(periodicity_x/=0) then
         call cyclize8_x(ssh, nx, ny, 1, mmm, mm)
     end if

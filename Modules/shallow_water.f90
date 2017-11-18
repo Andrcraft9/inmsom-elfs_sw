@@ -79,34 +79,6 @@ module shallow_water
         nstep  = bnd_length / 2
         bnd_step = bnd_length - 1
 
-        ! Extra sync
-        call syncborder_extra_real8(ubrtr, 1, bnd_length)
-        call syncborder_extra_real8(vbrtr, 1, bnd_length)
-        call syncborder_extra_real8(ssh, 1, bnd_length)
-        call syncborder_extra_real8(hhq, 1, bnd_length)
-        call syncborder_extra_real8(hhu, 1, bnd_length)
-        call syncborder_extra_real8(hhv, 1, bnd_length)
-        call syncborder_extra_real8(hhh, 1, bnd_length)
-
-        call syncborder_extra_real8(ubrtrp, 1, bnd_length)
-        call syncborder_extra_real8(vbrtrp, 1, bnd_length)
-        call syncborder_extra_real8(sshp, 1, bnd_length)
-        call syncborder_extra_real8(hhqp, 1, bnd_length)
-        call syncborder_extra_real8(hhup, 1, bnd_length)
-        call syncborder_extra_real8(hhvp, 1, bnd_length)
-        call syncborder_extra_real8(hhhp, 1, bnd_length)
-
-        call syncborder_extra_real8(hhqn, 1, bnd_length)
-        call syncborder_extra_real8(hhun, 1, bnd_length)
-        call syncborder_extra_real8(hhvn, 1, bnd_length)
-        call syncborder_extra_real8(hhhn, 1, bnd_length)
-
-        ! Need cyclize
-        !
-        !
-        !
-        !
-
         do step = 1, nstep
             !computing ssh
             !$omp parallel do
@@ -251,6 +223,21 @@ module shallow_water
         !    call cyclize8_y(ubrtr_i,nx,ny,1,nnn,nn)
         !    call cyclize8_y(vbrtr_i,nx,ny,1,nnn,nn)
         !endif
+
+        ! Extra sync
+        call syncborder_extra_real8(ubrtr, 1, bnd_length)
+        call syncborder_extra_real8(vbrtr, 1, bnd_length)
+        call syncborder_extra_real8(ssh, 1, bnd_length)
+
+        call syncborder_extra_real8(ubrtrp, 1, bnd_length)
+        call syncborder_extra_real8(vbrtrp, 1, bnd_length)
+        call syncborder_extra_real8(sshp, 1, bnd_length)
+
+        ! Need cyclize
+        !
+        !
+        !
+        !
 
         if(full_free_surface>0) then
             !initialize depth for external mode
