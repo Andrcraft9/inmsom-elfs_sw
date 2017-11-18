@@ -103,14 +103,14 @@ module shallow_water
         endif
 
         !computing advective and lateral-viscous terms for 2d-velocity
-        ! call stress_components(ubrtrp, vbrtrp, str_t2d,str_s2d,1)
+        !call stress_components(ubrtrp, vbrtrp, str_t2d,str_s2d,1)
 
         !computing advective and lateral-viscous terms for 2d-velocity
         call uv_trans(ubrtr, vbrtr, vort,     &
                       hhq, hhu, hhv, hhh,     &
                       RHSx_adv, RHSy_adv, 1)
 
-        ! call uv_diff2( mu, str_t2d, str_s2d,  &
+        !call uv_diff2( mu, str_t2d, str_s2d,  &
         !               hhq, hhu, hhv, hhh,     &
         !               RHSx_dif, RHSy_dif, 1  )
 
@@ -121,7 +121,7 @@ module shallow_water
         ! endif
 
         ! compute BottomFriction (bfc)
-        !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
+        call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
 
         !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
         do n=ny_start,ny_end
