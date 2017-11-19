@@ -124,8 +124,8 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r, bnd_step)
 !$omp parallel do private(m,n,slu)
       !do n=ny_start-1,ny_end
       ! do m=nx_start-1,nx_end
-      do n = max(bnd_y1-1, ny_start-1 - bnd_step), min(bnd_y2, ny_end + bnd_step)
-       do m = max(bnd_x1-1, nx_start-1 - bnd_step), min(bnd_x2, nx_end + bnd_step)
+      do n = max(bnd_y1, ny_start-1 - bnd_step), min(bnd_y2, ny_end + bnd_step)
+       do m = max(bnd_x1, nx_start-1 - bnd_step), min(bnd_x2, nx_end + bnd_step)
 
         if(llu(m,n)>0.5) then
 ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
