@@ -41,7 +41,7 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
             endif
 
             if (lcv(m,n)>0.5) then
-                k_bfc = dxh(m,n)*dyt(m,n) * FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
+                k_bfc = dxh(m,n)*dyt(m,n) * FreeFallAcc * (nbfc**2) / (hv(m, n)**(1.0/3.0))
 
                 ! Discretization in h-points
                 s1 = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
