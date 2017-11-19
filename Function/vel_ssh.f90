@@ -20,44 +20,38 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
     integer :: m, n
     integer :: bnd_step
 
-    real*8 :: k_bfc, s
-    real*8 :: k1, k2
+    real*8 :: k_bfc, s1, s2
 
-    !$omp parallel do private(m, n, k_bfc, s, k1, k2)
+    !$omp parallel do private(m, n, k_bfc, s1, s2)
     do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
         do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
+
             if (lcu(m,n)>0.5) then
-                ! Discretization in h-points
-                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
-                s = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
-                k1 = -dxb(m, n) * dyb(m, n) * k_bfc * s
-                !k1 = k1 * 0.5d0*(u(m, n) + u(m, n+1))
+                k_bfc = dxt(m,n)*dyh(m,n) * FreeFallAcc * (nbfc**2) / (hu(m, n)**(1.0/3.0))
 
                 ! Discretization in h-points
-                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n-1)**(1.0/3.0))
-                s = 0.5d0 * sqrt( (u(m, n) + u(m, n-1))**2 + (v(m, n-1) + v(m+1, n-1))**2 )
-                k2 = -dxb(m, n-1) * dyb(m, n-1) * k_bfc * s
-                !k2 = k2 * 0.5d0*(u(m, n) + u(m, n-1))
+                s1 = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
+
+                ! Discretization in h-points
+                s2 = 0.5d0 * sqrt( (u(m, n) + u(m, n-1))**2 + (v(m, n-1) + v(m+1, n-1))**2 )
 
                 ! Discretization in u-points
-                RHSx(m, n) = 0.5d0 * (k1 + k2)
+                RHSx(m, n) = 0.5d0 * k_bfc * (s1 + s2)
+                !if (isnan(RHSx(m, n))) print *, rank, 'RHSx', m, n, RHSx(m, n), k2, k_bfc, s
             endif
 
             if (lcv(m,n)>0.5) then
-                ! Discretization in h-points
-                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
-                s = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
-                k1 = -dxb(m, n) * dyb(m, n) * k_bfc * s
-                !k1 = k1 * 0.5d0*(v(m, n) + v(m+1, n))
+                k_bfc = dxh(m,n)*dyt(m,n) * FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
 
                 ! Discretization in h-points
-                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m-1, n)**(1.0/3.0))
-                s = 0.5d0 * sqrt( (u(m-1, n) + u(m-1, n+1))**2 + (v(m, n) + v(m-1, n))**2 )
-                k2 = -dxb(m-1, n) * dyb(m-1, n) * k_bfc * s
-                !k2 = k2 * 0.5d0*(v(m, n) + v(m-1, n))
+                s1 = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
+
+                ! Discretization in h-points
+                s2 = 0.5d0 * sqrt( (u(m-1, n) + u(m-1, n+1))**2 + (v(m, n) + v(m-1, n))**2 )
 
                 ! Discretization in v-points
-                RHSy(m, n) = 0.5d0 * (k1 + k2)
+                RHSy(m, n) = 0.5d0 * k_bfc * (s1 + s2)
+                !if (isnan(RHSy(m, n))) print *, rank, 'RHSy:', m, n, RHSy(m, n), k2, k_bfc, s
             endif
         enddo
     enddo
