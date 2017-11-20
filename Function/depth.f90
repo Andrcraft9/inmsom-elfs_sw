@@ -71,6 +71,16 @@ subroutine hh_init(hq, hqp, hqn,    &
     end do
 !$omp end parallel do
 
+    call syncborder_extra_real8(hu, 1, bnd_length)
+    call syncborder_extra_real8(hup, 1, bnd_length)
+    call syncborder_extra_real8(hun, 1, bnd_length)
+    call syncborder_extra_real8(hv, 1, bnd_length)
+    call syncborder_extra_real8(hvp, 1, bnd_length)
+    call syncborder_extra_real8(hvn, 1, bnd_length)
+    call syncborder_extra_real8(hh, 1, bnd_length)
+    call syncborder_extra_real8(hhp, 1, bnd_length)
+    call syncborder_extra_real8(hhn, 1, bnd_length)
+
 endsubroutine hh_init
 
 !============================================================
@@ -123,9 +133,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r, bnd_step)
     end do
 !$omp end parallel do
 
-!      call syncborder_real8(hun, 1)
-!      call syncborder_real8(hvn, 1)
-!      call syncborder_real8(hhn, 1)
 !      if(periodicity_x/=0) then
 !        call cyclize8_x(hun, nx,ny,1,mmm,mm)
 !        call cyclize8_x(hvn, nx,ny,1,mmm,mm)
