@@ -16,6 +16,7 @@ subroutine hh_init(hq, hqp, hqn,    &
          sh(bnd_x1:bnd_x2, bnd_y1:bnd_y2), shp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), h_r(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
 
  real(8) slu
+ integer bnd_step
  integer m,n
 
        hq =h_r + sh *dfloat(full_free_surface)
@@ -23,9 +24,10 @@ subroutine hh_init(hq, hqp, hqn,    &
        hqn=h_r
 
 !$omp parallel do private(m,n,slu)
-      do n=ny_start-1,ny_end
-       do m=nx_start-1,nx_end
-
+      !do n=ny_start-1,ny_end
+      !do m=nx_start-1,nx_end
+      do n=bnd_y1+1, bnd_y2-2
+       do m=bnd_x1+1, bnd_x2-2
         if(llu(m,n)>0.5) then
 ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
           slu=dble(lu(m,n)+lu(m+1,n))
@@ -69,39 +71,6 @@ subroutine hh_init(hq, hqp, hqn,    &
     end do
 !$omp end parallel do
 
-      call syncborder_extra_real8(hu, 1, bnd_length)
-      call syncborder_extra_real8(hup, 1, bnd_length)
-      call syncborder_extra_real8(hun, 1, bnd_length)
-      call syncborder_extra_real8(hv, 1, bnd_length)
-      call syncborder_extra_real8(hvp, 1, bnd_length)
-      call syncborder_extra_real8(hvn, 1, bnd_length)
-      call syncborder_extra_real8(hh, 1, bnd_length)
-      call syncborder_extra_real8(hhp, 1, bnd_length)
-      call syncborder_extra_real8(hhn, 1, bnd_length)
-
-      if(periodicity_x/=0) then
-        call cyclize8_x(hu, nx,ny,1,mmm,mm)
-        call cyclize8_x(hup,nx,ny,1,mmm,mm)
-        call cyclize8_x(hun,nx,ny,1,mmm,mm)
-        call cyclize8_x(hv, nx,ny,1,mmm,mm)
-        call cyclize8_x(hvp,nx,ny,1,mmm,mm)
-        call cyclize8_x(hvn,nx,ny,1,mmm,mm)
-        call cyclize8_x(hh, nx,ny,1,mmm,mm)
-        call cyclize8_x(hhp,nx,ny,1,mmm,mm)
-        call cyclize8_x(hhn,nx,ny,1,mmm,mm)
-      end if
-
-      if(periodicity_y/=0) then
-        call cyclize8_y(hu, nx,ny,1,nnn,nn)
-        call cyclize8_y(hup,nx,ny,1,nnn,nn)
-        call cyclize8_y(hun,nx,ny,1,nnn,nn)
-        call cyclize8_y(hv, nx,ny,1,nnn,nn)
-        call cyclize8_y(hvp,nx,ny,1,nnn,nn)
-        call cyclize8_y(hvn,nx,ny,1,nnn,nn)
-        call cyclize8_y(hh, nx,ny,1,nnn,nn)
-        call cyclize8_y(hhp,nx,ny,1,nnn,nn)
-        call cyclize8_y(hhn,nx,ny,1,nnn,nn)
-      end if
 endsubroutine hh_init
 
 !============================================================

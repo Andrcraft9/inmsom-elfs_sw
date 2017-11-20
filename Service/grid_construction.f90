@@ -30,8 +30,8 @@ endif
 call mpi_bcast(lbasins, nx*ny, mpi_integer, 0, cart_comm, ierr)
 
 ! conversion integer diogin mask to real model mask
-do n=bnd_y1,bnd_y2
-   do m=bnd_x1,bnd_x2
+do n=bnd_y1, bnd_y2
+   do m=bnd_x1, bnd_x2
     if(lbasins(m,n)==0) then
      lu(m,n)=1.0
     endif
@@ -40,7 +40,6 @@ end do
 
 lu1=1.0
 
-call syncborder_extra_real(lu, 1, bnd_length)
 
 if(periodicity_x/=0) then
   call cyclize_x(lu,nx,ny,1,mmm,mm)
@@ -52,30 +51,32 @@ endif
 
 !  forming mask for depth grid points
 !  forming luh from lu, which have land neibours in luh.
-! constructing array luh for relief hh.
+!  constructing array luh for relief hh.
 
 if (rank .eq. 0) then
    write(*,*) 'Construction of H-grid masks: '
    write(*,*) 'LUH (includes boundary) and LUU (does not include boundary)'
 endif
-do n=ny_start-1,ny_end
-   do m=nx_start-1,nx_end
+
+!do n=ny_start-1,ny_end
+!do m=nx_start-1,nx_end
+do n=bnd_y1, bnd_y2-1
+  do m=bnd_x1, bnd_x2-1
      if(lu(m,n)+lu(m+1,n)+lu(m,n+1)+lu(m+1,n+1)>0.5)  then
       luh(m,n)=1.0
      endif
    enddo
 enddo
 
-do n=ny_start-1,ny_end
-   do m=nx_start-1,nx_end
+!do n=ny_start-1,ny_end
+!do m=nx_start-1,nx_end
+do n=bnd_y1, bnd_y2-1
+  do m=bnd_x1, bnd_x2-1
      if(lu(m,n)*lu(m+1,n)*lu(m,n+1)*lu(m+1,n+1)>0.5)  then
       luu(m,n)=1.0
      endif
    enddo
 enddo
-
-call syncborder_extra_real(luh, 1, bnd_length)
-call syncborder_extra_real(luu, 1, bnd_length)
 
 if(periodicity_x/=0) then
   call cyclize_x(luh,nx,ny,1,mmm,mm)
@@ -91,9 +92,11 @@ if (rank .eq. 0) then
     write(*,*) 'Construction of U- and V-grid masks: '
     write(*,*) 'LCU and LCV (do not include boundary) and LLU and LLV (include boundary)'
 endif
-do n=ny_start-1,ny_end
-   do m=nx_start-1,nx_end
 
+!do n=ny_start-1,ny_end
+!do m=nx_start-1,nx_end
+do n=bnd_y1, bnd_y2-1
+ do m=bnd_x1, bnd_x2-1
     if(lu(m,n)+lu(m+1,n)>0.5)  then
      llu(m,n)=1.0
     endif
@@ -112,11 +115,6 @@ do n=ny_start-1,ny_end
 
    enddo
 enddo
-
-call syncborder_extra_real(llu, 1, bnd_length)
-call syncborder_extra_real(llv, 1, bnd_length)
-call syncborder_extra_real(lcu, 1, bnd_length)
-call syncborder_extra_real(lcv, 1, bnd_length)
 
 if (periodicity_x/=0) then
  if (rank .eq. 0) write(*,*)'  set periodicity to u-grid mask(lcu,llu).'

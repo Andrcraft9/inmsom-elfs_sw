@@ -20,12 +20,78 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
     integer :: m, n
     integer :: bnd_step
 
+    real*8 :: k_bfc, s
+    real*8 :: k1, k2
+
+    !$omp parallel do private(m, n, k_bfc, s, k1, k2)
+    do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
+        do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
+            if (lcu(m,n)>0.5) then
+                ! Discretization in h-points
+                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
+                s = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
+                k1 = -dxb(m, n) * dyb(m, n) * k_bfc * s
+                !k1 = k1 * 0.5d0*(u(m, n) + u(m, n+1))
+
+                ! Discretization in h-points
+                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n-1)**(1.0/3.0))
+                s = 0.5d0 * sqrt( (u(m, n) + u(m, n-1))**2 + (v(m, n-1) + v(m+1, n-1))**2 )
+                k2 = -dxb(m, n-1) * dyb(m, n-1) * k_bfc * s
+                !k2 = k2 * 0.5d0*(u(m, n) + u(m, n-1))
+
+                ! Discretization in u-points
+                RHSx(m, n) = 0.5d0 * (k1 + k2)
+            endif
+
+            if (lcv(m,n)>0.5) then
+                ! Discretization in h-points
+                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m, n)**(1.0/3.0))
+                s = 0.5d0 * sqrt( (u(m, n) + u(m, n+1))**2 + (v(m, n) + v(m+1, n))**2 )
+                k1 = -dxb(m, n) * dyb(m, n) * k_bfc * s
+                !k1 = k1 * 0.5d0*(v(m, n) + v(m+1, n))
+
+                ! Discretization in h-points
+                k_bfc = FreeFallAcc * (nbfc**2) / (hh(m-1, n)**(1.0/3.0))
+                s = 0.5d0 * sqrt( (u(m-1, n) + u(m-1, n+1))**2 + (v(m, n) + v(m-1, n))**2 )
+                k2 = -dxb(m-1, n) * dyb(m-1, n) * k_bfc * s
+                !k2 = k2 * 0.5d0*(v(m, n) + v(m-1, n))
+
+                ! Discretization in v-points
+                RHSy(m, n) = 0.5d0 * (k1 + k2)
+            endif
+        enddo
+    enddo
+    !$omp end parallel do
+
+end subroutine uv_bfc
+
+!===============================================================================
+! RHS for implicit bfc scheme
+subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
+    use main_basin_pars
+    use mpi_parallel_tools
+    use basin_grid
+    implicit none
+
+    real(8) u(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       & !Transporting zonal velocity
+            v(bnd_x1:bnd_x2,bnd_y1:bnd_y2)          !Transporting meridional velocity
+
+    real(8) RHSx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+            RHSy(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+    real(8) hq(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+            hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+            hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+            hh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+    integer :: m, n
+    integer :: bnd_step
+
     real*8 :: k_bfc, s1, s2
 
     !$omp parallel do private(m, n, k_bfc, s1, s2)
     do n = max(bnd_y1, ny_start - bnd_step), min(bnd_y2, ny_end + bnd_step)
         do m = max(bnd_x1, nx_start - bnd_step), min(bnd_x2, nx_end + bnd_step)
-
             if (lcu(m,n)>0.5) then
                 k_bfc = dxt(m,n)*dyh(m,n) * FreeFallAcc * (nbfc**2) / (hu(m, n)**(1.0/3.0))
 
@@ -57,7 +123,7 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
     enddo
     !$omp end parallel do
 
-end subroutine uv_bfc
+end subroutine uv_bfc_v2
 
 !===========================================================================================
 subroutine uv_trans( u, v, vort,    &
