@@ -23,8 +23,10 @@ subroutine hh_init(hq, hqp, hqn,    &
        hqn=h_r
 
 !$omp parallel do private(m,n,slu)
-      do n=ny_start-1,ny_end
-       do m=nx_start-1,nx_end
+      !do n=ny_start-1,ny_end
+      !do m=nx_start-1,nx_end
+      do n=ny_start-2, ny_end+1
+       do m=nx_start-2, nx_end+1
 
         if(llu(m,n)>0.5) then
 ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
@@ -69,16 +71,6 @@ subroutine hh_init(hq, hqp, hqn,    &
     end do
 !$omp end parallel do
 
-      call syncborder_real8(hu, 1)
-      call syncborder_real8(hup, 1)
-      call syncborder_real8(hun, 1)
-      call syncborder_real8(hv, 1)
-      call syncborder_real8(hvp, 1)
-      call syncborder_real8(hvn, 1)
-      call syncborder_real8(hh, 1)
-      call syncborder_real8(hhp, 1)
-      call syncborder_real8(hhn, 1)
-
       if(periodicity_x/=0) then
         call cyclize8_x(hu, nx,ny,1,mmm,mm)
         call cyclize8_x(hup,nx,ny,1,mmm,mm)
@@ -121,8 +113,10 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
       hqn =h_r + sh
 
 !$omp parallel do private(m,n,slu)
-      do n=ny_start-1,ny_end
-       do m=nx_start-1,nx_end
+      !do n=ny_start-1,ny_end
+      !do m=nx_start-1,nx_end
+      do n=ny_start-2, ny_end+1
+       do m=nx_start-2, nx_end+1
 
         if(llu(m,n)>0.5) then
 ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
@@ -150,10 +144,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
        end do
     end do
 !$omp end parallel do
-
-      call syncborder_real8(hun, 1)
-      call syncborder_real8(hvn, 1)
-      call syncborder_real8(hhn, 1)
 
       if(periodicity_x/=0) then
         call cyclize8_x(hun, nx,ny,1,mmm,mm)
