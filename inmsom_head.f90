@@ -165,7 +165,7 @@ call zero_sw_init
 
 ! Check scheme for shallow water equtions
 if (rank .eq. 0) print *, '=================================================================='
-if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, HCNC ------------------'
+if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, LCHC ------------------'
 if (rank .eq. 0) print *, '=================================================================='
 
 if (atm_forcing_on == 1) then
