@@ -25,14 +25,20 @@ subroutine shallow_water_model_step(tau)
         if(ksw_ssbc > 0) then
             call sea_surface_fluxes
             !call sea_surface_fluxes_simple
+
+            call syncborder_extra_real8(surf_stress_x, 1, bnd_length)
+            call syncborder_extra_real8(surf_stress_y, 1, bnd_length)
         endif
         !Computing bottom stresses
         !if(type_fric>0) then
         !    call sea_bottom_fluxes
         !endif
 
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
+        ! Need correct slpr arrays!...
+        ! TO DO: forc_atm.f90 -> to LCHC mode!...
+        ! ...
+        do n=bnd_y1+2, bnd_y2-2
+            do m=bnd_x1+2, bnd_x2-2
                 if(lu(m,n)>0.5) then
                     !RHSx2d(m, n) = ( surf_stress_x(m,n)+bot_stress_x(m,n) )*dxt(m,n)*dyh(m,n)    &
                     RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n)    &
@@ -46,8 +52,8 @@ subroutine shallow_water_model_step(tau)
         enddo
     else
         wf_tot = 0.0d0
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
+        do n=bnd_y1+2, bnd_y2-2
+            do m=bnd_x1+2, bnd_x2-2
                 if(lu(m,n)>0.5) then
                     RHSx2d(m, n) = -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
                     RHSy2d(m, n) = -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
@@ -98,7 +104,11 @@ subroutine shallow_water_model_step(tau)
                   continue
               else
                   write(*,*) rank, 'ERROR!!! In the point m=', m, 'n=', n, 'ssh=', ssh(m,n),   &
-                    'step: ', num_step, 'lon: ', geo_lon_t(m, n), 'lat: ', geo_lat_t(m, n)
+                    'step: ', num_step, 'lon: ', geo_lon_t(m, n), 'lat: ', geo_lat_t(m, n),    &
+                    'BFCx: ', RHSx2d_bfc(m, n), 'BFCy: ', RHSy2d_bfc(m, n),      &
+                    'hhh: ', hhh(m, n), hhh(m-1, n), hhh(m, n-1),                &
+                    'dxb: ', dxb(m, n), dxb(m-1, n), dxb(m, n-1),                &
+                    'dyb: ', dyb(m, n), dyb(m-1, n), dyb(m, n-1)
 
                   call mpi_finalize(ierr)
                   call exit(0)
