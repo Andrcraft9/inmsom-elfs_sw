@@ -177,6 +177,7 @@ endif
 !call parallel_check_point(38.990d0, 47.270d0) !Taganrog
 !call parallel_check_point(38.590d0, 46.700d0) !Eesk
 
+!call print_basin_grid()
 !call  parallel_local_output(path2ocp,  &
 !                          1,  &
 !                   year_loc,  &
