@@ -164,9 +164,11 @@ if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----
 call zero_sw_init
 
 ! Check scheme for shallow water equtions
-if (rank .eq. 0) print *, '=================================================================='
-if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, LCHC ------------------'
-if (rank .eq. 0) print *, '=================================================================='
+if (rank .eq. 0) then
+    print *, '=================================================================='
+    print *, '------------ Eplicit shallow water scheme, LCHC ------------------'
+    print *, '=================================================================='
+endif
 
 if (atm_forcing_on == 1) then
   !constructing matrix for spatial interpolation

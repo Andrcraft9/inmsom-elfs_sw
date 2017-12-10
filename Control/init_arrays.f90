@@ -88,6 +88,8 @@ subroutine mpi_array_boundary_definition
     if (num_thread .eq. 0) print *, "OMP Threads: ", count_threads
     !$omp end parallel
 
+    call mpi_barrier(cart_comm, ierr)
+
 endsubroutine mpi_array_boundary_definition
 !-------------------------------------------------------------------------------
 
