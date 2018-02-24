@@ -44,6 +44,7 @@ filepar='ocean_run.par'
 if (rank .eq. 0) then
     call readpar(filepar,comments,nofcom)
 endif
+
 call mpi_bcast(comments, 256*256, mpi_character, 0, cart_comm, ierr)
 
 read(comments( 1),*) start_type          !Type of starting run (0 - from TS only, 1 - frim the full checkpoint)
@@ -159,9 +160,9 @@ call ocean_model_parameters(time_step)
 if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
 
 ! Initializing SW init conditions
-!call sw_only_inicond(0, path2ocp)
+call sw_only_inicond(1, path2ocp)
 !call sw_test2
-call zero_sw_init
+!call zero_sw_init
 
 ! Check scheme for shallow water equtions
 if (rank .eq. 0) print *, '=================================================================='

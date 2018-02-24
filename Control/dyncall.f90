@@ -15,8 +15,9 @@ subroutine shallow_water_model_step(tau)
     real(8) tau, diffslpr
     real*8 :: time_count
 
-    diffslpr = 1.0d0
-    !diffslpr = 0.0d0
+    diffslpr = 0.0d0
+    surf_stress_x = 0.0d0
+    surf_stress_y = 0.0d0
 
 !---------------------- Shallow water equ solver -------------------------------
     !call start_timer(time_count)
@@ -49,8 +50,8 @@ subroutine shallow_water_model_step(tau)
         do n=ny_start,ny_end
             do m=nx_start,nx_end
                 if(lu(m,n)>0.5) then
-                    RHSx2d(m, n) = -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
-                    RHSy2d(m, n) = -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
+                    RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n) -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
+                    RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n) -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
                 endif
             enddo
         enddo
