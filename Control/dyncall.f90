@@ -15,8 +15,9 @@ subroutine shallow_water_model_step(tau)
     real(8) tau, diffslpr
     real*8 :: time_count
 
-    diffslpr = 1.0d0
-    !diffslpr = 0.0d0
+    diffslpr = 0.0d0
+    surf_stress_x = 0.0d0
+    surf_stress_y = 0.0d0
 
 !---------------------- Shallow water equ solver -------------------------------
     !call start_timer(time_count)

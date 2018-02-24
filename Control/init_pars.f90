@@ -145,18 +145,23 @@ real(8) :: hx2, hy2
    call basinpar
    if (rank .eq. 0) print *, "--------------------END OF BASINPAR----------------------"
 
-   hhq_rest = 3000.0d0
-   if (rank .eq. 0) print *, "!!! HHQ_REST = 3000 m, topo file was ingored !!!"
-!   array4=0.0
-!   call prdstd(' ',bottom_topography_file,1,array4,lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
-!   hhq_rest=dble(array4)
-!   call syncborder_extra_real8(hhq_rest, 1, bnd_length)
-!   if(periodicity_x/=0) then
-!       call cyclize8_x(hhq_rest,nx,ny,1,mmm,mm)
-!   end if
-!   if(periodicity_y/=0) then
-!       call cyclize8_y(hhq_rest,nx,ny,1,nnn,nn)
-!   end if
+   if (bottom_topography_file .eq. 'none') then
+       if (rank .eq. 0) print *, 'NONE topography !'
+       hhq_rest = 3000.0d0
+       if (rank .eq. 0) print *, "!!! HHQ_REST = 3000 m, topo file was ingored !!!"
+   else
+       array4=0.0
+       call prdstd(' ',bottom_topography_file,1,array4,lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
+       hhq_rest=dble(array4)
+   endif
+
+   call syncborder_extra_real8(hhq_rest, 1, bnd_length)
+   if(periodicity_x/=0) then
+       call cyclize8_x(hhq_rest,nx,ny,1,mmm,mm)
+   end if
+   if(periodicity_y/=0) then
+       call cyclize8_y(hhq_rest,nx,ny,1,nnn,nn)
+   end if
 
 !--------------Rayleigh friction initialization
 !$omp parallel do private(m, n, hx2, hy2)
