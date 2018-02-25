@@ -108,16 +108,16 @@ module shallow_water
             endif
 
             !computing advective and lateral-viscous terms for 2d-velocity
-            call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1, bnd_step)
+            !call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1, bnd_step)
 
             !computing advective and lateral-viscous terms for 2d-velocity
-            call uv_trans(ubrtr, vbrtr, vort,     &
-                          hhq, hhu, hhv, hhh,     &
-                          RHSx_adv, RHSy_adv, 1, bnd_step)
+            !call uv_trans(ubrtr, vbrtr, vort,     &
+            !              hhq, hhu, hhv, hhh,     &
+            !              RHSx_adv, RHSy_adv, 1, bnd_step)
 
-            call uv_diff2( mu, str_t2d, str_s2d,  &
-                           hhq, hhu, hhv, hhh,     &
-                           RHSx_dif, RHSy_dif, 1, bnd_step - 1)
+            !call uv_diff2( mu, str_t2d, str_s2d,  &
+            !               hhq, hhu, hhv, hhh,     &
+            !               RHSx_dif, RHSy_dif, 1, bnd_step - 1)
 
             ! Need rewrite uv_diff4 ...
             ! if(ksw4>0) then
@@ -127,7 +127,7 @@ module shallow_water
             ! endif
 
             ! compute BottomFriction (bfc)
-            call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc, bnd_step)
+            !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc, bnd_step)
 
             !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
             do n = max(bnd_y1, ny_start - (bnd_step-1)), min(bnd_y2, ny_end + (bnd_step-1))
