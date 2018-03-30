@@ -1,3 +1,51 @@
+subroutine test_blocks
+    use mpi_parallel_tools
+    implicit none
+
+    integer :: k, m, n, ierr
+    type(block2D), dimension(:), pointer :: ssh
+    real*8, allocatable :: array_2d(:,:)
+    character(len=1024) :: filename
+
+    call allocate_block2D(ssh, 0.0d0)
+    do k = 1, bcount
+
+        do m = bbnd_x1(k), bbnd_x2(k)
+            do n = bbnd_y1(k), bbnd_y2(k)
+                ssh(k)%vals(m, n) = bindx(k, 1)
+            enddo
+        enddo
+
+        do m = bnx_start(k), bnx_end(k)
+            do n = bny_start(k), bny_end(k)
+                ssh(k)%vals(m, n) = lbasins(m, n)
+            enddo
+        enddo
+    enddo
+
+    call syncborder_block2D(ssh)
+
+    !do k = 1, bcount
+    !    print *, rank, 'ssh:', ssh(k)%vals
+    !enddo
+
+    do k = 1, bcount
+        write(filename, "(A5, I1, A1, I2, A8)") 'data/', rank, '_', k, '_ssh.txt'
+        open(12, file=trim(filename), status='replace')
+        !do n = bny_end(k), bny_start(k), -1
+        !    do m = bnx_start(k), bnx_end(k)
+        do n = bbnd_y2(k), bbnd_y1(k), -1
+            do m = bbnd_x1(k), bbnd_x2(k)
+                write(12, '(I1)', advance='no') int(ssh(k)%vals(m, n))
+            enddo
+            write(12, *) ''
+        enddo
+        close(12)
+    enddo
+
+    call deallocate_blocks2D(ssh)
+end subroutine
+
 subroutine print_basin_grid
     use main_basin_pars
     use mpi_parallel_tools

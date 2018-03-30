@@ -11,7 +11,15 @@ integer m, ierr
 real*8 t_global, t_local
 
 !call non_mpi_array_boundary_definition
-call mpi_array_boundary_definition
+!call mpi_array_boundary_definition
+
+call parallel_init
+call parallel_read_mask('mask4km.txt')
+call parallel_uniform_distribution
+call test_blocks
+
+call parallel_finalize
+stop
 
 m_sec_of_min   = 0     !second counter in minute
 m_min_of_hour  = 0     !minute counter in hour

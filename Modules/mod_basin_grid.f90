@@ -12,8 +12,6 @@ real(4), allocatable:: lu(:,:),        &  !mask of t-grid
                        llu(:,:),       &  !mask of u-grid (1 on boundary)
                        llv(:,:)           !mask of v-grid (1 on boundary)
 
-integer, allocatable:: lbasins(:,:)       !integer mask
-
 real(8), allocatable:: hhh(:,:),      &  !ocean depth on luh (h-points)
                        hhhp(:,:),     &  !ocean depth on luh (h-points) at previous step
                        hhhn(:,:),     &  !ocean depth on luh (h-points) at pre-previous step

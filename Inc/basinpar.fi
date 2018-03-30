@@ -74,8 +74,7 @@ real(8), parameter:: r_fric = 0.0d0
 integer, parameter :: atm_forcing_on = 0 ! 0 - turn off forcing
                                          ! 1 - turn on forcing
 
-real(8), parameter:: nbfc = 0.025 !Bottom Friction Coeff
-
+real(8), parameter :: nbfc = 0.025 !Bottom Friction Coeff
 !--------------------------------------------------------------------------------
 
 real(8), parameter:: Pi = 3.141592653589793d0,   & !Pi-constant

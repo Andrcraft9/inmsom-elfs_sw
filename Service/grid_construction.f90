@@ -23,7 +23,7 @@ if (rank .eq. 0) then
      read (11,  '(a)') comment(1:min(80,nx))
      if (rank .eq. 0) write(*,'(1x,a)') comment
      do n=ny,1,-1
-      read(11,frmt,end=99) (lbasins(m,n),m=1,nx)
+         read(11,frmt,end=99) (lbasins(m,n),m=1,nx)
      enddo
     close(11)
 endif

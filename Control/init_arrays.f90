@@ -24,22 +24,22 @@ subroutine mpi_array_boundary_definition
     use mpi_parallel_tools
     implicit none
 
-    include "omp_lib.h"
-
     integer :: ierr, procn, i
     integer :: locn
     integer :: count_threads, num_thread
 
     call mpi_init(ierr)
 
-    period = (/1,1/)
+    !p_period = (/1,1/)
+    p_period = (/.true., .true./)
     p_size = (/0,0/)
     ierr = 0
 
     call mpi_comm_rank(mpi_comm_world, rank, ierr)
     call mpi_comm_size(mpi_comm_world, procs, ierr)
     call mpi_dims_create(procs, 2, p_size, ierr)
-    call mpi_cart_create(mpi_comm_world, 2, p_size, period, 0, cart_comm, ierr)
+    !call mpi_cart_create(mpi_comm_world, 2, p_size, p_period, 0, cart_comm, ierr)
+    call mpi_cart_create(mpi_comm_world, 2, p_size, p_period, .false., cart_comm, ierr)
     call mpi_cart_coords(cart_comm, rank, 2, p_coord, ierr)
 
 !-----------------------------------NX------------------------------------------!
@@ -106,7 +106,7 @@ subroutine model_grid_allocate
             lcv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of v-grid (0 on boundary)
             llu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of u-grid (0 on boundary)
            llv(bnd_x1:bnd_x2,bnd_y1:bnd_y2) )                !mask of v-grid (0 on boundary)
-    allocate   (lbasins(nx,ny))       !integer masks of regional basins
+
     allocate   (  hhh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &  !ocean depth on luh (h-points)
                  hhhp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &  !ocean depth on luh (h-points) at previous step
                  hhhn(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &  !ocean depth on luh (h-points) at pre-previous step
@@ -141,7 +141,7 @@ subroutine model_grid_allocate
              geo_lat_h(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &    !geographical latitudes  of H-points
           rotvec_coeff(bnd_x1:bnd_x2,bnd_y1:bnd_y2, 4) )
 
-    lu=0.0; lu1=0.0; luu=0.0; luh=0.0; lcu=0.0; lcv=0.0; llu=0.0; llv=0.0; lbasins=0
+    lu=0.0; lu1=0.0; luu=0.0; luh=0.0; lcu=0.0; lcv=0.0; llu=0.0; llv=0.0
     hhh=0.0d0; hhhp=0.0d0; hhhn=0.0d0;
     hhq_rest=0.0d0
 
@@ -171,7 +171,6 @@ subroutine model_grid_deallocate
     deallocate(hhvn,hhvp,hhv,hhun,hhup,hhu,hhqn,hhqp,hhq,hhhn,hhhp,hhh)
     deallocate(hhq_rest)
 
-    deallocate(lbasins)
     deallocate(llv,llu,lcv,lcu,luh,luu,lu1,lu)
 
 endsubroutine model_grid_deallocate
