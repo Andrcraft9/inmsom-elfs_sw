@@ -137,10 +137,6 @@ real(8) :: hx2, hy2
    call gridcon(t_mask_file)
    if (rank .eq. 0) print *, "--------------------END OF GRIDCON----------------------"
 
-!  setting vertical t-,w- grid levels
-   call vgrid
-   if (rank .eq. 0) print *, "--------------------END OF VGRID----------------------"
-
 ! define grid geographical coordinates, steps and coriolis parameters
    call basinpar
    if (rank .eq. 0) print *, "--------------------END OF BASINPAR----------------------"
@@ -156,12 +152,6 @@ real(8) :: hx2, hy2
    endif
 
    call syncborder_real8(hhq_rest, 1)
-   if(periodicity_x/=0) then
-       call cyclize8_x(hhq_rest,nx,ny,1,mmm,mm)
-   end if
-   if(periodicity_y/=0) then
-       call cyclize8_y(hhq_rest,nx,ny,1,nnn,nn)
-   end if
 
 !--------------Rayleigh friction initialization
 !$omp parallel do private(m, n, hx2, hy2)
@@ -180,12 +170,6 @@ real(8) :: hx2, hy2
 !$omp end parallel do
 
    call syncborder_real8(r_diss, 1)
-   if(periodicity_x/=0) then
-       call cyclize8_x(r_diss, nx, ny, 1, mmm, mm)
-   end if
-   if(periodicity_y/=0) then
-       call cyclize8_y(r_diss, nx, ny, 1, nnn, nn)
-   end if
 
 endsubroutine ocean_model_parameters
 
@@ -212,6 +196,7 @@ subroutine zero_sw_init
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
+    use depth
     implicit none
 
     ubrtr = 0.0
@@ -230,86 +215,12 @@ subroutine zero_sw_init
 
 end subroutine
 
-subroutine sw_test2
-    use main_basin_pars
-    use mpi_parallel_tools
-    use basin_grid
-    use ocean_variables
-
-    implicit none
-    integer :: m, n, k, ierr
-    real*8 :: hx2, hy2
-    real*8 :: u0
-    real   :: a
-    real*8 :: d2r
-
-    d2r= Pi / 180.0d0
-
-    a = 0.0d0
-    u0 = 2d0*Pi*RadEarth / (12.0d0*24*60*60)
-
-    ssh = 0.0d0
-    ubrtr = 0.0d0
-    vbrtr = 0.0d0
-
-    sshp = 0.0d0
-    ubrtrp = 0.0d0
-    vbrtrp = 0.0d0
-
-!---------------------Test 2: --------------------------------------------------!
-    do n=ny_start, ny_end
-      do m=nx_start, nx_end
-          if (lcu(m, n) > 0.5) then
-              ubrtr(m,n) = u0 * (dcos(d2r*geo_lat_u(m, n))*dcos(d2r*a)            &
-                  - dcos(d2r*geo_lon_u(m,n))*dsin(d2r*geo_lat_u(m,n))*dsin(d2r*a))
-          endif
-
-          if (lcv(m, n) > 0.5) then
-              vbrtr(m,n) = u0 * dsin(d2r*geo_lon_v(m, n))*dsin(d2r*a)
-          endif
-
-          if (lu(m ,n) > 0.5) then
-              ssh(m,n) = -(1.0d0 / FreeFallAcc)                                 &
-                * (RadEarth*EarthAngVel*u0 + 0.5d0*u0*u0)                         &
-                  * (( dcos(d2r*geo_lon_t(m,n))*dcos(d2r*geo_lat_t(m,n))*dsin(d2r*a) &
-                      + dsin(d2r*geo_lat_t(m,n))*dcos(d2r*a) )**2)
-          endif
-      enddo
-    enddo
-
-    call syncborder_real8(ubrtr, 1)
-    call syncborder_real8(vbrtr, 1)
-    call syncborder_real8(ssh, 1)
-    if(periodicity_x/=0) then
-        call cyclize8_x(ssh, nx, ny, 1, mmm, mm)
-        call cyclize8_x(ubrtr, nx, ny, 1, mmm, mm)
-        call cyclize8_x(vbrtr, nx, ny, 1, mmm, mm)
-    end if
-    if(periodicity_y/=0) then
-        call cyclize8_y(ssh, nx, ny, 1, nnn, nn)
-        call cyclize8_y(ubrtr, nx, ny, 1, nnn, nn)
-        call cyclize8_y(vbrtr, nx, ny, 1, nnn, nn)
-    end if
-
-    ubrtrp = ubrtr
-    vbrtrp = vbrtr
-    sshp = ssh
-
-!initialize depth for internal mode
-    call hh_init(hhq, hhqp, hhqn,    &
-                 hhu, hhup, hhun,    &
-                 hhv, hhvp, hhvn,    &
-                 hhh, hhhp, hhhn,    &
-                 ssh, sshp, hhq_rest)
-
-endsubroutine sw_test2
-
 subroutine sw_only_inicond(flag_init, path2ocp)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
-
+    use depth
     implicit none
     integer :: flag_init
     character*(*) path2ocp
@@ -332,12 +243,6 @@ subroutine sw_only_inicond(flag_init, path2ocp)
     endif
 
     call syncborder_real8(ssh, 1)
-    if(periodicity_x/=0) then
-        call cyclize8_x(ssh, nx, ny, 1, mmm, mm)
-    end if
-    if(periodicity_y/=0) then
-        call cyclize8_y(ssh, nx, ny, 1, nnn, nn)
-    end if
 
     ubrtrp = ubrtr
     vbrtrp = vbrtr

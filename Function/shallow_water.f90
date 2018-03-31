@@ -3,6 +3,9 @@ module shallow_water
     use mpi_parallel_tools
     use basin_grid
 
+    use vel_ssh
+    use depth
+
     implicit none
 
     contains
@@ -28,8 +31,6 @@ module shallow_water
                                      vort,  &
                                   str_t2d,  &
                                   str_s2d,  &
-                                       fx,  &
-                                       fy,  &
                                      rdis,  &
                                  RHSx_adv,  &
                                  RHSy_adv,  &
@@ -60,8 +61,6 @@ module shallow_water
                     vort(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                  str_t2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                  str_s2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                      fx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                      fy(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                     rdis(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 RHSx_adv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 RHSy_adv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
@@ -91,12 +90,6 @@ module shallow_water
         !$omp end parallel do
 
         call syncborder_real8(sshn, 1)
-        if(periodicity_x/=0) then
-            call cyclize8_x(sshn,nx,ny,1,mmm,mm)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize8_y(sshn,nx,ny,1,nnn,nn)
-        endif
 
         if(full_free_surface>0) then
             call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest)
@@ -113,12 +106,6 @@ module shallow_water
         !call uv_diff2( mu, str_t2d, str_s2d,  &
         !               hhq, hhu, hhv, hhh,     &
         !               RHSx_dif, RHSy_dif, 1  )
-
-        ! if(ksw4>0) then
-        !   call uv_diff4( mu4, str_t2d, str_s2d,  &
-        !                  fx, fy, hhq, hhu, hhv, hhh,    &
-        !                  RHSx_dif, RHSy_dif, 1 )
-        ! endif
 
         ! compute BottomFriction (bfc)
         !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
@@ -161,14 +148,6 @@ module shallow_water
 
         call syncborder_real8(ubrtrn, 1)
         call syncborder_real8(vbrtrn, 1)
-        if(periodicity_x/=0) then
-            call cyclize8_x(ubrtrn,nx,ny,1,mmm,mm)
-            call cyclize8_x(vbrtrn,nx,ny,1,mmm,mm)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize8_y(ubrtrn,nx,ny,1,nnn,nn)
-            call cyclize8_y(vbrtrn,nx,ny,1,nnn,nn)
-        endif
 
         !shifting time indices
         !$omp parallel do private(m, n)
@@ -200,17 +179,6 @@ module shallow_water
                           hhv, hhvp, hhvn,   &
                           hhh, hhhp, hhhn)
         endif
-
-        !call syncborder_real8(ubrtr_i, 1)
-        !call syncborder_real8(vbrtr_i, 1)
-        !if(periodicity_x/=0) then
-        !    call cyclize8_x(ubrtr_i,nx,ny,1,mmm,mm)
-        !    call cyclize8_x(vbrtr_i,nx,ny,1,mmm,mm)
-        !endif
-        !if(periodicity_y/=0) then
-        !    call cyclize8_y(ubrtr_i,nx,ny,1,nnn,nn)
-        !    call cyclize8_y(vbrtr_i,nx,ny,1,nnn,nn)
-        !endif
 
         if(full_free_surface>0) then
             !initialize depth for external mode

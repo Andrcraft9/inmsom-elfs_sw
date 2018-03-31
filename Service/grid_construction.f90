@@ -40,14 +40,6 @@ end do
 
 lu1=1.0
 
-if(periodicity_x/=0) then
-  call cyclize_x(lu,nx,ny,1,mmm,mm)
-endif
-
-if(periodicity_y/=0) then
-  call cyclize_y(lu,nx,ny,1,nnn,nn)
-endif
-
 !  forming mask for depth grid points
 !  forming luh from lu, which have land neibours in luh.
 !  constructing array luh for relief hh.
@@ -77,16 +69,6 @@ do n=bnd_y1, bnd_y2-1
    enddo
 enddo
 
-if(periodicity_x/=0) then
-  call cyclize_x(luh,nx,ny,1,mmm,mm)
-  call cyclize_x(luu,nx,ny,1,mmm,mm)
-endif
-
-if(periodicity_y/=0) then
-  call cyclize_y(luh,nx,ny,1,nnn,nn)
-  call cyclize_y(luu,nx,ny,1,nnn,nn)
-endif
-
 if (rank .eq. 0) then
     write(*,*) 'Construction of U- and V-grid masks: '
     write(*,*) 'LCU and LCV (do not include boundary) and LLU and LLV (include boundary)'
@@ -114,22 +96,6 @@ do n=bnd_y1, bnd_y2-1
 
    enddo
 enddo
-
-if (periodicity_x/=0) then
- if (rank .eq. 0) write(*,*)'  set periodicity to u-grid mask(lcu,llu).'
- call cyclize_x(lcu,nx,ny,1,mmm,mm)
- call cyclize_x(llu,nx,ny,1,mmm,mm)
- if (rank .eq. 0) write(*,*)'  set periodicity to v-grid mask(lcv,llv).'
- call cyclize_x(lcv,nx,ny,1,mmm,mm)
- call cyclize_x(llv,nx,ny,1,mmm,mm)
-endif
-
-if (periodicity_y/=0) then
- call cyclize_y(lcu,nx,ny,1,nnn,nn)
- call cyclize_y(llu,nx,ny,1,nnn,nn)
- call cyclize_y(lcv,nx,ny,1,nnn,nn)
- call cyclize_y(llv,nx,ny,1,nnn,nn)
-endif
 
 return
 99    write(*,*)'  error in reading file ',ftemask(1:len_trim(ftemask))

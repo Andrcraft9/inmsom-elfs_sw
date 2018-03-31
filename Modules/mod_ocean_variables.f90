@@ -42,8 +42,6 @@ use key_switches
 implicit none
 !barotropic dynamics arrays
 real(8),allocatable::   ssh(:,:),     &  !sea surface height (SSH) at current  time step [m] (internal mode)
-                       pgrx(:,:),     &  !pressure gradient x-component for RHS
-                       pgry(:,:),     &  !pressure gradient y-component for RHS
                       ubrtr(:,:),     &  !barotropic velocity      zonal[m/s] at current time step (internal mode)
                       vbrtr(:,:),     &  !barotropic velocity meridional[m/s] at current time step (internal mode)
                      RHSx2d(:,:),     &  !x-component of external force(barotropic)
@@ -56,42 +54,8 @@ real(8), allocatable::  sshn(:,:),   &
                       vbrtrn(:,:),   &
                       vbrtrp(:,:)       !barotropic velocity meridional[m/s] at previous time step (external mode)
 
-!3d dynamics arrays
-real(8),allocatable:: xxt(:,:,:),   &  !auxiliary array 1
-                      yyt(:,:,:)       !auxiliary array 2
-
 ! sea surface boundary condition
-real(8), allocatable:: tflux_surf(:,:),      &       !total surface heat flux [�C*m/s]
-                       tflux_bot(:,:),       &       !total bottom heat flux [�C*m/s]
-                       sflux_surf(:,:),      &       !total surface salt flux [psu*m/s]
-                       sflux_bot(:,:),       &       !total bottom salt flux [psu*m/s]
-                   surf_stress_x(:,:),       &       !wind      zonal stress per water density [m^2/s^2]
-                   surf_stress_y(:,:),       &       !wind meridional stress per water density [m^2/s^2]
-                    bot_stress_x(:,:),       &       !bottom    zonal stress per water density [m^2/s^2]
-                    bot_stress_y(:,:),       &       !bottom meridional stress per water density [m^2/s^2]
-                      divswrad(:,:,:),       &       !shortwave radiation divergence coefficients
-                            dkft(:,:),       &       !relaxation coefficient for SST, [m/s]
-                            dkfs(:,:),       &       !relaxation coefficient for SSS, [m/s]
-                        sensheat(:,:),       &       !sensible heat flux
-                         latheat(:,:),       &       !latent heat flux
-                          lw_bal(:,:),       &       !longwave radiation balance
-                          sw_bal(:,:),       &       !shortwave radiation balance
-                          hf_tot(:,:),       &       !total heat flux
-                         wf_tot(:,:)                 !total water flux
-
-!Atmospheric arrays for bulk-formulae
-real(8),allocatable:: tatm(:,:),   &    !Air temperature, [�C]
-                      qatm(:,:),   &    !Air humidity, [kg/kg]
-                      rain(:,:),   &    !rain, [kg/m^2/s]
-                      snow(:,:),   &    !snow, [kg/m^2/s]
-                      wind(:,:),   &    !Wind speed module, [m/s]
-                       lwr(:,:),   &    !Downward  longwave radiation, [W/m^2]
-                       swr(:,:),   &    !Downward shortwave radiation, [W/m^2]
-                      slpr(:,:),   &    !Sea level pressure, [Pa]
-                      uwnd(:,:),   &    !Zonal      wind speed, [m/s]
-                      vwnd(:,:),   &    !Meridional wind speed, [m/s]
-                      taux(:,:),   &    !Zonal      wind stress, [Pa]
-                      tauy(:,:)         !Meridional wind stress, [Pa]
+real(8), allocatable:: wf_tot(:,:) !total water flux
 
 real(8), allocatable:: BottomFriction(:,:),    &    !Bottom friction rate (m/s)
                                r_diss(:,:)          !Rayleigh friction scale (1/s)

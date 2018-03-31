@@ -10,9 +10,6 @@ character(128) fname
 integer m, ierr
 real*8 t_global, t_local
 
-!call non_mpi_array_boundary_definition
-!call mpi_array_boundary_definition
-
 call parallel_init
 call parallel_read_mask('mask4km.txt')
 call parallel_uniform_distribution
@@ -151,53 +148,22 @@ endif
 call model_grid_allocate
 call ocean_variables_allocate
 
-if (atm_forcing_on == 1) then
-    if (rank .eq. 0) then
-        write(*,*)'=================================================================='
-        write(*,*)'--------------------ATM FORCING IS TURN ON -----------------------'
-        write(*,*)'=================================================================='
-    endif
-
-  ! Allocating atmospheric arrays
-  call atm_arrays_allocate
-  call atm2oc_allocate
-endif
-
 ! Initializing ocean model parameters
 call ocean_model_parameters(time_step)
 if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
 
 ! Initializing SW init conditions
 call sw_only_inicond(1, path2ocp)
-!call sw_test2
 !call zero_sw_init
 
 ! Check scheme for shallow water equtions
 if (rank .eq. 0) print *, '=================================================================='
-if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, HCNC ------------------'
+if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, BLOCKMPI --------------'
 if (rank .eq. 0) print *, '=================================================================='
-
-if (atm_forcing_on == 1) then
-  !constructing matrix for spatial interpolation
-  call build_intrp_mtrx(path2atmssdata,atmask)
-endif
 
 !------------------------- Check points ----------------------------------------!
 !call parallel_check_point(38.990d0, 47.270d0) !Taganrog
 !call parallel_check_point(38.590d0, 46.700d0) !Eesk
-
-!call print_basin_grid()
-!call  parallel_local_output(path2ocp,  &
-!                          1,  &
-!                   year_loc,  &
-!                    mon_loc,  &
-!                    day_loc,  &
-!                   hour_loc,  &
-!                    min_loc,  &
-!             loc_data_tstep,  &
-!                    yr_type  )
-!call mpi_finalize(ierr)
-!call exit(0)
 
 !-------------------------------------------------------------------------------!
 if (rank .eq. 0) then
@@ -239,13 +205,6 @@ endif
 call init_times
 call start_timer(t_global)
 do while(num_step<num_step_max)
-
-  if (atm_forcing_on == 1) then
-    ! atmospheric data time interpolation on atmospheric grid
-    call atm_data_time_interpol
-    ! atmospheric data spatial interpolation from atm to ocean grid
-    call atm_data_spatial_interpol
-  endif
 
   !call start_timer(t_local)
   !computing one step of ocean dynamics
@@ -289,33 +248,7 @@ if( key_write_local>0) then
   ! Azov sea
   !call parallel_point_output(path2ocp, num_step, 38.990d0, 47.270d0, 'Taganrog')
   !call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
-  ! Tohoku tsunami
-  !call parallel_point_output(path2ocp, num_step, 148.694d0, 38.711d0, 'DART21418') ! DART 21418
-  !call parallel_point_output(path2ocp, num_step, 152.117d0, 30.515d0, 'DART21413') ! DART 21413
-  !call parallel_point_output(path2ocp, num_step, 152.583d0, 42.617d0, 'DART21401') ! DART 21401
-  !call parallel_point_output(path2ocp, num_step, 155.736d0, 44.455d0, 'DART21419') ! DART 21419
-  !call parallel_point_output(path2ocp, num_step, 171.847d0, 50.183d0, 'DART21415') ! DART 21415
-  !call parallel_point_output(path2ocp, num_step, 142.0d0, 37.0d0, 'P1')
-  !call parallel_point_output(path2ocp, num_step, 141.5d0, 38.0d0, 'P2')
-  !call parallel_point_output(path2ocp, num_step, 142.5d0, 39.0d0, 'P3')
-  !call parallel_point_output(path2ocp, num_step, 142.0d0, 39.0d0, 'P4')
-  !call parallel_point_output(path2ocp, num_step, 145.0d0, 38.0d0, 'P5')
-  !call parallel_point_output(path2ocp, num_step, 141.017d0, 38.0167d0, 'S1')
-  !call parallel_point_output(path2ocp, num_step, 141.083d0, 37.4167d0, 'S2')
-  !call parallel_point_output(path2ocp, num_step, 141.617d0, 38.5167d0, 'S3')
 
-  !call start_timer(t_local)
-  call  parallel_local_output(path2ocp,  &
-                     nrec_loc,  &
-                     year_loc,  &
-                      mon_loc,  &
-                      day_loc,  &
-                     hour_loc,  &
-                      min_loc,  &
-               loc_data_tstep,  &
-                      yr_type  )
-  !call end_timer(t_local)
-  !time_output = time_output + t_local
   call model_time_print(num_step,         &
                         m_sec_of_min,     &    !second counter in minute,output
                         m_min_of_hour,    &    !minute counter in hour  ,output
@@ -342,6 +275,6 @@ call print_times
 call ocean_variables_deallocate
 call model_grid_deallocate
 
-call mpi_finalize(ierr)
+call parallel_finalize
 
 endprogram INMSOM
