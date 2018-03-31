@@ -7,12 +7,17 @@ module mpi_parallel_tools
     include "omp_lib.h"
 
     integer :: recommended_tot_blocks
+    integer :: parallel_dbg
 
     integer :: nx_start, nx_end, ny_start, ny_end
     integer :: bnd_x1, bnd_x2, bnd_y1, bnd_y2
 
     type :: block2D
         real*8, dimension(:, :), pointer :: vals
+    end type
+
+    type :: block1D
+        real*8, dimension(:), pointer :: vals
     end type
 
     integer, allocatable :: lbasins(:, :)
@@ -49,8 +54,14 @@ module mpi_parallel_tools
 
     ! MPI buffers
     integer, allocatable :: reqsts(:), statuses(:, :)
-    integer :: sync_buff_size
-    real*8, allocatable :: sync_buf8_send_nyp(:, :), sync_buf8_recv_nyp(:, :)
+    type(block1D), dimension(:), pointer :: sync_buf8_send_nyp, sync_buf8_recv_nyp
+    type(block1D), dimension(:), pointer :: sync_buf8_send_nxp, sync_buf8_recv_nxp
+    type(block1D), dimension(:), pointer :: sync_buf8_send_nym, sync_buf8_recv_nym
+    type(block1D), dimension(:), pointer :: sync_buf8_send_nxm, sync_buf8_recv_nxm
+    real*8 :: sync_edge_buf8_recv_nxp_nyp
+    real*8 :: sync_edge_buf8_recv_nxp_nym
+    real*8 :: sync_edge_buf8_recv_nxm_nyp
+    real*8 :: sync_edge_buf8_recv_nxm_nym
 
     ! Timers
     real*8 :: time_barotrop
@@ -88,10 +99,13 @@ contains
             open(90, file='parallel.par', status='old')
             read(90, *) recommended_tot_blocks
             print *, 'recommended_tot_blocks=', recommended_tot_blocks
+            read(90, *) parallel_dbg
+            print *, 'parallel_dbg=', parallel_dbg
 
             close(90)
         endif
         call mpi_bcast(recommended_tot_blocks, 1, mpi_integer, 0, mpi_comm_world, ierr)
+        call mpi_bcast(parallel_dbg, 1, mpi_integer, 0, mpi_comm_world, ierr)
 
         if (rank .eq. 0) then
             if (.not. MPI_SUBARRAYS_SUPPORTED) then
@@ -118,16 +132,12 @@ contains
         if (num_thread .eq. 0) print *, "OMP Threads: ", count_threads
         !$omp end parallel
         call mpi_barrier(cart_comm, ierr)
-
-        ! Allocate buffers
-        allocate(reqsts(8*procs), statuses(MPI_STATUS_SIZE, 8*procs))
-
     end subroutine
 
     subroutine parallel_finalize
         implicit none
 
-        integer :: ierr
+        integer :: k, ierr
 
         if (allocated(bnx_start)) deallocate(bnx_start)
         if (allocated(bnx_end)) deallocate(bnx_end)
@@ -146,8 +156,20 @@ contains
         if (allocated(reqsts)) deallocate(reqsts)
         if (allocated(statuses)) deallocate(statuses)
 
-        if (allocated(sync_buf8_send_nyp)) deallocate(sync_buf8_send_nyp)
-        if (allocated(sync_buf8_recv_nyp)) deallocate(sync_buf8_recv_nyp)
+        !if (allocated(sync_buf8_send_nyp)) then
+        do k = 1, bcount
+            deallocate(sync_buf8_send_nyp(k)%vals, sync_buf8_recv_nyp(k)%vals)
+            deallocate(sync_buf8_send_nxp(k)%vals, sync_buf8_recv_nxp(k)%vals)
+            deallocate(sync_buf8_send_nym(k)%vals, sync_buf8_recv_nym(k)%vals)
+            deallocate(sync_buf8_send_nxm(k)%vals, sync_buf8_recv_nxm(k)%vals)
+        enddo
+        deallocate(sync_buf8_send_nyp, sync_buf8_recv_nyp)
+        deallocate(sync_buf8_send_nxp, sync_buf8_recv_nxp)
+        deallocate(sync_buf8_send_nym, sync_buf8_recv_nym)
+        deallocate(sync_buf8_send_nxm, sync_buf8_recv_nxm)
+        !endif
+        !if (allocated(sync_buf8_send_nyp)) deallocate(sync_buf8_send_nyp)
+        !if (allocated(sync_buf8_recv_nyp)) deallocate(sync_buf8_recv_nyp)
 
         call mpi_finalize(ierr)
     end subroutine
@@ -203,7 +225,7 @@ contains
         bny = floor(sqrt(recommended_tot_blocks * real(ny-4) / real(nx-4)))
         bnx = bnx - mod(bnx, p_size(1))
         bny = bny - mod(bny, p_size(2))
-        print *, rank, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
+        if (parallel_dbg >= 1 .and. rank == 0) print *, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
         call mpi_barrier(cart_comm, ierr)
 
         ! Unifrom distribute blocks to procs
@@ -222,12 +244,12 @@ contains
         loc_bnx = bnx / p_size(1)
         loc_bny = bny / p_size(2)
         bcount = loc_bnx*loc_bny
-        print *, rank, 'loc_bnx, loc_bny and Blocks per proc: ', loc_bnx, loc_bny, bcount
+        if (parallel_dbg >= 1) print *, rank, 'loc_bnx, loc_bny and Blocks per proc: ', loc_bnx, loc_bny, bcount
         call mpi_barrier(cart_comm, ierr)
 
         xblock_start = 1 + p_coord(1)*loc_bnx
         yblock_start = 1 + p_coord(2)*loc_bny
-        print *, rank, 'xb_start, yb_start', xblock_start, yblock_start
+        if (parallel_dbg >= 2) print *, rank, 'xb_start, yb_start', xblock_start, yblock_start
         call mpi_barrier(cart_comm, ierr)
 
         allocate(bglob_proc(bnx, bny))
@@ -279,27 +301,26 @@ contains
                 bbnd_y2(k) = bny_end(k) + 2
 
                 ! Compute load-balance
-                !print *, rank, 'k, bnx_start, bnx_end', k, bnx_start(k), bnx_end(k)
-                !print *, rank, 'k, bny_start, bny_end', k, bny_start(k), bny_end(k)
                 do i = bnx_start(k), bnx_end(k)
                     do j = bny_start(k), bny_end(k)
                         bweight(k) = bweight(k) + (1.0d0 - real(lbasins(i, j)))
                     enddo
                 enddo
-                weight = weight + real(bweight(k)) / real((bnx_end(k) - bnx_start(k) + 1)*(bny_end(k) - bny_start(k) + 1))
+                weight = weight + real(bweight(k)) !/ real((bnx_end(k) - bnx_start(k) + 1)*(bny_end(k) - bny_start(k) + 1))
                 ! Ignore only-land blocks
                 if (bweight(k) == 0.0) then
                     land_blocks = land_blocks + 1
+                    bglob_proc(m, n) = -1
                 else
                     k = k + 1
                 endif
             enddo
         enddo
 
-        print *, rank, 'Total blocks with land:', land_blocks, 'Total Load-Balancing:', weight / bcount
+        if (parallel_dbg >= 1) print *, rank, 'Total blocks with land:', land_blocks, 'Total Load-Balancing:', weight / ((nx-4)*(ny-4))
         call mpi_barrier(cart_comm, ierr)
         bcount = bcount - land_blocks
-        print *, rank, 'Updated block count', bcount
+        if (parallel_dbg >= 1) print *, rank, 'Updated block count', bcount
         call mpi_barrier(cart_comm, ierr)
         ierr = 0
         if (bcount <= 0) then
@@ -309,16 +330,16 @@ contains
         call parallel_check_err(ierr)
         call mpi_allreduce(bcount, total_blocks, 1, mpi_integer,      &
                            mpi_sum, cart_comm, ierr)
-        print *, rank, 'Updated total block count', total_blocks
+        if (parallel_dbg >= 1 .and. rank == 0) print *, 'Updated Total block count', total_blocks
         call mpi_barrier(cart_comm, ierr)
 
         ! Sync bglob_proc array
-        call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc before')
+        if (parallel_dbg >= 2) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc before')
         allocate(buf_int(bnx, bny))
         buf_int = bglob_proc + 1
         call mpi_allreduce(buf_int, bglob_proc, bnx*bny, mpi_integer, mpi_sum, cart_comm, ierr)
         bglob_proc = bglob_proc - 1
-        call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc after')
+        if (parallel_dbg >= 2) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc after')
 
         !allocate(buf_int(bcount), recv_buf_int(procs), displs(procs))
         !call mpi_allgather(bcount, 1, mpi_integer, recv_buf_int, 1, mpi_integer, cart_comm, ierr)
@@ -339,22 +360,22 @@ contains
     subroutine allocate_mpi_buffers
         implicit none
 
-        integer :: k, maxnx, maxny
+        integer :: k, nx_dir_size, ny_dir_size
 
-        maxnx = 0; maxny = 0
+        allocate(sync_buf8_send_nyp(bcount), sync_buf8_recv_nyp(bcount))
+        allocate(sync_buf8_send_nxp(bcount), sync_buf8_recv_nxp(bcount))
+        allocate(sync_buf8_send_nym(bcount), sync_buf8_recv_nym(bcount))
+        allocate(sync_buf8_send_nxm(bcount), sync_buf8_recv_nxm(bcount))
         do k = 1, bcount
-            if ((bnx_end(k) - bnx_start(k) + 1) > maxnx) then
-                maxnx = bnx_end(k) - bnx_start(k) + 1
-            endif
-            if ((bny_end(k) - bny_start(k) + 1) > maxny) then
-                maxny = bny_end(k) - bny_start(k) + 1
-            endif
+            ny_dir_size = bnx_end(k) - bnx_start(k) + 1
+            nx_dir_size = bny_end(k) - bny_start(k) + 1
+            allocate(sync_buf8_send_nyp(k)%vals(ny_dir_size), sync_buf8_recv_nyp(k)%vals(ny_dir_size))
+            allocate(sync_buf8_send_nxp(k)%vals(nx_dir_size), sync_buf8_recv_nxp(k)%vals(nx_dir_size))
+            allocate(sync_buf8_send_nym(k)%vals(ny_dir_size), sync_buf8_recv_nym(k)%vals(ny_dir_size))
+            allocate(sync_buf8_send_nxm(k)%vals(nx_dir_size), sync_buf8_recv_nxm(k)%vals(nx_dir_size))
         enddo
 
-        sync_buff_size = max(maxnx, maxny)
-        print *, rank, 'allocate buffers. maxnx, maxny, buffsize: ', maxnx, maxny, sync_buff_size
-        allocate(sync_buf8_send_nyp(bcount, sync_buff_size), sync_buf8_recv_nyp(bcount, sync_buff_size))
-
+        allocate(reqsts(8*bcount), statuses(MPI_STATUS_SIZE, 8*bcount))
     end subroutine
 
     subroutine parallel_int_output(arr, x1, x2, y1, y2, msg)
@@ -451,6 +472,23 @@ contains
         return
     end subroutine
 
+    integer function get_local_block_number(m, n)
+        implicit none
+
+        integer :: m, n
+        integer :: k
+
+        get_local_block_number = -1
+        do k = 1, bcount
+            if (m == bindx(k, 1) .and. n == bindx(k, 2)) then
+                get_local_block_number = k
+                exit
+            endif
+        enddo
+
+        return
+    end function
+
 
 !    subroutine irecv_real8(k, src_block, blks, tag, dx1, dx2, dy1, dy2, reqst, stat)
 !        implicit none
@@ -464,85 +502,55 @@ contains
                 !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
 !                                             mpi_real8, p_src, tag, cart_comm, reqst, ierr)
 
-    subroutine irecv_real8(k, src_block, buff, buff_size, tag, reqst, stat)
+    subroutine irecv_real8(k, src_block, src_proc, buff, buff_size, tag, reqst)
         implicit none
-        integer :: k, tag
         integer, dimension(2) :: src_block
+        integer :: k, src_proc, tag
         integer :: buff_size
         real*8 :: buff(:)
-        integer :: reqst, stat
-        integer :: p_src, ierr, flg_recv
-        integer, dimension(2) :: bgrid
-        stat = 0
+        integer :: reqst
+        integer :: ierr
 
-        bgrid(1) = bnx; bgrid(2) = bny
-        flg_recv = check_cart_coord(src_block-1, bgrid)
-        if (flg_recv /= 1) then
-            print *, rank, 'NOIRECV - block dont exist:', src_block(1), src_block(2)
-            stat = 1
-            return
-        endif
+        if (parallel_dbg >= 2) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
+        !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
+        !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
+        call mpi_irecv(buff, buff_size, mpi_real8, src_proc, tag, cart_comm, reqst, ierr)
 
-        p_src = bglob_proc(src_block(1), src_block(2))
-        if (p_src < 0) then
-            print *, rank, 'NOIRECV - land block: ', src_block(1), src_block(2)
-            stat = 1
-            return
-        endif
-
-        if (p_src /= rank) then
-            print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', p_src
-            !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
-            !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
-            call mpi_irecv(buff, buff_size, &
-                           mpi_real8, p_src, tag, cart_comm, reqst, ierr)
-        else
-            ! Just Copy
-            print *, rank, 'IRECV JUST COPY. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', p_src
-            stat = 1
-        endif
     end subroutine
 
-    subroutine isend_real8(k, dist_block, buff, buff_size, tag, reqst, stat)
+    subroutine isend_real8(k, dist_block, dist_proc, buff, buff_size, tag, reqst)
         implicit none
 
-        integer :: k, tag
         integer, dimension(2) :: dist_block
+        integer :: k, dist_proc, tag
         integer :: buff_size
         real*8 :: buff(:)
-        integer :: reqst, stat
-        integer :: p_dist, ierr, flg_send
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 2) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
+        !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
+        !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
+        call mpi_isend(buff, buff_size, mpi_real8, dist_proc, tag, cart_comm, reqst, ierr)
+
+    end subroutine
+
+    subroutine check_block_status(b_coords, p)
+        implicit none
+
+        integer, dimension(2), intent(in) :: b_coords
+        integer, intent(out) :: p
         integer, dimension(2) :: bgrid
 
-        stat = 0
-
         bgrid(1) = bnx; bgrid(2) = bny
-        flg_send = check_cart_coord(dist_block-1, bgrid)
-        if (flg_send /= 1) then
-            print *, rank, 'NOISEND - block dont exist:', dist_block(1), dist_block(2)
-            stat = 1
+        if (check_cart_coord(b_coords - 1, bgrid) /= 1) then
+            ! Out of range, block does not exist
+            p = -2
             return
         endif
 
-        p_dist = bglob_proc(dist_block(1), dist_block(2))
-        if (p_dist < 0) then
-            print *, rank, 'NOISEND - land block: ', dist_block(1), dist_block(2)
-            stat = 1
-            return
-        endif
-
-        if (p_dist /= rank) then
-            print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', p_dist
-            !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
-            !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
-            call mpi_isend(buff, buff_size,  &
-                           mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
-        else
-            ! Just Copy
-            print *, rank, 'ISEND JUST COPY. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', p_dist
-            stat = 1
-
-        endif
+        p = bglob_proc(b_coords(1), b_coords(2))
+        return
 
     end subroutine
 
@@ -550,11 +558,12 @@ contains
         implicit none
 
         type(block2D), dimension(:), pointer :: blks
-        integer :: k, bm, bn, stat, reqst
-        integer :: ierr
+        integer :: k, lock, bm, bn, reqst
         integer, dimension(2) :: src_block, dist_block
+        integer :: src_p, dist_p
         integer :: send_size, recv_size
-        integer :: icount
+        integer :: ierr
+        integer :: tag, icount
 
         icount = 1
 
@@ -565,45 +574,309 @@ contains
 
             ! irecv in ny+
             src_block(1) = bm; src_block(2) = bn - 1
-            recv_size = bnx_end(k) - bnx_start(k) + 1
-            call irecv_real8(k, src_block, blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y1(k) + 1), recv_size, bn, reqst, stat)
-            if (stat == 0) then
-                reqsts(icount) = reqst
-                icount = icount + 1
+            tag = src_block(2) + (src_block(1) - 1)*bnx
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    recv_size = bnx_end(k) - bnx_start(k) + 1
+                    call irecv_real8(k, src_block, src_p, sync_buf8_recv_nyp(k)%vals, recv_size, tag, reqst)
+                    !call irecv_real8(k, src_block, src_p, blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y1(k) + 1), recv_size, bn, reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+            ! irecv in nx+
+            src_block(1) = bm - 1; src_block(2) = bn
+            tag = src_block(2) + (src_block(1) - 1)*bnx
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    recv_size = bny_end(k) - bny_start(k) + 1
+                    call irecv_real8(k, src_block, src_p, sync_buf8_recv_nxp(k)%vals, recv_size, tag, reqst)
+                    !call irecv_real8(k, src_block, src_p, blks(k)%vals(bbnd_x1(k) + 1, bny_start(k):bny_end(k)), recv_size, bn, reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+            ! irecv in ny-
+            src_block(1) = bm; src_block(2) = bn + 1
+            tag = src_block(2) + (src_block(1) - 1)*bnx
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    recv_size = bnx_end(k) - bnx_start(k) + 1
+                    call irecv_real8(k, src_block, src_p, sync_buf8_recv_nym(k)%vals, recv_size, tag, reqst)
+                    !call irecv_real8(k, src_block, src_p, blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y2(k) - 1), recv_size, bn, reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+            ! irecv in nx-
+            src_block(1) = bm + 1; src_block(2) = bn
+            tag = src_block(2) + (src_block(1) - 1)*bnx
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    recv_size = bny_end(k) - bny_start(k) + 1
+                    call irecv_real8(k, src_block, src_p, sync_buf8_recv_nxm(k)%vals, recv_size, tag, reqst)
+                    !call irecv_real8(k, src_block, src_p, blks(k)%vals(bbnd_x2(k) - 1, bny_start(k):bny_end(k)), recv_size, bn, reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
             endif
 
-            ! irecv in nx+
-            ! irecv in ny-
-            ! irecv in nx-
+            !----------------------------Edge points----------------------------!
+            ! Edge irecv in nx+ ny+
+            src_block(1) = bm - 1; src_block(2) = bn - 1
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    call mpi_irecv(sync_edge_buf8_recv_nxp_nyp, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+            ! Edge irecv in nx+ ny-
+            src_block(1) = bm - 1; src_block(2) = bn + 1
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    call mpi_irecv(sync_edge_buf8_recv_nxp_nym, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+            ! Edge irecv in nx- ny+
+            src_block(1) = bm + 1; src_block(2) = bn - 1
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    call mpi_irecv(sync_edge_buf8_recv_nxm_nyp, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+            ! Edge irecv in nx- ny-
+            src_block(1) = bm + 1; src_block(2) = bn + 1
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    call mpi_irecv(sync_edge_buf8_recv_nxm_nym, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                endif
+            endif
+
         enddo
-        print *, rank, 'icount recv:', icount-1
+        if (parallel_dbg >= 2) print *, rank, 'icount recv:', icount-1
 
         ! Non-blocking Send calls
         do k = 1, bcount
             bm = bindx(k, 1)
             bn = bindx(k, 2)
 
+            tag = bn + (bm - 1)*bnx
             ! isend in ny+
             dist_block(1) = bm; dist_block(2) = bn + 1
-            send_size = bnx_end(k) - bnx_start(k) + 1
-            call isend_real8(k, dist_block, blks(k)%vals(bnx_start(k):bnx_end(k), bny_end(k)), send_size, dist_block(2), reqst, stat)
-            if (stat == 0) then
-                reqsts(icount) = reqst
-                icount = icount + 1
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    send_size = bnx_end(k) - bnx_start(k) + 1
+                    sync_buf8_send_nyp(k)%vals = blks(k)%vals(bnx_start(k):bnx_end(k), bny_end(k))
+                    call isend_real8(k, dist_block, dist_p, sync_buf8_send_nyp(k)%vals, send_size, tag, reqst)
+                    !call isend_real8(k, dist_block, dist_p, blks(k)%vals(bnx_start(k):bnx_end(k), bny_end(k)), send_size, dist_block(2), reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bnx_start(lock):bnx_end(lock), bbnd_y1(lock) + 1) = blks(k)%vals(bnx_start(k):bnx_end(k), bny_end(k))
+                endif
+            endif
+            ! isend in nx+
+            dist_block(1) = bm + 1; dist_block(2) = bn
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    send_size = bny_end(k) - bny_start(k) + 1
+                    sync_buf8_send_nxp(k)%vals = blks(k)%vals(bnx_end(k), bny_start(k):bny_end(k))
+                    call isend_real8(k, dist_block, dist_p, sync_buf8_send_nxp(k)%vals, send_size, tag, reqst)
+                    !call isend_real8(k, dist_block, dist_p, blks(k)%vals(bnx_end(k), bny_start(k):bny_end(k)), send_size, dist_block(2), reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bbnd_x1(lock) + 1, bny_start(lock):bny_end(lock)) = blks(k)%vals(bnx_end(k), bny_start(k):bny_end(k))
+                endif
+            endif
+            ! isend in ny-
+            dist_block(1) = bm; dist_block(2) = bn - 1
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    send_size = bnx_end(k) - bnx_start(k) + 1
+                    sync_buf8_send_nym(k)%vals = blks(k)%vals(bnx_start(k):bnx_end(k), bny_start(k))
+                    call isend_real8(k, dist_block, dist_p, sync_buf8_send_nym(k)%vals, send_size, tag, reqst)
+                    !call isend_real8(k, dist_block, dist_p, blks(k)%vals(bnx_start(k):bnx_end(k), bny_start(k)), send_size, dist_block(2), reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bnx_start(lock):bnx_end(lock), bbnd_y2(lock) - 1) = blks(k)%vals(bnx_start(k):bnx_end(k), bny_start(k))
+                endif
+            endif
+            ! isend in nx-
+            dist_block(1) = bm - 1; dist_block(2) = bn
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    send_size = bny_end(k) - bny_start(k) + 1
+                    sync_buf8_send_nxm(k)%vals = blks(k)%vals(bnx_start(k), bny_start(k):bny_end(k))
+                    call isend_real8(k, dist_block, dist_p, sync_buf8_send_nxm(k)%vals, send_size, tag, reqst)
+                    !call isend_real8(k, dist_block, dist_p, blks(k)%vals(bnx_start(k), bny_start(k):bny_end(k)), send_size, dist_block(2), reqst)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bbnd_x2(lock) - 1, bny_start(lock):bny_end(lock)) = blks(k)%vals(bnx_start(k), bny_start(k):bny_end(k))
+                endif
             endif
 
-            ! isend in nx+
-            ! isend in ny-
-            ! isend in nx-
+            !----------------------------Edge points----------------------------!
+            tag = 10*(bn + (bm - 1)*bnx)
+            ! Edge isend in nx+ ny+
+            dist_block(1) = bm + 1; dist_block(2) = bn + 1
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    call mpi_isend(blks(k)%vals(bnx_end(k), bny_end(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bbnd_x1(lock) + 1, bbnd_y1(lock) + 1) = blks(k)%vals(bnx_end(k), bny_end(k))
+                endif
+            endif
+            ! Edge isend in nx+ ny-
+            dist_block(1) = bm + 1; dist_block(2) = bn - 1
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    call mpi_isend(blks(k)%vals(bnx_end(k), bny_start(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bbnd_x1(lock) + 1, bbnd_y2(lock) - 1) = blks(k)%vals(bnx_end(k), bny_start(k))
+                endif
+            endif
+            ! Edge isend in nx- ny+
+            dist_block(1) = bm - 1; dist_block(2) = bn + 1
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    call mpi_isend(blks(k)%vals(bnx_start(k), bny_end(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bbnd_x2(lock) - 1, bbnd_y1(lock) + 1) = blks(k)%vals(bnx_start(k), bny_end(k))
+                endif
+            endif
+            ! Edge isend in nx- ny-
+            dist_block(1) = bm - 1; dist_block(2) = bn - 1
+            call check_block_status(dist_block, dist_p)
+            if (dist_p >= 0) then
+                if (dist_p /= rank) then
+                    call mpi_isend(blks(k)%vals(bnx_start(k), bny_start(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    reqsts(icount) = reqst
+                    icount = icount + 1
+                else
+                    lock = get_local_block_number(dist_block(1), dist_block(2))
+                    blks(lock)%vals(bbnd_x2(lock) - 1, bbnd_y2(lock) - 1) = blks(k)%vals(bnx_start(k), bny_start(k))
+                endif
+            endif
+
         enddo
-        print *, rank, 'icount total:', icount-1
+        if (parallel_dbg >= 2) print *, rank, 'icount totl:', icount-1
 
         ! Wait all, sync point
-        !MPI_WAITALL(COUNT, ARRAY_OF_REQUESTS, ARRAY_OF_STATUSES, IERROR)
-        !INTEGER    COUNT, ARRAY_OF_REQUESTS(*)
-        !INTEGER    ARRAY_OF_STATUSES(MPI_STATUS_SIZE,*), IERROR
         call mpi_waitall(icount-1, reqsts, statuses, ierr)
-        !deallocate(reqsts, statuses)
+
+        do k = 1, bcount
+            bm = bindx(k, 1)
+            bn = bindx(k, 2)
+
+            ! ny+
+            src_block(1) = bm; src_block(2) = bn - 1
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y1(k) + 1) = sync_buf8_recv_nyp(k)%vals
+                endif
+            endif
+            ! nx+
+            src_block(1) = bm - 1; src_block(2) = bn
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bbnd_x1(k) + 1, bny_start(k):bny_end(k)) = sync_buf8_recv_nxp(k)%vals
+                endif
+            endif
+            ! ny-
+            src_block(1) = bm; src_block(2) = bn + 1
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y2(k) - 1) = sync_buf8_recv_nym(k)%vals
+                endif
+            endif
+            ! nx-
+            src_block(1) = bm + 1; src_block(2) = bn
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bbnd_x2(k) - 1, bny_start(k):bny_end(k)) = sync_buf8_recv_nxm(k)%vals
+                endif
+            endif
+
+            !----------------------------Edge points----------------------------!
+            ! Edge in nx+ ny+
+            src_block(1) = bm - 1; src_block(2) = bn - 1
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bbnd_x1(k) + 1, bbnd_y1(k) + 1) = sync_edge_buf8_recv_nxp_nyp
+                endif
+            endif
+            ! Edge in nx+ ny-
+            src_block(1) = bm - 1; src_block(2) = bn + 1
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bbnd_x1(k) + 1, bbnd_y2(k) - 1) = sync_edge_buf8_recv_nxp_nym
+                endif
+            endif
+            ! Edge irecv in nx- ny+
+            src_block(1) = bm + 1; src_block(2) = bn - 1
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bbnd_x2(k) - 1, bbnd_y1(k) + 1) = sync_edge_buf8_recv_nxm_nyp
+                endif
+            endif
+            ! Edge irecv in nx- ny-
+            src_block(1) = bm + 1; src_block(2) = bn + 1
+            call check_block_status(src_block, src_p)
+            if (src_p >= 0) then
+                if (src_p /= rank) then
+                    blks(k)%vals(bbnd_x2(k) - 1, bbnd_y2(k) - 1) = sync_edge_buf8_recv_nxm_nym
+                endif
+            endif
+        enddo
 
     end subroutine
 

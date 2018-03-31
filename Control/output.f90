@@ -12,7 +12,7 @@ subroutine test_blocks
 
         do m = bbnd_x1(k), bbnd_x2(k)
             do n = bbnd_y1(k), bbnd_y2(k)
-                ssh(k)%vals(m, n) = bindx(k, 1)
+                ssh(k)%vals(m, n) = 9 !bindx(k, 1)
             enddo
         enddo
 
