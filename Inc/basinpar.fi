@@ -43,7 +43,7 @@ real(8), parameter:: x_pole=100.0d0,   &  !lon of new north pole in geographical
                      p_pole=x_pole,    &  !lon of new south pole in geographical system
                      q_pole=-y_pole       !lat of new south pole in geographical system
 
-integer, parameter:: full_free_surface = 0
+integer, parameter:: full_free_surface = 1
 
 integer, parameter:: mgrad=1        !Number of ice thickness gradations
 !integer, parameter:: mgrad=8

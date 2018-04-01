@@ -1,880 +1,734 @@
-!===========================================================================================
-!initializing basin grid parameters
- subroutine basinpar
- use main_basin_pars
- use mpi_parallel_tools
- use basin_grid
- use rec_length
- implicit none
-  integer m,n,ierr
-  real(8), parameter:: dpip180 = 3.1415926535897/180.0d0   !for degrees to radians convers
-  real(4) array4(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
-! temperature grid initialization
-
-! x-coordinate (in degrees)
-! in case of regular grid
- if(xgr_type==0) then
-  do m=bnd_x1,bnd_x2
-   xt(m)=rlon+dfloat(m-mmm)*dxst
-  end do
- else !in case of irregular grid
-  do m=bnd_x1,bnd_x2
-   xt(m)=x_levels(m)
-  end do
- endif
-
-! y-coordinate (in degrees)
-! in case of regular grid
-
- if(ygr_type==0) then
-  do n=bnd_y1,bnd_y2
-   yt(n)=rlat+dfloat(n-nnn)*dyst
-  end do
- else !in case of irregular grid
-  do n=bnd_y1,bnd_y2
-   yt(n)=y_levels(n)
-  end do
- endif
-
-! parameters:
- if (rank .eq. 0) then
-     write(*,'(2x,a)')' Basin parameters from 1basinpar.inc:'
-
-     if(curve_grid==0) then        !Carthesian coordinates
-         write(*,*) 'Coordinate system is carthesian'
-     elseif(curve_grid==1) then
-         write(*,*) 'Coordinate system is undistorted sphere'
-         write(*,'(a,f10.3)') ' rotation angle on longitude is =',rotation_on_lon,    &
-                           ' rotation angle on  latitude is =',rotation_on_lat
-     elseif(curve_grid==2) then
-         write(*,*) 'Coordinate system is distorted sphere'
-         write(*,'(a,f10.3)') ' geo longitude of new north pole is =',x_pole,    &
-                           ' geo  latitude of new north pole is =',y_pole,    &
-                           ' geo longitude of new south pole is =',p_pole,    &
-                           ' geo  latitude of new south pole is =',q_pole
-     endif
-
-     if(xgr_type==0) then
-         write(*,*) 'X-grid is uniform'
-         write(*,'(2(a,f10.3),a)') ' initial x-coordinate (m=mmm) =',rlon,' step on x =',dxst,'[dgr] '
-     else
-         write(*,*) 'X-grid is non-uniform'
-         write(*,'(a,f10.3)') ' minimal x-coordinate (m=mmm) =',xt(mmm),    &
-                               ' maximal x-coordinate (m=mm ) =',xt(mm)
-     endif
-
-     if(ygr_type==0) then
-         write(*,*) 'Y-grid is uniform'
-         write(*,'(2(a,f10.3),a)') ' initial y-coordinate (n=nnn) =',rlat,' step on y =',dyst,'[dgr] '
-     else
-         write(*,*) 'Y-grid is non-uniform'
-         write(*,'(a,f10.3)') ' minimal y-coordinate (n=nnn) =',yt(nnn),    &
-                               ' maximal y-coordinate (n=nn ) =',yt(nn)
-     endif
-
-     write(*,'(2(a,i2))') 'Periodicity on X =', periodicity_x,', Periodicity on Y =', periodicity_y
-     write(*,'(4(a,i4))') '  nx=',nx, ';  ny=',ny,';  nz=',nz
-     write(*,'(4(a,i4))') ' mmm=',mmm,';  mm=',mm,'; nnn=',nnn,';  nn=',nn
-
-     write(*,'(2x,a,g14.7,a)')' Earth radius =',RadEarth,'(m)'
-     write(*,'(2x,a,g14.7,a)') 'Earth angular velocity(omega) =',EarthAngVel,'[rad/sec]'
-     write(*,'(2x,a,g14.7,a)') 'Heat capacity of water =',HeatCapWater,'[J/kg/�C] for 35%. sal'
-     write(*,'(2x,a,g14.7,a)') 'reference density =',RefDen,'[kg/m**3]'
-     write(*,'(2x,a,f10.3,a)') 'free fall acceleration(grv)=',FreeFallAcc,'[m/s**2]'
- endif
-! velocity grid initialization
-
-! x-coordinate (in degrees)
-      do m=bnd_x1,bnd_x2-1
-      xu(m)=(xt(m)+xt(m+1))/2.0d0
-      end do
-
-! y-coordinate (in degrees)
-      do n=bnd_y1,bnd_y2-1
-      yv(n)=(yt(n)+yt(n+1))/2.0d0
-      end do
-
-!Initialization of x-steps
-if(xgr_type>0) then
-      do n=ny_start-1,ny_end+1
-       do m=nx_start-1,nx_end+1
-!-----initialization of t- and v-grid x-steps in centimeters
-        dxt(m,n)=(xt(m+1)-xt(m))*dpip180*RadEarth
-        dxb(m,n)=(xt(m+1)-xt(m))*dpip180*RadEarth
-!-----initialization of u- and h-grid x-steps in centimeters
-        dx(m,n)=(xu(m)-xu(m-1))*dpip180*RadEarth
-       dxh(m,n)=(xu(m)-xu(m-1))*dpip180*RadEarth
-        end do
-       end do
-else
-      do n=ny_start-1,ny_end+1
-       do m=nx_start-1,nx_end+1
-!-----initialization of t- and v-grid x-steps in centimeters
-        dxt(m,n)=dxst*dpip180*RadEarth
-        dxb(m,n)=dxst*dpip180*RadEarth
-!-----initialization of u- and h-grid x-steps in centimeters
-        dx(m,n)=dxst*dpip180*RadEarth
-       dxh(m,n)=dxst*dpip180*RadEarth
-        end do
-       end do
-endif
-
-!Initialization of y-steps
-if(ygr_type>0) then
-      do n=ny_start-1,ny_end+1
-       do m=nx_start-1,nx_end+1
-!-----initialization of t- and u-grid y-steps in centimeters
-        dyt(m,n)=(yt(n+1)-yt(n))*dpip180*RadEarth
-        dyb(m,n)=(yt(n+1)-yt(n))*dpip180*RadEarth
-!-----initialization of v- and h-grid y-steps in centimeters
-        dy(m,n)=(yv(n)-yv(n-1))*dpip180*RadEarth
-       dyh(m,n)=(yv(n)-yv(n-1))*dpip180*RadEarth
-        end do
-       end do
-else
-      do n=ny_start-1,ny_end+1
-       do m=nx_start-1,nx_end+1
-!-----initialization of t- and u-grid y-steps in centimeters
-        dyt(m,n)=dyst*dpip180*RadEarth
-        dyb(m,n)=dyst*dpip180*RadEarth
-!-----initialization of v- and h-grid y-steps in centimeters
-        dy(m,n)=dyst*dpip180*RadEarth
-       dyh(m,n)=dyst*dpip180*RadEarth
-        end do
-       end do
-endif
-
-!-----initialization of Coriolis terms--------------------------
-       rlh_s= 2.0d0*EarthAngVel
-       rlh_c=-2.0d0*EarthAngVel
-
-!-----metric initialization--------------------------------------------------------------
-      if(curve_grid==0) then   !in case of carthesian grid
-
-!On T-grid
-       call grid_parameters_carthesian(xt,   &   !model x-coordinate in degrees
-                                       yt,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                                geo_lon_t,   &   !geographical longitude in degrees
-                                geo_lat_t,   &   !geographical latitude  in degrees
-                                      dx,    &   !metrical coefficient on x
-                                      dy,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        1,   &   !key to compute rotation coefficients (0/1)
-                                        0,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-!On U-grid
-       call grid_parameters_carthesian(xu,   &   !model x-coordinate in degrees
-                                       yt,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                                geo_lon_u,   &   !geographical longitude in degrees
-                                geo_lat_u,   &   !geographical latitude  in degrees
-                                     dxt,    &   !metrical coefficient on x
-                                     dyh,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        0,   &   !key to compute rotation coefficients (0/1)
-                                        0,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-!On V-grid
-       call grid_parameters_carthesian(xt,   &   !model x-coordinate in degrees
-                                       yv,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                                geo_lon_v,   &   !geographical longitude in degrees
-                                geo_lat_v,   &   !geographical latitude  in degrees
-                                     dxh,    &   !metrical coefficient on x
-                                     dyt,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        0,   &   !key to compute rotation coefficients (0/1)
-                                        0,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-!On H-grid
-       call grid_parameters_carthesian(xu,   &   !model x-coordinate in degrees
-                                       yv,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                                geo_lon_h,   &   !geographical longitude in degrees
-                                geo_lat_h,   &   !geographical latitude  in degrees
-                                     dxb,    &   !metrical coefficient on x
-                                     dyb,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        0,   &   !key to compute rotation coefficients (0/1)
-                                        1,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-      elseif(curve_grid==1) then !in case of spherical grid
-
-!On T-grid
-       call grid_parameters_spherical (xt,   &   !model x-coordinate in degrees
-                                       yt,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                          rotation_on_lon,   &   !euler angle on longitude
-                          rotation_on_lat,   &   !euler angle on latitude
-                                geo_lon_t,   &   !geographical longitude in degrees
-                                geo_lat_t,   &   !geographical latitude  in degrees
-                                      dx,    &   !metrical coefficient on x
-                                      dy,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        1,   &   !key to compute rotation coefficients (0/1)
-                                        0,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-!On U-grid
-       call grid_parameters_spherical (xu,   &   !model x-coordinate in degrees
-                                       yt,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                          rotation_on_lon,   &   !euler angle on longitude
-                          rotation_on_lat,   &   !euler angle on latitude
-                                geo_lon_u,   &   !geographical longitude in degrees
-                                geo_lat_u,   &   !geographical latitude  in degrees
-                                     dxt,    &   !metrical coefficient on x
-                                     dyh,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        0,   &   !key to compute rotation coefficients (0/1)
-                                        0,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-!On V-grid
-       call grid_parameters_spherical (xt,   &   !model x-coordinate in degrees
-                                       yv,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                          rotation_on_lon,   &   !euler angle on longitude
-                          rotation_on_lat,   &   !euler angle on latitude
-                                geo_lon_v,   &   !geographical longitude in degrees
-                                geo_lat_v,   &   !geographical latitude  in degrees
-                                     dxh,    &   !metrical coefficient on x
-                                     dyt,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        0,   &   !key to compute rotation coefficients (0/1)
-                                        0,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-!On H-grid
-       call grid_parameters_spherical (xu,   &   !model x-coordinate in degrees
-                                       yv,   &   !model y-coordinate in degrees
-                                   bnd_x1,   &   !left   boundary of arrays
-                                   bnd_x2,   &   !right  boundary of arrays
-                                   bnd_y1,   &   !lower  boundary of arrays
-                                   bnd_y2,   &   !upper  boundary of arrays
-                          rotation_on_lon,   &   !euler angle on longitude
-                          rotation_on_lat,   &   !euler angle on latitude
-                                geo_lon_h,   &   !geographical longitude in degrees
-                                geo_lat_h,   &   !geographical latitude  in degrees
-                                     dxb,    &   !metrical coefficient on x
-                                     dyb,    &   !metrical coefficient on x
-                              rotvec_coeff,  &   !rotation coefficients for vector transform
-                                    rlh_s,   &   !coriolis main term (sin)
-                                    rlh_c,   &   !coriolis second term (cos)
-                                        0,   &   !key to compute rotation coefficients (0/1)
-                                        1,   &   !key to compute coriolis terms (0/1)
-                                 nx_start-1, &   !first significant point in x-direction (output)
-                                 nx_end+1,   &   ! last significant point in x-direction (output)
-                                 ny_start-1, &   !first significant point in y-direction (output)
-                                 ny_end+1    )   ! last significant point in y-direction (output)
-
-      elseif(curve_grid==2) then   !in case of curve grid
-
-!On T-grid
-       call grid_parameters_curvilinear (xt,   &   !model x-coordinate in degrees
-                                         yt,   &   !model y-coordinate in degrees
-                                     bnd_x1,   &   !left   boundary of arrays
-                                     bnd_x2,   &   !right  boundary of arrays
-                                     bnd_y1,   &   !lower  boundary of arrays
-                                     bnd_y2,   &   !upper  boundary of arrays
-                                     x_pole,   &   !geo longitude of new north pole
-                                     y_pole,   &   !geo latitude  of new north pole
-                                     p_pole,   &   !geo longitude of new south pole
-                                     q_pole,   &   !geo latitude  of new south pole
-                                  geo_lon_t,   &   !geographical longitude in degrees
-                                  geo_lat_t,   &   !geographical latitude  in degrees
-                                        dx,    &   !metrical coefficient on x
-                                        dy,    &   !metrical coefficient on x
-                                rotvec_coeff,  &   !rotation coefficients for vector transform
-                                      rlh_s,   &   !coriolis main term (sin)
-                                      rlh_c,   &   !coriolis second term (cos)
-                                          1,   &   !key to compute rotation coefficients (0/1)
-                                          0,   &   !key to compute coriolis terms (0/1)
-                                   nx_start-1, &   !first significant point in x-direction (output)
-                                   nx_end+1,   &   ! last significant point in x-direction (output)
-                                   ny_start-1, &   !first significant point in y-direction (output)
-                                   ny_end+1    )   ! last significant point in y-direction (output)
-
-!On U-grid
-       call grid_parameters_curvilinear(xu,   &   !model x-coordinate in degrees
-                                        yt,   &   !model y-coordinate in degrees
-                                    bnd_x1,   &   !left   boundary of arrays
-                                    bnd_x2,   &   !right  boundary of arrays
-                                    bnd_y1,   &   !lower  boundary of arrays
-                                    bnd_y2,   &   !upper  boundary of arrays
-                                    x_pole,   &   !geo longitude of new north pole
-                                    y_pole,   &   !geo latitude  of new north pole
-                                    p_pole,   &   !geo longitude of new south pole
-                                    q_pole,   &   !geo latitude  of new south pole
-                                 geo_lon_u,   &   !geographical longitude in degrees
-                                 geo_lat_u,   &   !geographical latitude  in degrees
-                                      dxt,    &   !metrical coefficient on x
-                                      dyh,    &   !metrical coefficient on x
-                               rotvec_coeff,  &   !rotation coefficients for vector transform
-                                     rlh_s,   &   !coriolis main term (sin)
-                                     rlh_c,   &   !coriolis second term (cos)
-                                         0,   &   !key to compute rotation coefficients (0/1)
-                                         0,   &   !key to compute coriolis terms (0/1)
-                                  nx_start-1, &   !first significant point in x-direction (output)
-                                  nx_end+1,   &   ! last significant point in x-direction (output)
-                                  ny_start-1, &   !first significant point in y-direction (output)
-                                  ny_end+1    )   ! last significant point in y-direction (output)
-
-!On V-grid
-       call grid_parameters_curvilinear(xt,   &   !model x-coordinate in degrees
-                                        yv,   &   !model y-coordinate in degrees
-                                    bnd_x1,   &   !left   boundary of arrays
-                                    bnd_x2,   &   !right  boundary of arrays
-                                    bnd_y1,   &   !lower  boundary of arrays
-                                    bnd_y2,   &   !upper  boundary of arrays
-                                    x_pole,   &   !geo longitude of new north pole
-                                    y_pole,   &   !geo latitude  of new north pole
-                                    p_pole,   &   !geo longitude of new south pole
-                                    q_pole,   &   !geo latitude  of new south pole
-                                 geo_lon_v,   &   !geographical longitude in degrees
-                                 geo_lat_v,   &   !geographical latitude  in degrees
-                                      dxh,    &   !metrical coefficient on x
-                                      dyt,    &   !metrical coefficient on x
-                               rotvec_coeff,  &   !rotation coefficients for vector transform
-                                     rlh_s,   &   !coriolis main term (sin)
-                                     rlh_c,   &   !coriolis second term (cos)
-                                         0,   &   !key to compute rotation coefficients (0/1)
-                                         0,   &   !key to compute coriolis terms (0/1)
-                                  nx_start-1, &   !first significant point in x-direction (output)
-                                  nx_end+1,   &   ! last significant point in x-direction (output)
-                                  ny_start-1, &   !first significant point in y-direction (output)
-                                  ny_end+1    )   ! last significant point in y-direction (output)
-
-!On H-grid
-       call grid_parameters_curvilinear(xu,   &   !model x-coordinate in degrees
-                                        yv,   &   !model y-coordinate in degrees
-                                    bnd_x1,   &   !left   boundary of arrays
-                                    bnd_x2,   &   !right  boundary of arrays
-                                    bnd_y1,   &   !lower  boundary of arrays
-                                    bnd_y2,   &   !upper  boundary of arrays
-                                    x_pole,   &   !geo longitude of new north pole
-                                    y_pole,   &   !geo latitude  of new north pole
-                                    p_pole,   &   !geo longitude of new south pole
-                                    q_pole,   &   !geo latitude  of new south pole
-                                 geo_lon_h,   &   !geographical longitude in degrees
-                                 geo_lat_h,   &   !geographical latitude  in degrees
-                                      dxb,    &   !metrical coefficient on x
-                                      dyb,    &   !metrical coefficient on x
-                               rotvec_coeff,  &   !rotation coefficients for vector transform
-                                     rlh_s,   &   !coriolis main term (sin)
-                                     rlh_c,   &   !coriolis second term (cos)
-                                         0,   &   !key to compute rotation coefficients (0/1)
-                                         1,   &   !key to compute coriolis terms (0/1)
-                                  nx_start-1, &   !first significant point in x-direction (output)
-                                  nx_end+1,   &   ! last significant point in x-direction (output)
-                                  ny_start-1, &   !first significant point in y-direction (output)
-                                  ny_end+1    )   ! last significant point in y-direction (output)
-
-      end if
-!-----end of metric initialization------------------------------------------
-
- endsubroutine basinpar
-
-!====================================================================
- subroutine grid_parameters_carthesian(x_mod,   &   !model x-coordinate in degrees
-                                       y_mod,   &   !model y-coordinate in degrees
-                                      bnd_x1,   &   !left   boundary of arrays
-                                      bnd_x2,   &   !right  boundary of arrays
-                                      bnd_y1,   &   !lower  boundary of arrays
-                                      bnd_y2,   &   !upper  boundary of arrays
-                                     geo_lon,   &   !geographical longitude in degrees
-                                     geo_lat,   &   !geographical latitude  in degrees
-                                     metr_x,    &   !metrical coefficient on x
-                                     metr_y,    &   !metrical coefficient on x
-                                     rot_coef,  &   !rotation coefficients for vector transform
-                                     cor_sin,   &   !coriolis main term (sin)
-                                     cor_cos,   &   !coriolis second term (cos)
-                                     key_rot,   &   !key to compute rotation coefficients (0/1)
-                                     key_cor,   &   !key to compute coriolis terms (0/1)
-                                     mmm_out,   &   !first significant point in x-direction (output)
-                                     mm_out,    &   ! last significant point in x-direction (output)
-                                     nnn_out,   &   !first significant point in y-direction (output)
-                                     nn_out)        !last significant point in y-direction (output)
-
- implicit none
- integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
- integer mmm_out, mm_out, nnn_out, nn_out
-
- real(8), parameter :: dpip180=3.1415926535897/180.0d0 !for degrees to radians convers
- real(8)          x_mod(bnd_x1:bnd_x2),   &
-                  y_mod(bnd_y1:bnd_y2),   &
-  geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-  geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-   metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-   metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
- real(8) rot_coef(bnd_x1:bnd_x2,bnd_y1:bnd_y2,4),     &
-          cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       &
-          cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
- integer key_rot, key_cor
- integer m,n
-
- !$omp parallel do private (m,n)
-      do n=nnn_out,nn_out
-       do m=mmm_out,mm_out
-
-!         necessary latitude
-        geo_lat(m,n) = y_mod(n)
-
-!         necessary longitude
-          geo_lon(m,n)= x_mod(m)
-
-          metr_x(m,n)=metr_x(m,n)*1.0d0
-          metr_y(m,n)=metr_y(m,n)*1.0d0
-
-       if(key_rot==1) then
-           !--------definition of angles between parallels-----------------------
-      rot_coef(m,n,1) = 1.0d0
-        rot_coef(m,n,2) = 0.0d0
-        rot_coef(m,n,3)=-rot_coef(m,n,2)
-        rot_coef(m,n,4)= rot_coef(m,n,1)
-       endif
-
-       if(key_cor==1) then
-        cor_sin(m,n)=cor_sin(m,n)/dsqrt(2.0d0)
-        cor_cos(m,n)=cor_cos(m,n)/dsqrt(2.0d0)
-       endif
-
-       enddo
-      enddo
- !$omp end parallel do
-
- endsubroutine grid_parameters_carthesian
-
-!====================================================================
- subroutine grid_parameters_spherical (x_mod,   &   !model x-coordinate in degrees
-                                       y_mod,   &   !model y-coordinate in degrees
-                                      bnd_x1,   &   !left   boundary of arrays
-                                      bnd_x2,   &   !right  boundary of arrays
-                                      bnd_y1,   &   !lower  boundary of arrays
-                                      bnd_y2,   &   !upper  boundary of arrays
-                             rotation_on_lon,   &   !euler angle on longitude
-                             rotation_on_lat,   &   !euler angle on latitude
-                                     geo_lon,   &   !geographical longitude in degrees
-                                     geo_lat,   &   !geographical latitude  in degrees
-                                     metr_x,    &   !metrical coefficient on x
-                                     metr_y,    &   !metrical coefficient on x
-                                     rot_coef,  &   !rotation coefficients for vector transform
-                                     cor_sin,   &   !coriolis main term (sin)
-                                     cor_cos,   &   !coriolis second term (cos)
-                                     key_rot,   &   !key to compute rotation coefficients (0/1)
-                                     key_cor,   &   !key to compute coriolis terms (0/1)
-                                     mmm_out,   &   !first significant point in x-direction (output)
-                                     mm_out,    &   ! last significant point in x-direction (output)
-                                     nnn_out,   &   !first significant point in y-direction (output)
-                                     nn_out)        !last significant point in y-direction (output)
-
- implicit none
- integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
- integer mmm_out, mm_out, nnn_out, nn_out
-
- real(8), parameter :: dpip180=3.1415926535897/180.0d0 !for degrees to radians convers
- real(8)          x_mod(bnd_x1:bnd_x2),   &
-                  y_mod(bnd_y1:bnd_y2),   &
-  geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-  geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-  metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
-  metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
- real(8) rot_coef(bnd_x1:bnd_x2,bnd_y1:bnd_y2,4),     &
-          cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       &
-          cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
- integer key_rot, key_cor
-
- real(8) rotation_on_lon, rotation_on_lat
-
- real(8) sin_lon, sin_lat, cos_lon, cos_lat, lat_mod       !auxilary variables
- real(8) free_term_coslon, free_term_sinlon
-
- real(8), parameter:: lat_extr= 89.99999d0
- real(8) sinlat_extr, coslat_extr, sum_rot_coef, sum_sincos
-
- integer m,n
-
-  coslat_extr= dcos(dpip180*lat_extr)
-  sinlat_extr= dsin(dpip180*lat_extr)
-
- !$omp parallel do private (m,n,sin_lat,cos_lat,free_term_coslon,free_term_sinlon,cos_lon,sin_lon,  &
- !$omp                      sum_rot_coef, sum_sincos, lat_mod)
-      do n=nnn_out,nn_out
-          lat_mod=max(min(y_mod(n),lat_extr),-lat_extr)
-       do m=mmm_out,mm_out
-          sin_lat = dsin(dpip180*y_mod(n)) * dcos(dpip180*rotation_on_lat)                           &
-                  + dcos(dpip180*x_mod(m)) * dcos(dpip180*y_mod(n)) * dsin(dpip180*rotation_on_lat)
-
-          sin_lat=min(max(sin_lat, -sinlat_extr),sinlat_extr)
-          cos_lat = dsqrt(1d0-sin_lat**2)
-
-!         necessary latitude
-        geo_lat(m,n) = dasin(sin_lat)/dpip180
-
-        free_term_coslon =(  dcos(dpip180*x_mod(m)) * dcos(dpip180*y_mod(n)) * dcos(dpip180*rotation_on_lat)   &
-                            -  dsin(dpip180*y_mod(n)) * dsin(dpip180*rotation_on_lat)  )  / cos_lat
-
-        free_term_sinlon =(  dsin(dpip180*x_mod(m)) * dcos(dpip180*y_mod(n))  ) / cos_lat
-
-        cos_lon=free_term_coslon*dcos(dpip180*rotation_on_lon)     &
-                   -free_term_sinlon*dsin(dpip180*rotation_on_lon)
-
-        sin_lon=free_term_sinlon*dcos(dpip180*rotation_on_lon)     &
-                   +free_term_coslon*dsin(dpip180*rotation_on_lon)
-
-          sum_sincos=max(dsqrt(cos_lon**2+sin_lon**2),1d-10)
-          cos_lon=cos_lon/sum_sincos
-          sin_lon=sin_lon/sum_sincos
-
-!         necessary longitude
-          geo_lon(m,n)=dsign(dacos(cos_lon)/dpip180,sin_lon)
-
-          metr_x(m,n)=metr_x(m,n)*dcos(dpip180*lat_mod)
-          metr_y(m,n)=metr_y(m,n)*1.0d0
-
-       if(key_rot==1) then
-           !--------definition of angles between parallels-----------------------
-      rot_coef(m,n,1) = (  cos_lat*dcos(dpip180*rotation_on_lat) + sin_lat*dsin(dpip180*rotation_on_lat)    &
-                         * ( cos_lon*dcos(dpip180*rotation_on_lon) + sin_lon*dsin(dpip180*rotation_on_lon) )  &
-                                            )  / dcos(dpip180*lat_mod)
-
-        rot_coef(m,n,2) = (  -dsin(dpip180*rotation_on_lat)                                                     &
-                         * ( sin_lon*dcos(dpip180*rotation_on_lon) - cos_lon*dsin(dpip180*rotation_on_lon) )  )      &
-                                     / dcos(dpip180*lat_mod)
-
-      rot_coef(m,n,3)=-rot_coef(m,n,2)
-        rot_coef(m,n,4)= rot_coef(m,n,1)
-        sum_rot_coef=   max(dsqrt(rot_coef(m,n,1)*rot_coef(m,n,4)-rot_coef(m,n,2)*rot_coef(m,n,3)),1d-10)
-        rot_coef(m,n,:)=rot_coef(m,n,:)/sum_rot_coef
-       endif
-
-       if(key_cor==1) then
-        cor_sin(m,n)=cor_sin(m,n)*sin_lat
-        cor_cos(m,n)=cor_cos(m,n)*cos_lat
-       endif
-
-       enddo
-      enddo
- !$omp end parallel do
-
- endsubroutine grid_parameters_spherical
-
- !====================================================================
- subroutine grid_parameters_curvilinear (x_mod,   &   !model x-coordinate in degrees
-                                         y_mod,   &   !model y-coordinate in degrees
+module grid_parameters
+    implicit none
+
+contains
+
+    !initializing basin grid parameters
+    subroutine basinpar
+        use main_basin_pars
+        use mpi_parallel_tools
+        use basin_grid
+        use rec_length
+        implicit none
+        integer k, m , n, ierr
+        real(8), parameter:: dpip180 = 3.1415926535897/180.0d0   !for degrees to radians convers
+        !real(4) array4(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        ! temperature grid initialization
+
+        do k = 1, bcount
+            call set_block_boundary(k)
+
+            ! x-coordinate (in degrees)
+            ! in case of regular grid
+            if (xgr_type == 0) then
+                do m = bnd_x1, bnd_x2
+                    do n = bnd_y1, bnd_y2
+                        xt(k)%vals(m, n) = rlon + dfloat(m-mmm)*dxst
+                    enddo
+                enddo
+            else !in case of irregular grid
+                do m = bnd_x1, bnd_x2
+                    do n = bnd_y1, bnd_y2
+                        xt(k)%vals(m, n) = x_levels(m)
+                    enddo
+                enddo
+            endif
+
+            ! y-coordinate (in degrees)
+            ! in case of regular grid
+            if (ygr_type == 0) then
+                do m = bnd_x1, bnd_x2
+                    do n = bnd_y1, bnd_y2
+                        yt(k)%vals(m, n) = rlat + dfloat(n-nnn)*dyst
+                    enddo
+                enddo
+            else !in case of irregular grid
+                do m = bnd_x1, bnd_x2
+                    do n = bnd_y1, bnd_y2
+                        yt(k)%vals(m, n) = y_levels(n)
+                    enddo
+                enddo
+            endif
+        enddo
+
+        ! parameters:
+        if (rank .eq. 0) then
+            write(*,'(2x,a)')' Basin parameters from 1basinpar.inc:'
+
+            if(curve_grid==0) then        !Carthesian coordinates
+                write(*,*) 'Coordinate system is carthesian'
+            elseif(curve_grid==1) then
+                write(*,*) 'Coordinate system is undistorted sphere'
+                write(*,'(a,f10.3)') ' rotation angle on longitude is =',rotation_on_lon,    &
+                    ' rotation angle on  latitude is =',rotation_on_lat
+            elseif(curve_grid==2) then
+                write(*,*) 'Coordinate system is distorted sphere'
+                write(*,'(a,f10.3)') ' geo longitude of new north pole is =',x_pole,    &
+                    ' geo  latitude of new north pole is =',y_pole,    &
+                    ' geo longitude of new south pole is =',p_pole,    &
+                    ' geo  latitude of new south pole is =',q_pole
+            endif
+
+            if(xgr_type==0) then
+                write(*,*) 'X-grid is uniform'
+                write(*,'(2(a,f10.3),a)') ' initial x-coordinate (m=mmm) =',rlon,' step on x =',dxst,'[dgr] '
+            else
+                write(*,*) 'X-grid is non-uniform'
+                !write(*,'(a,f10.3)') ' minimal x-coordinate (m=mmm) =',xt(mmm),    &
+                !    ' maximal x-coordinate (m=mm ) =',xt(mm)
+            endif
+
+            if(ygr_type==0) then
+                write(*,*) 'Y-grid is uniform'
+                write(*,'(2(a,f10.3),a)') ' initial y-coordinate (n=nnn) =',rlat,' step on y =',dyst,'[dgr] '
+            else
+                write(*,*) 'Y-grid is non-uniform'
+                !write(*,'(a,f10.3)') ' minimal y-coordinate (n=nnn) =',yt(nnn),    &
+                !    ' maximal y-coordinate (n=nn ) =',yt(nn)
+            endif
+
+            write(*,'(2(a,i2))') 'Periodicity on X =', periodicity_x,', Periodicity on Y =', periodicity_y
+            write(*,'(4(a,i4))') '  nx=',nx, ';  ny=',ny,';  nz=',nz
+            write(*,'(4(a,i4))') ' mmm=',mmm,';  mm=',mm,'; nnn=',nnn,';  nn=',nn
+
+            write(*,'(2x,a,g14.7,a)')' Earth radius =',RadEarth,'(m)'
+            write(*,'(2x,a,g14.7,a)') 'Earth angular velocity(omega) =',EarthAngVel,'[rad/sec]'
+            write(*,'(2x,a,g14.7,a)') 'Heat capacity of water =',HeatCapWater,'[J/kg/�C] for 35%. sal'
+            write(*,'(2x,a,g14.7,a)') 'reference density =',RefDen,'[kg/m**3]'
+            write(*,'(2x,a,f10.3,a)') 'free fall acceleration(grv)=',FreeFallAcc,'[m/s**2]'
+        endif
+
+
+        do k = 1, bcount
+            call set_block_boundary(k)
+            ! velocity grid initialization
+
+            ! x-coordinate (in degrees)
+            do m = bnd_x1, bnd_x2-1
+                do n = bnd_y1, bnd_y2
+                    xu(k)%vals(m, n) = (xt(k)%vals(m, n) + xt(k)%vals(m+1, n))/2.0d0
+                enddo
+            enddo
+
+            ! y-coordinate (in degrees)
+            do m = bnd_x1, bnd_x2
+                do n = bnd_y1, bnd_y2-1
+                    yv(k)%vals(m, n) = (yt(k)%vals(m, n) + yt(k)%vals(m, n+1))/2.0d0
+                enddo
+            enddo
+        enddo
+
+        do k = 1, bcount
+            call set_block_boundary(k)
+            !Initialization of x-steps
+            if(xgr_type>0) then
+                do n=ny_start-1,ny_end+1
+                    do m=nx_start-1,nx_end+1
+                        !-----initialization of t- and v-grid x-steps in centimeters
+                        dxt(k)%vals(m, n) = (xt(k)%vals(m+1, n) - xt(k)%vals(m, n))*dpip180*RadEarth
+                        dxb(k)%vals(m, n) = (xt(k)%vals(m+1, n) - xt(k)%vals(m, n))*dpip180*RadEarth
+                        !-----initialization of u- and h-grid x-steps in centimeters
+                        dx(k)%vals(m, n) = (xu(k)%vals(m, n) - xu(k)%vals(m-1, n))*dpip180*RadEarth
+                        dxh(k)%vals(m, n) = (xu(k)%vals(m, n) - xu(k)%vals(m-1, n))*dpip180*RadEarth
+                    end do
+                end do
+            else
+                do n=ny_start-1,ny_end+1
+                    do m=nx_start-1,nx_end+1
+                        !-----initialization of t- and v-grid x-steps in centimeters
+                        dxt(k)%vals(m,n) = dxst*dpip180*RadEarth
+                        dxb(k)%vals(m,n) = dxst*dpip180*RadEarth
+                        !-----initialization of u- and h-grid x-steps in centimeters
+                        dx(k)%vals(m,n) = dxst*dpip180*RadEarth
+                        dxh(k)%vals(m,n) = dxst*dpip180*RadEarth
+                    end do
+                end do
+            endif
+        enddo
+
+        do k = 1, bcount
+            call set_block_boundary(k)
+            !Initialization of y-steps
+            if(ygr_type>0) then
+                do n=ny_start-1,ny_end+1
+                    do m=nx_start-1,nx_end+1
+                        !-----initialization of t- and u-grid y-steps in centimeters
+                        dyt(k)%vals(m, n) = (yt(k)%vals(m, n+1) - yt(k)%vals(m, n))*dpip180*RadEarth
+                        dyb(k)%vals(m, n) = (yt(k)%vals(m, n+1) - yt(k)%vals(m, n))*dpip180*RadEarth
+                        !-----initialization of v- and h-grid y-steps in centimeters
+                        dy(k)%vals(m, n) = (yv(k)%vals(m, n) - yv(k)%vals(m, n-1))*dpip180*RadEarth
+                        dyh(k)%vals(m, n) = (yv(k)%vals(m, n) - yv(k)%vals(m, n-1))*dpip180*RadEarth
+                    end do
+                end do
+            else
+                do n=ny_start-1,ny_end+1
+                    do m=nx_start-1,nx_end+1
+                        !-----initialization of t- and u-grid y-steps in centimeters
+                        dyt(k)%vals(m,n) = dyst*dpip180*RadEarth
+                        dyb(k)%vals(m,n) = dyst*dpip180*RadEarth
+                        !-----initialization of v- and h-grid y-steps in centimeters
+                        dy(k)%vals(m,n) = dyst*dpip180*RadEarth
+                        dyh(k)%vals(m,n)  =dyst*dpip180*RadEarth
+                    end do
+                end do
+            endif
+        enddo
+
+        !-----initialization of Coriolis terms--------------------------
+        do k = 1, bcount
+            rlh_s(k)%vals = 2.0d0*EarthAngVel
+            rlh_c(k)%vals = -2.0d0*EarthAngVel
+        enddo
+
+        !-----metric initialization--------------------------------------------------------------
+        if(curve_grid==0) then   !in case of carthesian grid
+            if (rank .eq. 0) print *, 'ERR: carthesian grid is not supported!'
+            call parallel_finalize; stop
+        elseif(curve_grid==1) then !in case of spherical grid
+            do k = 1, bcount
+                call set_block_boundary(k)
+
+                !On T-grid
+                call grid_parameters_spherical (xt(k)%vals(:, ny_start),   &   !model x-coordinate in degrees
+                    yt(k)%vals(nx_start, :),   &   !model y-coordinate in degrees
+                    bnd_x1,   &   !left   boundary of arrays
+                    bnd_x2,   &   !right  boundary of arrays
+                    bnd_y1,   &   !lower  boundary of arrays
+                    bnd_y2,   &   !upper  boundary of arrays
+                    rotation_on_lon,   &   !euler angle on longitude
+                    rotation_on_lat,   &   !euler angle on latitude
+                    geo_lon_t(k)%vals,   &   !geographical longitude in degrees
+                    geo_lat_t(k)%vals,   &   !geographical latitude  in degrees
+                    dx(k)%vals,    &   !metrical coefficient on x
+                    dy(k)%vals,    &   !metrical coefficient on x
+                                !rotvec_coeff,  &   !rotation coefficients for vector transform
+                    rlh_s(k)%vals,   &   !coriolis main term (sin)
+                    rlh_c(k)%vals,   &   !coriolis second term (cos)
+                    1,   &   !key to compute rotation coefficients (0/1)
+                    0,   &   !key to compute coriolis terms (0/1)
+                    nx_start-1, &   !first significant point in x-direction (output)
+                    nx_end+1,   &   ! last significant point in x-direction (output)
+                    ny_start-1, &   !first significant point in y-direction (output)
+                    ny_end+1    )   ! last significant point in y-direction (output)
+
+                !On U-grid
+                call grid_parameters_spherical (xu(k)%vals(:, ny_start),   &   !model x-coordinate in degrees
+                    yt(k)%vals(nx_start, :),   &   !model y-coordinate in degrees
+                    bnd_x1,   &   !left   boundary of arrays
+                    bnd_x2,   &   !right  boundary of arrays
+                    bnd_y1,   &   !lower  boundary of arrays
+                    bnd_y2,   &   !upper  boundary of arrays
+                    rotation_on_lon,   &   !euler angle on longitude
+                    rotation_on_lat,   &   !euler angle on latitude
+                    geo_lon_u(k)%vals,   &   !geographical longitude in degrees
+                    geo_lat_u(k)%vals,   &   !geographical latitude  in degrees
+                    dxt(k)%vals,    &   !metrical coefficient on x
+                    dyh(k)%vals,    &   !metrical coefficient on x
+                                !rotvec_coeff,  &   !rotation coefficients for vector transform
+                    rlh_s(k)%vals,   &   !coriolis main term (sin)
+                    rlh_c(k)%vals,   &   !coriolis second term (cos)
+                    0,   &   !key to compute rotation coefficients (0/1)
+                    0,   &   !key to compute coriolis terms (0/1)
+                    nx_start-1, &   !first significant point in x-direction (output)
+                    nx_end+1,   &   ! last significant point in x-direction (output)
+                    ny_start-1, &   !first significant point in y-direction (output)
+                    ny_end+1    )   ! last significant point in y-direction (output)
+
+                !On V-grid
+                call grid_parameters_spherical (xt(k)%vals(:, ny_start),   &   !model x-coordinate in degrees
+                    yv(k)%vals(nx_start, :),   &   !model y-coordinate in degrees
+                    bnd_x1,   &   !left   boundary of arrays
+                    bnd_x2,   &   !right  boundary of arrays
+                    bnd_y1,   &   !lower  boundary of arrays
+                    bnd_y2,   &   !upper  boundary of arrays
+                    rotation_on_lon,   &   !euler angle on longitude
+                    rotation_on_lat,   &   !euler angle on latitude
+                    geo_lon_v(k)%vals,   &   !geographical longitude in degrees
+                    geo_lat_v(k)%vals,   &   !geographical latitude  in degrees
+                    dxh(k)%vals,    &   !metrical coefficient on x
+                    dyt(k)%vals,    &   !metrical coefficient on x
+                                !rotvec_coeff,  &   !rotation coefficients for vector transform
+                    rlh_s(k)%vals,   &   !coriolis main term (sin)
+                    rlh_c(k)%vals,   &   !coriolis second term (cos)
+                    0,   &   !key to compute rotation coefficients (0/1)
+                    0,   &   !key to compute coriolis terms (0/1)
+                    nx_start-1, &   !first significant point in x-direction (output)
+                    nx_end+1,   &   ! last significant point in x-direction (output)
+                    ny_start-1, &   !first significant point in y-direction (output)
+                    ny_end+1    )   ! last significant point in y-direction (output)
+
+                !On H-grid
+                call grid_parameters_spherical (xu(k)%vals(:, ny_start),   &   !model x-coordinate in degrees
+                    yv(k)%vals(nx_start, :),   &   !model y-coordinate in degrees
+                    bnd_x1,   &   !left   boundary of arrays
+                    bnd_x2,   &   !right  boundary of arrays
+                    bnd_y1,   &   !lower  boundary of arrays
+                    bnd_y2,   &   !upper  boundary of arrays
+                    rotation_on_lon,   &   !euler angle on longitude
+                    rotation_on_lat,   &   !euler angle on latitude
+                    geo_lon_h(k)%vals,   &   !geographical longitude in degrees
+                    geo_lat_h(k)%vals,   &   !geographical latitude  in degrees
+                    dxb(k)%vals,    &   !metrical coefficient on x
+                    dyb(k)%vals,    &   !metrical coefficient on x
+                                !rotvec_coeff,  &   !rotation coefficients for vector transform
+                    rlh_s(k)%vals,   &   !coriolis main term (sin)
+                    rlh_c(k)%vals,   &   !coriolis second term (cos)
+                    0,   &   !key to compute rotation coefficients (0/1)
+                    1,   &   !key to compute coriolis terms (0/1)
+                    nx_start-1, &   !first significant point in x-direction (output)
+                    nx_end+1,   &   ! last significant point in x-direction (output)
+                    ny_start-1, &   !first significant point in y-direction (output)
+                    ny_end+1    )   ! last significant point in y-direction (output)
+            enddo
+        elseif(curve_grid==2) then   !in case of curve grid
+            if (rank .eq. 0) print *, 'ERR: curvlinear grid is not supported!'
+            call parallel_finalize; stop
+        end if
+        !-----end of metric initialization------------------------------------------
+
+    endsubroutine basinpar
+
+    !====================================================================
+    subroutine grid_parameters_carthesian(x_mod,   &   !model x-coordinate in degrees
+        y_mod,   &   !model y-coordinate in degrees
+        bnd_x1,   &   !left   boundary of arrays
+        bnd_x2,   &   !right  boundary of arrays
+        bnd_y1,   &   !lower  boundary of arrays
+        bnd_y2,   &   !upper  boundary of arrays
+        geo_lon,   &   !geographical longitude in degrees
+        geo_lat,   &   !geographical latitude  in degrees
+        metr_x,    &   !metrical coefficient on x
+        metr_y,    &   !metrical coefficient on x
+        rot_coef,  &   !rotation coefficients for vector transform
+        cor_sin,   &   !coriolis main term (sin)
+        cor_cos,   &   !coriolis second term (cos)
+        key_rot,   &   !key to compute rotation coefficients (0/1)
+        key_cor,   &   !key to compute coriolis terms (0/1)
+        mmm_out,   &   !first significant point in x-direction (output)
+        mm_out,    &   ! last significant point in x-direction (output)
+        nnn_out,   &   !first significant point in y-direction (output)
+        nn_out)        !last significant point in y-direction (output)
+
+        implicit none
+        integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
+        integer mmm_out, mm_out, nnn_out, nn_out
+
+        real(8), parameter :: dpip180=3.1415926535897/180.0d0 !for degrees to radians convers
+        real(8)          x_mod(bnd_x1:bnd_x2),   &
+            y_mod(bnd_y1:bnd_y2),   &
+            geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        real(8) rot_coef(bnd_x1:bnd_x2,bnd_y1:bnd_y2,4),     &
+            cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       &
+            cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        integer key_rot, key_cor
+        integer m,n
+
+        !$omp parallel do private (m,n)
+        do n=nnn_out,nn_out
+            do m=mmm_out,mm_out
+
+                !         necessary latitude
+                geo_lat(m,n) = y_mod(n)
+
+                !         necessary longitude
+                geo_lon(m,n)= x_mod(m)
+
+                metr_x(m,n)=metr_x(m,n)*1.0d0
+                metr_y(m,n)=metr_y(m,n)*1.0d0
+
+                if(key_rot==1) then
+                    !--------definition of angles between parallels-----------------------
+                    rot_coef(m,n,1) = 1.0d0
+                    rot_coef(m,n,2) = 0.0d0
+                    rot_coef(m,n,3)=-rot_coef(m,n,2)
+                    rot_coef(m,n,4)= rot_coef(m,n,1)
+                endif
+
+                if(key_cor==1) then
+                    cor_sin(m,n)=cor_sin(m,n)/dsqrt(2.0d0)
+                    cor_cos(m,n)=cor_cos(m,n)/dsqrt(2.0d0)
+                endif
+
+            enddo
+        enddo
+        !$omp end parallel do
+
+    endsubroutine grid_parameters_carthesian
+
+    !====================================================================
+    subroutine grid_parameters_spherical(x_mod,   &   !model x-coordinate in degrees
+                                        y_mod,   &   !model y-coordinate in degrees
                                         bnd_x1,   &   !left   boundary of arrays
                                         bnd_x2,   &   !right  boundary of arrays
                                         bnd_y1,   &   !lower  boundary of arrays
                                         bnd_y2,   &   !upper  boundary of arrays
-                                        x_pole,   &   !geo longitude of new north pole
-                                        y_pole,   &   !geo latitude  of new north pole
-                                        p_pole,   &   !geo longitude of new south pole
-                                        q_pole,   &   !geo latitude  of new south pole
-                                       geo_lon,   &   !geographical longitude in degrees
-                                       geo_lat,   &   !geographical latitude  in degrees
-                                       metr_x,    &   !metrical coefficient on x
-                                       metr_y,    &   !metrical coefficient on x
-                                       rot_coef,  &   !rotation coefficients for vector transform
-                                       cor_sin,   &   !coriolis main term (sin)
-                                       cor_cos,   &   !coriolis second term (cos)
-                                       key_rot,   &   !key to compute rotation coefficients (0/1)
-                                       key_cor,   &   !key to compute coriolis terms (0/1)
-                                        mmm_out,  &   !first significant point in x-direction (output)
-                                        mm_out,   &   ! last significant point in x-direction (output)
-                                        nnn_out,  &   !first significant point in y-direction (output)
-                                        nn_out)       !last significant point in y-direction (output)
- implicit none
+                                        rotation_on_lon,   &   !euler angle on longitude
+                                        rotation_on_lat,   &   !euler angle on latitude
+                                        geo_lon,   &   !geographical longitude in degrees
+                                        geo_lat,   &   !geographical latitude  in degrees
+                                        metr_x,    &   !metrical coefficient on x
+                                        metr_y,    &   !metrical coefficient on x
+                                        !rot_coef,  &   !rotation coefficients for vector transform
+                                        cor_sin,   &   !coriolis main term (sin)
+                                        cor_cos,   &   !coriolis second term (cos)
+                                        key_rot,   &   !key to compute rotation coefficients (0/1)
+                                        key_cor,   &   !key to compute coriolis terms (0/1)
+                                        mmm_out,   &   !first significant point in x-direction (output)
+                                        mm_out,    &   ! last significant point in x-direction (output)
+                                        nnn_out,   &   !first significant point in y-direction (output)
+                                        nn_out)        !last significant point in y-direction (output)
+
+        implicit none
+        integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
+        integer mmm_out, mm_out, nnn_out, nn_out
+
+        real(8), parameter :: dpip180=3.1415926535897/180.0d0 !for degrees to radians convers
+        real(8)         x_mod(bnd_x1:bnd_x2),   &
+            y_mod(bnd_y1:bnd_y2),   &
+            geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+            metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        !real(8) rot_coef(bnd_x1:bnd_x2,bnd_y1:bnd_y2,4)
+        real(8) cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       &
+            cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        integer key_rot, key_cor
+
+        real(8) rotation_on_lon, rotation_on_lat
+
+        real(8) sin_lon, sin_lat, cos_lon, cos_lat, lat_mod       !auxilary variables
+        real(8) free_term_coslon, free_term_sinlon
+
+        real(8), parameter:: lat_extr= 89.99999d0
+        real(8) sinlat_extr, coslat_extr, sum_rot_coef, sum_sincos
+
+        integer m,n
+
+        coslat_extr= dcos(dpip180*lat_extr)
+        sinlat_extr= dsin(dpip180*lat_extr)
+
+        !$omp parallel do private (m,n,sin_lat,cos_lat,free_term_coslon,free_term_sinlon,cos_lon,sin_lon,  &
+        !$omp                      sum_rot_coef, sum_sincos, lat_mod)
+        do n=nnn_out,nn_out
+            lat_mod=max(min(y_mod(n),lat_extr),-lat_extr)
+            do m=mmm_out,mm_out
+                sin_lat = dsin(dpip180*y_mod(n)) * dcos(dpip180*rotation_on_lat)                           &
+                    + dcos(dpip180*x_mod(m)) * dcos(dpip180*y_mod(n)) * dsin(dpip180*rotation_on_lat)
+
+                sin_lat=min(max(sin_lat, -sinlat_extr),sinlat_extr)
+                cos_lat = dsqrt(1d0-sin_lat**2)
+
+                !         necessary latitude
+                geo_lat(m,n) = dasin(sin_lat)/dpip180
+
+                free_term_coslon =(  dcos(dpip180*x_mod(m)) * dcos(dpip180*y_mod(n)) * dcos(dpip180*rotation_on_lat)   &
+                    -  dsin(dpip180*y_mod(n)) * dsin(dpip180*rotation_on_lat)  )  / cos_lat
+
+                free_term_sinlon =(  dsin(dpip180*x_mod(m)) * dcos(dpip180*y_mod(n))  ) / cos_lat
+
+                cos_lon=free_term_coslon*dcos(dpip180*rotation_on_lon)     &
+                    -free_term_sinlon*dsin(dpip180*rotation_on_lon)
+
+                sin_lon=free_term_sinlon*dcos(dpip180*rotation_on_lon)     &
+                    +free_term_coslon*dsin(dpip180*rotation_on_lon)
+
+                sum_sincos=max(dsqrt(cos_lon**2+sin_lon**2),1d-10)
+                cos_lon=cos_lon/sum_sincos
+                sin_lon=sin_lon/sum_sincos
+
+                !         necessary longitude
+                geo_lon(m,n)=dsign(dacos(cos_lon)/dpip180,sin_lon)
+
+                metr_x(m,n)=metr_x(m,n)*dcos(dpip180*lat_mod)
+                metr_y(m,n)=metr_y(m,n)*1.0d0
+
+                !if(key_rot==1) then
+                !    !--------definition of angles between parallels-----------------------
+                !    rot_coef(m,n,1) = (  cos_lat*dcos(dpip180*rotation_on_lat) + sin_lat*dsin(dpip180*rotation_on_lat)    &
+                !        * ( cos_lon*dcos(dpip180*rotation_on_lon) + sin_lon*dsin(dpip180*rotation_on_lon) )  &
+                !        )  / dcos(dpip180*lat_mod)
+
+                !    rot_coef(m,n,2) = (  -dsin(dpip180*rotation_on_lat)                                                     &
+                !        * ( sin_lon*dcos(dpip180*rotation_on_lon) - cos_lon*dsin(dpip180*rotation_on_lon) )  )      &
+                !        / dcos(dpip180*lat_mod)
+
+                !    rot_coef(m,n,3)=-rot_coef(m,n,2)
+                !    rot_coef(m,n,4)= rot_coef(m,n,1)
+                !    sum_rot_coef=   max(dsqrt(rot_coef(m,n,1)*rot_coef(m,n,4)-rot_coef(m,n,2)*rot_coef(m,n,3)),1d-10)
+                !    rot_coef(m,n,:)=rot_coef(m,n,:)/sum_rot_coef
+                !endif
+
+                if(key_cor==1) then
+                    cor_sin(m,n)=cor_sin(m,n)*sin_lat
+                    cor_cos(m,n)=cor_cos(m,n)*cos_lat
+                endif
+
+            enddo
+        enddo
+        !$omp end parallel do
+
+    endsubroutine grid_parameters_spherical
+
+    !====================================================================
+    subroutine grid_parameters_curvilinear (x_mod,   &   !model x-coordinate in degrees
+        y_mod,   &   !model y-coordinate in degrees
+        bnd_x1,   &   !left   boundary of arrays
+        bnd_x2,   &   !right  boundary of arrays
+        bnd_y1,   &   !lower  boundary of arrays
+        bnd_y2,   &   !upper  boundary of arrays
+        x_pole,   &   !geo longitude of new north pole
+        y_pole,   &   !geo latitude  of new north pole
+        p_pole,   &   !geo longitude of new south pole
+        q_pole,   &   !geo latitude  of new south pole
+        geo_lon,   &   !geographical longitude in degrees
+        geo_lat,   &   !geographical latitude  in degrees
+        metr_x,    &   !metrical coefficient on x
+        metr_y,    &   !metrical coefficient on x
+        rot_coef,  &   !rotation coefficients for vector transform
+        cor_sin,   &   !coriolis main term (sin)
+        cor_cos,   &   !coriolis second term (cos)
+        key_rot,   &   !key to compute rotation coefficients (0/1)
+        key_cor,   &   !key to compute coriolis terms (0/1)
+        mmm_out,  &   !first significant point in x-direction (output)
+        mm_out,   &   ! last significant point in x-direction (output)
+        nnn_out,  &   !first significant point in y-direction (output)
+        nn_out)       !last significant point in y-direction (output)
+        implicit none
 
- integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
- integer mmm_out, mm_out, nnn_out, nn_out
+        integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
+        integer mmm_out, mm_out, nnn_out, nn_out
 
- real(8), parameter:: dpip180=3.1415926535897/180.0d00 !for degrees to radians convers
+        real(8), parameter:: dpip180=3.1415926535897/180.0d00 !for degrees to radians convers
 
- real(8)          x_mod(bnd_x1:bnd_x2),   &
-                  y_mod(bnd_y1:bnd_y2),   &
-  geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-  geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
-  metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
-  metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
- real(8) rot_coef(bnd_x1:bnd_x2,bnd_y1:bnd_y2,4),   &
-          cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-          cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
- integer key_rot, key_cor
+        real(8)          x_mod(bnd_x1:bnd_x2),   &
+            y_mod(bnd_y1:bnd_y2),   &
+            geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+            metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+            metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        real(8) rot_coef(bnd_x1:bnd_x2,bnd_y1:bnd_y2,4),   &
+            cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+            cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        integer key_rot, key_cor
+
+        real(8) x_pole, y_pole, p_pole, q_pole
+        real(8) y_pole1, q_pole1, r3d,r2d
+
+        real(8) sin_lon, sin_lat, cos_lon, cos_lat, lat_mod    !auxilary variables
+        real(8) a,b,s,t,a0,b0,s0,t0                    !auxilary variables
+
+        real(8) num1,num2,numa,numb,denom1
+        real(8) numd1,numd2,numd3,numd4,numas,numat,numbs,numbt
+        real(8) alpha_scale
+        real(8) xn,yn,zn,xs,ys,zs,xm,ym,zm,lm,phm, sinphm,coslm,sinlm, phm1
 
- real(8) x_pole, y_pole, p_pole, q_pole
- real(8) y_pole1, q_pole1, r3d,r2d
+        real(8) dx_da, dx_db, dy_da, dy_db, da_ds, da_dt,   &
+            db_ds, db_dt, ds_dp, ds_dq, dt_dp, dt_dq,   &
+            da_dp, da_dq, db_dp, db_dq, dx_dp, dx_dq,   &
+            dy_dp, dy_dq, det, hp_divide_r, hq_divide_r
+        real(8) df(2,2), dfm1(2,2)
 
- real(8) sin_lon, sin_lat, cos_lon, cos_lat, lat_mod    !auxilary variables
- real(8) a,b,s,t,a0,b0,s0,t0                    !auxilary variables
+        real(8), parameter:: lat_extr= 89.99999d0
+        real(8) sinlat_extr, coslat_extr, sum_rot_coef, sum_sincos
 
- real(8) num1,num2,numa,numb,denom1
- real(8) numd1,numd2,numd3,numd4,numas,numat,numbs,numbt
- real(8) alpha_scale
- real(8) xn,yn,zn,xs,ys,zs,xm,ym,zm,lm,phm, sinphm,coslm,sinlm, phm1
+        integer m,n
 
- real(8) dx_da, dx_db, dy_da, dy_db, da_ds, da_dt,   &
-         db_ds, db_dt, ds_dp, ds_dq, dt_dp, dt_dq,   &
-         da_dp, da_dq, db_dp, db_dq, dx_dp, dx_dq,   &
-         dy_dp, dy_dq, det, hp_divide_r, hq_divide_r
- real(8) df(2,2), dfm1(2,2)
+        y_pole1=min(max(y_pole, -lat_extr),lat_extr)
+        q_pole1=min(max(q_pole, -lat_extr),lat_extr)
 
- real(8), parameter:: lat_extr= 89.99999d0
- real(8) sinlat_extr, coslat_extr, sum_rot_coef, sum_sincos
+        coslat_extr= dcos(dpip180*lat_extr)
+        sinlat_extr= dsin(dpip180*lat_extr)
 
- integer m,n
+        xn=dcos(x_pole*dpip180)*dcos(y_pole*dpip180)
+        yn=dsin(x_pole*dpip180)*dcos(y_pole*dpip180)
+        zn=dsin(y_pole*dpip180)
 
-  y_pole1=min(max(y_pole, -lat_extr),lat_extr)
-  q_pole1=min(max(q_pole, -lat_extr),lat_extr)
+        xs=dcos(p_pole*dpip180)*dcos(q_pole*dpip180)
+        ys=dsin(p_pole*dpip180)*dcos(q_pole*dpip180)
+        zs=dsin(q_pole*dpip180)
 
-  coslat_extr= dcos(dpip180*lat_extr)
-  sinlat_extr= dsin(dpip180*lat_extr)
+        xm=(xn+xs)/2.0d0
+        ym=(yn+ys)/2.0d0
+        zm=(zn+zs)/2.0d0
 
-      xn=dcos(x_pole*dpip180)*dcos(y_pole*dpip180)
-      yn=dsin(x_pole*dpip180)*dcos(y_pole*dpip180)
-      zn=dsin(y_pole*dpip180)
+        r3d=max(dsqrt(xm**2+ym**2+zm**2),1d-10)
+        r2d=max(dsqrt(xm**2+ym**2),1d-10)
 
-      xs=dcos(p_pole*dpip180)*dcos(q_pole*dpip180)
-      ys=dsin(p_pole*dpip180)*dcos(q_pole*dpip180)
-      zs=dsin(q_pole*dpip180)
+        sinphm=zm/r3d
+        sinlm= ym/r2d
+        coslm= xm/r2d
 
-      xm=(xn+xs)/2.0d0
-      ym=(yn+ys)/2.0d0
-      zm=(zn+zs)/2.0d0
+        sinphm=min(max(sinphm, -sinlat_extr),sinlat_extr)
+        phm=dasin(sinphm)/dpip180
 
-      r3d=max(dsqrt(xm**2+ym**2+zm**2),1d-10)
-      r2d=max(dsqrt(xm**2+ym**2),1d-10)
+        sum_sincos=max(dsqrt(coslm**2+sinlm**2),1d-10)
+        coslm=coslm/sum_sincos
+        sinlm=sinlm/sum_sincos
 
-      sinphm=zm/r3d
-      sinlm= ym/r2d
-      coslm= xm/r2d
+        lm=dsign(dacos(coslm)/dpip180,sinlm)
 
-      sinphm=min(max(sinphm, -sinlat_extr),sinlat_extr)
-      phm=dasin(sinphm)/dpip180
+        s0 = 2.0d0*dtan((45.0d0 + y_pole1/2.0d0)*dpip180) *dcos(x_pole*dpip180)
+        t0 = 2.0d0*dtan((45.0d0 + y_pole1/2.0d0)*dpip180) *dsin(x_pole*dpip180)
+        a0 = 2.0d0*dtan((45.0d0 + q_pole1/2.0d0)*dpip180) *dcos(p_pole*dpip180)
+        b0 = 2.0d0*dtan((45.0d0 + q_pole1/2.0d0)*dpip180) *dsin(p_pole*dpip180)
 
-      sum_sincos=max(dsqrt(coslm**2+sinlm**2),1d-10)
-      coslm=coslm/sum_sincos
-      sinlm=sinlm/sum_sincos
+        alpha_scale=1.0d0
 
-      lm=dsign(dacos(coslm)/dpip180,sinlm)
+        phm1=min(max(phm, -lat_extr),lat_extr)
 
-      s0 = 2.0d0*dtan((45.0d0 + y_pole1/2.0d0)*dpip180) *dcos(x_pole*dpip180)
-      t0 = 2.0d0*dtan((45.0d0 + y_pole1/2.0d0)*dpip180) *dsin(x_pole*dpip180)
-      a0 = 2.0d0*dtan((45.0d0 + q_pole1/2.0d0)*dpip180) *dcos(p_pole*dpip180)
-      b0 = 2.0d0*dtan((45.0d0 + q_pole1/2.0d0)*dpip180) *dsin(p_pole*dpip180)
+        S = 2.0d0*dtan((45.0d0 + phm1/2.0d0)*dpip180) *dcos(lm*dpip180)
+        T = 2.0d0*dtan((45.0d0 + phm1/2.0d0)*dpip180) *dsin(lm*dpip180)
 
-      alpha_scale=1.0d0
+        num1=(S-alpha_scale*A0)*(S-alpha_scale*S0) + (T-alpha_scale*B0)*(T-alpha_scale*T0)
+        num2=(T-alpha_scale*B0)*(S-alpha_scale*S0) - (S-alpha_scale*A0)*(T-alpha_scale*T0)
 
-      phm1=min(max(phm, -lat_extr),lat_extr)
+        numa=s0*num1-t0*num2
+        numb=s0*num2+t0*num1
 
-      S = 2.0d0*dtan((45.0d0 + phm1/2.0d0)*dpip180) *dcos(lm*dpip180)
-      T = 2.0d0*dtan((45.0d0 + phm1/2.0d0)*dpip180) *dsin(lm*dpip180)
+        denom1=(S-alpha_scale*S0)**2+(T-alpha_scale*T0)**2
 
-      num1=(S-alpha_scale*A0)*(S-alpha_scale*S0) + (T-alpha_scale*B0)*(T-alpha_scale*T0)
-      num2=(T-alpha_scale*B0)*(S-alpha_scale*S0) - (S-alpha_scale*A0)*(T-alpha_scale*T0)
+        a=numa/denom1
+        b=numb/denom1
 
-      numa=s0*num1-t0*num2
-      numb=s0*num2+t0*num1
+        alpha_scale=2./dsqrt(a**2+b**2)
 
-      denom1=(S-alpha_scale*S0)**2+(T-alpha_scale*T0)**2
+        write(*,*) 'alpha-scale is ', alpha_scale
 
-      a=numa/denom1
-      b=numb/denom1
+        !$omp parallel do private(m,n,s,t,num1,num2,numa,numb,denom1,  &
+        !$omp      a,b,cos_lon,sin_lon,cos_lat,sin_lat, &
+        !$omp      dx_da,dx_db,dy_da,dy_db,numd1,numd2, &
+        !$omp      numd3,numd4,numas,numat,numbs,numbt, &
+        !$omp      da_ds,da_dt,db_ds,db_dt,ds_dp,ds_dq,dt_dp,dt_dq,  &
+        !$omp      da_dp,da_dq,db_dp,db_dq,dx_dp,dx_dq,dy_dp,dy_dq,  &
+        !$omp      dfm1,det,df,hp_divide_r,hq_divide_r, sum_rot_coef, sum_sincos, lat_mod)
+        do n=nnn_out,nn_out
+            lat_mod=max(min(y_mod(n),lat_extr),-lat_extr)
+            do m=mmm_out,mm_out
 
-      alpha_scale=2./dsqrt(a**2+b**2)
+                !trasformation from new to old grid
+                s = 2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dcos(x_mod(m)*dpip180)
+                t = 2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dsin(x_mod(m)*dpip180)
 
-      write(*,*) 'alpha-scale is ', alpha_scale
+                num1=(S-alpha_scale*A0)*(S-alpha_scale*S0) + (T-alpha_scale*B0)*(T-alpha_scale*T0)
+                num2=(T-alpha_scale*B0)*(S-alpha_scale*S0) - (S-alpha_scale*A0)*(T-alpha_scale*T0)
 
-!$omp parallel do private(m,n,s,t,num1,num2,numa,numb,denom1,  &
-!$omp      a,b,cos_lon,sin_lon,cos_lat,sin_lat, &
-!$omp      dx_da,dx_db,dy_da,dy_db,numd1,numd2, &
-!$omp      numd3,numd4,numas,numat,numbs,numbt, &
-!$omp      da_ds,da_dt,db_ds,db_dt,ds_dp,ds_dq,dt_dp,dt_dq,  &
-!$omp      da_dp,da_dq,db_dp,db_dq,dx_dp,dx_dq,dy_dp,dy_dq,  &
-!$omp      dfm1,det,df,hp_divide_r,hq_divide_r, sum_rot_coef, sum_sincos, lat_mod)
-      do n=nnn_out,nn_out
-          lat_mod=max(min(y_mod(n),lat_extr),-lat_extr)
-       do m=mmm_out,mm_out
+                numa=s0*num1-t0*num2
+                numb=s0*num2+t0*num1
 
-!trasformation from new to old grid
-      s = 2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dcos(x_mod(m)*dpip180)
-      t = 2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dsin(x_mod(m)*dpip180)
+                denom1=(S-alpha_scale*S0)**2+(T-alpha_scale*T0)**2
 
-      num1=(S-alpha_scale*A0)*(S-alpha_scale*S0) + (T-alpha_scale*B0)*(T-alpha_scale*T0)
-      num2=(T-alpha_scale*B0)*(S-alpha_scale*S0) - (S-alpha_scale*A0)*(T-alpha_scale*T0)
+                a=numa/denom1
+                b=numb/denom1
 
-      numa=s0*num1-t0*num2
-      numb=s0*num2+t0*num1
+                !     necessary latitude
 
-      denom1=(S-alpha_scale*S0)**2+(T-alpha_scale*T0)**2
+                sin_lat=(a**2+b**2-4.0d0)/(a**2+b**2+4.0d0)
+                sin_lat=min(max(sin_lat, -sinlat_extr),sinlat_extr)
+                cos_lat=dsqrt(1.0d0-sin_lat**2)
 
-      a=numa/denom1
-      b=numb/denom1
+                geo_lat(m,n)=dasin(sin_lat)/dpip180
 
-!     necessary latitude
+                !     necessary longitude
 
-      sin_lat=(a**2+b**2-4.0d0)/(a**2+b**2+4.0d0)
-      sin_lat=min(max(sin_lat, -sinlat_extr),sinlat_extr)
-    cos_lat=dsqrt(1.0d0-sin_lat**2)
+                cos_lon=a/dsqrt(a**2+b**2)
+                sin_lon=b/dsqrt(a**2+b**2)
 
-      geo_lat(m,n)=dasin(sin_lat)/dpip180
+                sum_sincos=max(dsqrt(cos_lon**2+sin_lon**2),1d-10)
+                cos_lon=cos_lon/sum_sincos
+                sin_lon=sin_lon/sum_sincos
 
-!     necessary longitude
+                geo_lon(m,n)=dsign(dacos(cos_lon)/dpip180,sin_lon)
 
-      cos_lon=a/dsqrt(a**2+b**2)
-    sin_lon=b/dsqrt(a**2+b**2)
 
-      sum_sincos=max(dsqrt(cos_lon**2+sin_lon**2),1d-10)
-      cos_lon=cos_lon/sum_sincos
-      sin_lon=sin_lon/sum_sincos
+                !     differential of transformation
 
-      geo_lon(m,n)=dsign(dacos(cos_lon)/dpip180,sin_lon)
+                dx_da = -b / (a**2 + b**2)
+                dx_db =  a / (a**2 + b**2)
 
+                dy_da = a / ( dsqrt(a**2 + b**2) * (1.0d0+ (a**2 + b**2)/4.0d0))
+                dy_db = b / ( dsqrt(a**2 + b**2) * (1.0d0+ (a**2 + b**2)/4.0d0))
 
-!     differential of transformation
 
-    dx_da = -b / (a**2 + b**2)
-    dx_db =  a / (a**2 + b**2)
+                numd1=s-alpha_scale*s0+s-alpha_scale*a0
+                numd2=t-alpha_scale*t0+t-alpha_scale*b0
+                numd3=alpha_scale*(t0-b0)
+                numd4=alpha_scale*(a0-s0)
 
-    dy_da = a / ( dsqrt(a**2 + b**2) * (1.0d0+ (a**2 + b**2)/4.0d0))
-    dy_db = b / ( dsqrt(a**2 + b**2) * (1.0d0+ (a**2 + b**2)/4.0d0))
+                numas=s0*numd1-t0*numd3
+                numat=s0*numd2-t0*numd4
+                numbs=t0*numd1+s0*numd3
+                numbt=t0*numd2+s0*numd4
 
+                da_ds=numas/denom1-numa*2.0d0*(s-alpha_scale*s0)/(denom1*denom1)
+                da_dt=numat/denom1-numa*2.0d0*(t-alpha_scale*t0)/(denom1*denom1)
+                db_ds=numbs/denom1-numb*2.0d0*(s-alpha_scale*s0)/(denom1*denom1)
+                db_dt=numbt/denom1-numb*2.0d0*(t-alpha_scale*t0)/(denom1*denom1)
 
-      numd1=s-alpha_scale*s0+s-alpha_scale*a0
-      numd2=t-alpha_scale*t0+t-alpha_scale*b0
-      numd3=alpha_scale*(t0-b0)
-      numd4=alpha_scale*(a0-s0)
 
-      numas=s0*numd1-t0*numd3
-      numat=s0*numd2-t0*numd4
-      numbs=t0*numd1+s0*numd3
-      numbt=t0*numd2+s0*numd4
+                ds_dp = -2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dsin(x_mod(m)*dpip180)
+                ds_dq = dcos(x_mod(m)*dpip180) /(dcos((45.0d0 + lat_mod/2.0d0)*dpip180))**2
+                dt_dp =  2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dcos(x_mod(m)*dpip180)
+                dt_dq = dsin(x_mod(m)*dpip180) /(dcos((45.0d0 + lat_mod/2.0d0)*dpip180))**2
 
-      da_ds=numas/denom1-numa*2.0d0*(s-alpha_scale*s0)/(denom1*denom1)
-      da_dt=numat/denom1-numa*2.0d0*(t-alpha_scale*t0)/(denom1*denom1)
-      db_ds=numbs/denom1-numb*2.0d0*(s-alpha_scale*s0)/(denom1*denom1)
-      db_dt=numbt/denom1-numb*2.0d0*(t-alpha_scale*t0)/(denom1*denom1)
+                da_dp = da_ds*ds_dp + da_dt*dt_dp
+                da_dq = da_ds*ds_dq + da_dt*dt_dq
+                db_dp = db_ds*ds_dp + db_dt*dt_dp
+                db_dq = db_ds*ds_dq + db_dt*dt_dq
 
+                dx_dp = dx_da*da_Dp + dx_db*db_dp
+                dx_dq = dx_da*da_Dq + dx_db*db_dq
+                dy_dp = dy_da*da_Dp + dy_db*db_dp
+                dy_dq = dy_da*da_Dq + dy_db*db_dq
 
-      ds_dp = -2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dsin(x_mod(m)*dpip180)
-      ds_dq = dcos(x_mod(m)*dpip180) /(dcos((45.0d0 + lat_mod/2.0d0)*dpip180))**2
-      dt_dp =  2.0d0*dtan((45.0d0 + lat_mod/2.0d0)*dpip180) *dcos(x_mod(m)*dpip180)
-      dt_dq = dsin(x_mod(m)*dpip180) /(dcos((45.0d0 + lat_mod/2.0d0)*dpip180))**2
+                dfm1(1,1)=dx_dp   !*dcos(ret_lat*dpip180)
+                dfm1(1,2)=dx_dq   !*dcos(ret_lat*dpip180)
+                dfm1(2,1)=dy_dp
+                dfm1(2,2)=dy_dq
 
-    da_dp = da_ds*ds_dp + da_dt*dt_dp
-    da_dq = da_ds*ds_dq + da_dt*dt_dq
-    db_dp = db_ds*ds_dp + db_dt*dt_dp
-    db_dq = db_ds*ds_dq + db_dt*dt_dq
 
-    dx_dp = dx_da*da_Dp + dx_db*db_dp
-    dx_dq = dx_da*da_Dq + dx_db*db_dq
-    dy_dp = dy_da*da_Dp + dy_db*db_dp
-    dy_dq = dy_da*da_Dq + dy_db*db_dq
+                det=dfm1(2,2)*dfm1(1,1)-dfm1(1,2)*dfm1(2,1)
 
-    dfm1(1,1)=dx_dp   !*dcos(ret_lat*dpip180)
-    dfm1(1,2)=dx_dq   !*dcos(ret_lat*dpip180)
-    dfm1(2,1)=dy_dp
-    dfm1(2,2)=dy_dq
+                df(1,1)= dfm1(2,2)/det
+                df(1,2)=-dfm1(1,2)/det
+                df(2,1)=-dfm1(2,1)/det
+                df(2,2)= dfm1(1,1)/det
 
+                hp_divide_r = dsqrt((dx_dp*cos_lat)**2 + (dy_dp)**2)
+                hq_divide_r = dsqrt((dx_dq*cos_lat)**2 + (dy_dq)**2)
 
-    det=dfm1(2,2)*dfm1(1,1)-dfm1(1,2)*dfm1(2,1)
+                metr_x(m,n)=metr_x(m,n)*hp_divide_r
+                metr_y(m,n)=metr_y(m,n)*hq_divide_r
 
-    df(1,1)= dfm1(2,2)/det
-    df(1,2)=-dfm1(1,2)/det
-    df(2,1)=-dfm1(2,1)/det
-    df(2,2)= dfm1(1,1)/det
+                if(key_rot==1) then
+                    !--------definition of angles between parallels-----------------------
+                    rot_coef(m,n,1)=df(1,1)*hp_divide_r/cos_lat
+                    rot_coef(m,n,2)=df(1,2)*hp_divide_r
+                    rot_coef(m,n,3)=df(2,1)*hq_divide_r/cos_lat
+                    rot_coef(m,n,4)=df(2,2)*hq_divide_r
 
-    hp_divide_r = dsqrt((dx_dp*cos_lat)**2 + (dy_dp)**2)
-    hq_divide_r = dsqrt((dx_dq*cos_lat)**2 + (dy_dq)**2)
+                    sum_rot_coef=  max(dsqrt(rot_coef(m,n,1)*rot_coef(m,n,4)-rot_coef(m,n,2)*rot_coef(m,n,3)),1d-10)
+                    rot_coef(m,n,:)=rot_coef(m,n,:)/sum_rot_coef
+                endif
 
-       metr_x(m,n)=metr_x(m,n)*hp_divide_r
-       metr_y(m,n)=metr_y(m,n)*hq_divide_r
+                if(key_cor==1) then
+                    cor_sin(m,n)=cor_sin(m,n)*sin_lat
+                    cor_cos(m,n)=cor_cos(m,n)*cos_lat
+                endif
 
-      if(key_rot==1) then
-     !--------definition of angles between parallels-----------------------
-      rot_coef(m,n,1)=df(1,1)*hp_divide_r/cos_lat
-        rot_coef(m,n,2)=df(1,2)*hp_divide_r
-      rot_coef(m,n,3)=df(2,1)*hq_divide_r/cos_lat
-        rot_coef(m,n,4)=df(2,2)*hq_divide_r
+            enddo
+        enddo
+        !$omp end parallel do
 
-        sum_rot_coef=  max(dsqrt(rot_coef(m,n,1)*rot_coef(m,n,4)-rot_coef(m,n,2)*rot_coef(m,n,3)),1d-10)
-        rot_coef(m,n,:)=rot_coef(m,n,:)/sum_rot_coef
-      endif
+    endsubroutine grid_parameters_curvilinear
 
-      if(key_cor==1) then
-        cor_sin(m,n)=cor_sin(m,n)*sin_lat
-        cor_cos(m,n)=cor_cos(m,n)*cos_lat
-      endif
-
-       enddo
-      enddo
- !$omp end parallel do
-
- endsubroutine grid_parameters_curvilinear
+end module grid_parameters

@@ -174,6 +174,19 @@ contains
         call mpi_finalize(ierr)
     end subroutine
 
+    subroutine set_block_boundary(k)
+        implicit none
+
+        integer :: k
+
+        nx_start = bnx_start(k); nx_end = bnx_end(k)
+        ny_start = bny_start(k); ny_end = bny_end(k)
+
+        bnd_x1 = bbnd_x1(k); bnd_x2 = bbnd_x2(k)
+        bnd_y1 = bbnd_y1(k); bnd_y2 = bbnd_y2(k)
+
+    end subroutine
+
     subroutine parallel_read_mask(ftemask)
         use main_basin_pars
         use rec_length
@@ -332,6 +345,11 @@ contains
                            mpi_sum, cart_comm, ierr)
         if (parallel_dbg >= 1 .and. rank == 0) print *, 'Updated Total block count', total_blocks
         call mpi_barrier(cart_comm, ierr)
+
+        if (rank == 0) then
+            print *, 'Block surface-to-volume ratio', 2.0d0*(bnx_end(1)-bnx_start(1) + bny_end(1)-bny_start(1)) &
+                                /((bnx_end(1)-bnx_start(1))*(bny_end(1)-bny_start(1)))
+        endif
 
         ! Sync bglob_proc array
         if (parallel_dbg >= 2) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc before')
@@ -877,6 +895,35 @@ contains
                 endif
             endif
         enddo
+
+    end subroutine
+
+    subroutine get_block_and_rank_by_point(m, n, out)
+        implicit none
+
+        integer :: m, n
+        integer :: out(2)
+        integer :: k, flag_r, r, flag_b, b, ierr
+
+        flag_r = -1
+        flag_b = -1
+        do k = 1, bcount
+            if (m >= bnx_start(k) .and. m <= bnx_end(k)) then
+                if (n >= bny_start(k) .and. n <= bny_end(k)) then
+                    flag_r = rank
+                    flag_b = k
+                endif
+            endif
+        enddo
+
+        call mpi_allreduce(flag_r, r, 1, mpi_integer,      &
+                           mpi_max, cart_comm, ierr)
+
+        call mpi_allreduce(flag_b, b, 1, mpi_integer,      &
+                           mpi_max, cart_comm, ierr)
+
+        out(1) = r
+        out(2) = b
 
     end subroutine
 

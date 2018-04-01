@@ -4,86 +4,108 @@ module depth
 contains
 
     subroutine hh_init(hq, hqp, hqn,    &
-        hu, hup, hun,    &
-        hv, hvp, hvn,    &
-        hh, hhp, hhn,    &
-        sh, shp, h_r)
+                       hu, hup, hun,    &
+                       hv, hvp, hvn,    &
+                       hh, hhp, hhn,    &
+                       sh, shp, h_r)
         use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         implicit none
 
-        real(8) hq(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hqp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hqn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hu(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hup(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hun(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hv(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hvp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hvn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hh(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hhp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hhn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            sh(bnd_x1:bnd_x2, bnd_y1:bnd_y2), shp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), h_r(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
+        type(block2D), dimension(:), pointer :: hq, hqp, hqn,    &
+                                                hu, hup, hun,    &
+                                                hv, hvp, hvn,    &
+                                                hh, hhp, hhn,    &
+                                                sh, shp, h_r
 
         real(8) slu
-        integer m,n
+        integer k, m, n
 
-        hq =h_r + sh *dfloat(full_free_surface)
-        hqp=h_r + shp*dfloat(full_free_surface)
-        hqn=h_r
+        do k = 1, bcount
+            hq(k)%vals = h_r(k)%vals + sh(k)%vals * dfloat(full_free_surface)
+            hqp(k)%vals = h_r(k)%vals + shp(k)%vals * dfloat(full_free_surface)
+            hqn(k)%vals = h_r(k)%vals
+        enddo
 
-        !$omp parallel do private(m,n,slu)
-        !do n=ny_start-2, ny_end+1
-        !do m=nx_start-2, nx_end+1
-        do n=ny_start-1,ny_end
-            do m=nx_start-1,nx_end
+        !$omp parallel do
+        do k = 1, bcount
+            call set_block_boundary(k)
+            !do n=ny_start-2, ny_end+1
+            !do m=nx_start-2, nx_end+1
+            do n=ny_start-1,ny_end
+                do m=nx_start-1,nx_end
+                    if (llu(k)%vals(m,n) > 0.5) then
+                        ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
+                        slu = dble(lu(k)%vals(m,n) + lu(k)%vals(m+1,n))
 
-                if(llu(m,n)>0.5) then
-                    ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
-                    slu=dble(lu(m,n)+lu(m+1,n))
-                    hu(m,n)=( hq(m  ,n)*dx(m  ,n)*dy(m  ,n)*dble(lu(m  ,n))   &
-                        + hq(m+1,n)*dx(m+1,n)*dy(m+1,n)*dble(lu(m+1,n)) )/slu/dxt(m,n)/dyh(m,n)
-                    hup(m,n)=( hqp(m  ,n)*dx(m  ,n)*dy(m  ,n)*dble(lu(m  ,n))   &
-                        + hqp(m+1,n)*dx(m+1,n)*dy(m+1,n)*dble(lu(m+1,n)) )/slu/dxt(m,n)/dyh(m,n)
-                    hun(m,n)=( hqn(m  ,n)*dx(m  ,n)*dy(m  ,n)*dble(lu(m  ,n))   &
-                        + hqn(m+1,n)*dx(m+1,n)*dy(m+1,n)*dble(lu(m+1,n)) )/slu/dxt(m,n)/dyh(m,n)
-                endif
+                        hu(k)%vals(m,n) = ( hq(k)%vals(m  ,n)*dx(k)%vals(m  ,n)*dy(k)%vals(m  ,n)*dble(lu(k)%vals(m  ,n))   &
+                                          + hq(k)%vals(m+1,n)*dx(k)%vals(m+1,n)*dy(k)%vals(m+1,n)*dble(lu(k)%vals(m+1,n)) ) &
+                                          /slu/dxt(k)%vals(m,n)/dyh(k)%vals(m,n)
 
-                if(llv(m,n)>0.5) then
-                    ! interpolating hhq given on T-grid(lu) to hhv given on v-grid(lcv).
-                    slu=dble(lu(m,n)+lu(m,n+1))
-                    hv(m,n)=( hq(m,n  )*dx(m,n  )*dy(m,n  )*dble(lu(m,n  ))       &
-                        + hq(m,n+1)*dx(m,n+1)*dy(m,n+1)*dble(lu(m,n+1)) )/slu/dxh(m,n)/dyt(m,n)
-                    hvp(m,n)=( hqp(m,n  )*dx(m,n  )*dy(m,n  )*dble(lu(m,n  ))       &
-                        + hqp(m,n+1)*dx(m,n+1)*dy(m,n+1)*dble(lu(m,n+1)) )/slu/dxh(m,n)/dyt(m,n)
-                    hvn(m,n)=( hqn(m,n  )*dx(m,n  )*dy(m,n  )*dble(lu(m,n  ))       &
-                        + hqn(m,n+1)*dx(m,n+1)*dy(m,n+1)*dble(lu(m,n+1)) )/slu/dxh(m,n)/dyt(m,n)
-                endif
+                        hup(k)%vals(m,n) = ( hqp(k)%vals(m  ,n)*dx(k)%vals(m  ,n)*dy(k)%vals(m  ,n)*dble(lu(k)%vals(m  ,n))   &
+                                           + hqp(k)%vals(m+1,n)*dx(k)%vals(m+1,n)*dy(k)%vals(m+1,n)*dble(lu(k)%vals(m+1,n)) ) &
+                                           /slu/dxt(k)%vals(m,n)/dyh(k)%vals(m,n)
 
-                if(luh(m,n)>0.5) then
-                    ! interpolating hhq given on T-grid(lu) to hhh given on h-grid(luu).
-                    slu=dble(lu(m,n)+lu(m+1,n)+lu(m,n+1)+lu(m+1,n+1))
-                    hh(m,n)=( hq(m  ,n  )*dx(m  ,n  )*dy(m  ,n  )*dble(lu(m  ,n  ))       &
-                        + hq(m+1,n  )*dx(m+1,n  )*dy(m+1,n  )*dble(lu(m+1,n  ))       &
-                        +hq(m  ,n+1)*dx(m  ,n+1)*dy(m  ,n+1)*dble(lu(m  ,n+1))       &
-                        + hq(m+1,n+1)*dx(m+1,n+1)*dy(m+1,n+1)*dble(lu(m+1,n+1)) )/slu/dxb(m,n)/dyb(m,n)
-                    hhp(m,n)=( hqp(m  ,n  )*dx(m  ,n  )*dy(m  ,n  )*dble(lu(m  ,n  ))       &
-                        + hqp(m+1,n  )*dx(m+1,n  )*dy(m+1,n  )*dble(lu(m+1,n  ))       &
-                        +hqp(m  ,n+1)*dx(m  ,n+1)*dy(m  ,n+1)*dble(lu(m  ,n+1))       &
-                        + hqp(m+1,n+1)*dx(m+1,n+1)*dy(m+1,n+1)*dble(lu(m+1,n+1)) )/slu/dxb(m,n)/dyb(m,n)
-                    hhn(m,n)=( hqn(m  ,n  )*dx(m  ,n  )*dy(m  ,n  )*dble(lu(m  ,n  ))       &
-                        + hqn(m+1,n  )*dx(m+1,n  )*dy(m+1,n  )*dble(lu(m+1,n  ))       &
-                        +hqn(m  ,n+1)*dx(m  ,n+1)*dy(m  ,n+1)*dble(lu(m  ,n+1))       &
-                        + hqn(m+1,n+1)*dx(m+1,n+1)*dy(m+1,n+1)*dble(lu(m+1,n+1)) )/slu/dxb(m,n)/dyb(m,n)
-                endif
+                        hun(k)%vals(m,n) = ( hqn(k)%vals(m  ,n)*dx(k)%vals(m  ,n)*dy(k)%vals(m  ,n)*dble(lu(k)%vals(m  ,n))   &
+                                           + hqn(k)%vals(m+1,n)*dx(k)%vals(m+1,n)*dy(k)%vals(m+1,n)*dble(lu(k)%vals(m+1,n)) ) &
+                                           /slu/dxt(k)%vals(m,n)/dyh(k)%vals(m,n)
+                    endif
 
+                    if (llv(k)%vals(m,n) > 0.5) then
+                        ! interpolating hhq given on T-grid(lu) to hhv given on v-grid(lcv).
+                        slu = dble(lu(k)%vals(m,n) + lu(k)%vals(m,n+1))
+
+                        hv(k)%vals(m,n) = ( hq(k)%vals(m,n  )*dx(k)%vals(m,n  )*dy(k)%vals(m,n  )*dble(lu(k)%vals(m,n  ))       &
+                                          + hq(k)%vals(m,n+1)*dx(k)%vals(m,n+1)*dy(k)%vals(m,n+1)*dble(lu(k)%vals(m,n+1)) ) &
+                                          /slu/dxh(k)%vals(m,n)/dyt(k)%vals(m,n)
+
+                        hvp(k)%vals(m,n) = ( hqp(k)%vals(m,n  )*dx(k)%vals(m,n  )*dy(k)%vals(m,n  )*dble(lu(k)%vals(m,n  ))       &
+                                           + hqp(k)%vals(m,n+1)*dx(k)%vals(m,n+1)*dy(k)%vals(m,n+1)*dble(lu(k)%vals(m,n+1)) ) &
+                                           /slu/dxh(k)%vals(m,n)/dyt(k)%vals(m,n)
+
+                        hvn(k)%vals(m,n) = ( hqn(k)%vals(m,n  )*dx(k)%vals(m,n  )*dy(k)%vals(m,n  )*dble(lu(k)%vals(m,n  ))       &
+                                           + hqn(k)%vals(m,n+1)*dx(k)%vals(m,n+1)*dy(k)%vals(m,n+1)*dble(lu(k)%vals(m,n+1)) ) &
+                                           /slu/dxh(k)%vals(m,n)/dyt(k)%vals(m,n)
+                    endif
+
+                    if (luh(k)%vals(m,n) > 0.5) then
+                        ! interpolating hhq given on T-grid(lu) to hhh given on h-grid(luu).
+                        slu = dble(lu(k)%vals(m,n)+lu(k)%vals(m+1,n)+lu(k)%vals(m,n+1)+lu(k)%vals(m+1,n+1))
+
+                        hh(k)%vals(m,n)=( hq(k)%vals(m  ,n  )*dx(k)%vals(m  ,n  )*dy(k)%vals(m  ,n  )*dble(lu(k)%vals(m  ,n  ))       &
+                                        + hq(k)%vals(m+1,n  )*dx(k)%vals(m+1,n  )*dy(k)%vals(m+1,n  )*dble(lu(k)%vals(m+1,n  ))       &
+                                        + hq(k)%vals(m  ,n+1)*dx(k)%vals(m  ,n+1)*dy(k)%vals(m  ,n+1)*dble(lu(k)%vals(m  ,n+1))       &
+                                        + hq(k)%vals(m+1,n+1)*dx(k)%vals(m+1,n+1)*dy(k)%vals(m+1,n+1)*dble(lu(k)%vals(m+1,n+1)) ) &
+                                        /slu/dxb(k)%vals(m,n)/dyb(k)%vals(m,n)
+
+                        hhp(k)%vals(m,n) = ( hqp(k)%vals(m  ,n  )*dx(k)%vals(m  ,n  )*dy(k)%vals(m  ,n  )*dble(lu(k)%vals(m  ,n  ))       &
+                                           + hqp(k)%vals(m+1,n  )*dx(k)%vals(m+1,n  )*dy(k)%vals(m+1,n  )*dble(lu(k)%vals(m+1,n  ))       &
+                                           + hqp(k)%vals(m  ,n+1)*dx(k)%vals(m  ,n+1)*dy(k)%vals(m  ,n+1)*dble(lu(k)%vals(m  ,n+1))       &
+                                           + hqp(k)%vals(m+1,n+1)*dx(k)%vals(m+1,n+1)*dy(k)%vals(m+1,n+1)*dble(lu(k)%vals(m+1,n+1)) ) &
+                                           /slu/dxb(k)%vals(m,n)/dyb(k)%vals(m,n)
+
+                        hhn(k)%vals(m,n) = ( hqn(k)%vals(m  ,n  )*dx(k)%vals(m  ,n  )*dy(k)%vals(m  ,n  )*dble(lu(k)%vals(m  ,n  ))       &
+                                           + hqn(k)%vals(m+1,n  )*dx(k)%vals(m+1,n  )*dy(k)%vals(m+1,n  )*dble(lu(k)%vals(m+1,n  ))       &
+                                           + hqn(k)%vals(m  ,n+1)*dx(k)%vals(m  ,n+1)*dy(k)%vals(m  ,n+1)*dble(lu(k)%vals(m  ,n+1))       &
+                                           + hqn(k)%vals(m+1,n+1)*dx(k)%vals(m+1,n+1)*dy(k)%vals(m+1,n+1)*dble(lu(k)%vals(m+1,n+1)) ) &
+                                           /slu/dxb(k)%vals(m,n)/dyb(k)%vals(m,n)
+                    endif
+
+                end do
             end do
-        end do
+        enddo
         !$omp end parallel do
 
-        call syncborder_real8(hu, 1)
-        call syncborder_real8(hup, 1)
-        call syncborder_real8(hun, 1)
-        call syncborder_real8(hv, 1)
-        call syncborder_real8(hvp, 1)
-        call syncborder_real8(hvn, 1)
-        call syncborder_real8(hh, 1)
-        call syncborder_real8(hhp, 1)
-        call syncborder_real8(hhn, 1)
+        call syncborder_block2D(hu)
+        call syncborder_block2D(hup)
+        call syncborder_block2D(hun)
+        call syncborder_block2D(hv)
+        call syncborder_block2D(hvp)
+        call syncborder_block2D(hvn)
+        call syncborder_block2D(hh)
+        call syncborder_block2D(hhp)
+        call syncborder_block2D(hhn)
 
     endsubroutine hh_init
 
@@ -94,97 +116,108 @@ contains
         use basin_grid
         implicit none
 
-        real(8) hqn(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hun(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hvn(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hhn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            sh(bnd_x1:bnd_x2, bnd_y1:bnd_y2),  h_r(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
+        type(block2D), dimension(:), pointer :: hqn, hun,    &
+                                                hvn, hhn,    &
+                                                sh,  h_r
 
-        integer m,n
+        integer k, m, n
         real(8) slu
 
-        hqn =h_r + sh
+        do k = 1, bcount
+            hqn(k)%vals = h_r(k)%vals + sh(k)%vals
+        enddo
 
-        !$omp parallel do private(m,n,slu)
-        !do n=ny_start-2, ny_end+1
-        !do m=nx_start-2, nx_end+1
-        do n=ny_start-1,ny_end
-            do m=nx_start-1,nx_end
+        !$omp parallel do
+        do k = 1, bcount
+            call set_block_boundary(k)
 
-                if(llu(m,n)>0.5) then
-                    ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
-                    slu=dble(lu(m,n)+lu(m+1,n))
-                    hun(m,n)=( hqn(m  ,n)*dx(m  ,n)*dy(m  ,n)*dble(lu(m  ,n))   &
-                        + hqn(m+1,n)*dx(m+1,n)*dy(m+1,n)*dble(lu(m+1,n)) )/slu/dxt(m,n)/dyh(m,n)
-                endif
+            !do n=ny_start-2, ny_end+1
+            !do m=nx_start-2, nx_end+1
+            do n=ny_start-1,ny_end
+                do m=nx_start-1,nx_end
+                    if (llu(k)%vals(m, n) > 0.5) then
+                        ! interpolating hhq given on T-grid(lu) to hhu given on u-grid(lcu).
+                        slu = dble(lu(k)%vals(m,n)+lu(k)%vals(m+1,n))
+                        hun(k)%vals(m,n) = ( hqn(k)%vals(m  ,n)*dx(k)%vals(m  ,n)*dy(k)%vals(m  ,n)*dble(lu(k)%vals(m  ,n))   &
+                                           + hqn(k)%vals(m+1,n)*dx(k)%vals(m+1,n)*dy(k)%vals(m+1,n)*dble(lu(k)%vals(m+1,n)) ) &
+                                           /slu/dxt(k)%vals(m,n)/dyh(k)%vals(m,n)
+                    endif
+                    if (llv(k)%vals(m,n) > 0.5) then
+                        ! interpolating hhq given on T-grid(lu) to hhv given on v-grid(lcv).
+                        slu = dble(lu(k)%vals(m,n)+lu(k)%vals(m,n+1))
+                        hvn(k)%vals(m,n) = ( hqn(k)%vals(m,n  )*dx(k)%vals(m,n  )*dy(k)%vals(m,n  )*dble(lu(k)%vals(m,n  ))       &
+                                           + hqn(k)%vals(m,n+1)*dx(k)%vals(m,n+1)*dy(k)%vals(m,n+1)*dble(lu(k)%vals(m,n+1)) ) &
+                                           /slu/dxh(k)%vals(m,n)/dyt(k)%vals(m,n)
+                    endif
+                    if (luh(k)%vals(m,n) > 0.5) then
+                        ! interpolating hhq given on T-grid(lu) to hhh given on h-grid(luu).
+                        slu = dble(lu(k)%vals(m,n)+lu(k)%vals(m+1,n)+lu(k)%vals(m,n+1)+lu(k)%vals(m+1,n+1))
+                        hhn(k)%vals(m,n) = ( hqn(k)%vals(m  ,n  )*dx(k)%vals(m  ,n  )*dy(k)%vals(m  ,n  )*dble(lu(k)%vals(m  ,n  ))       &
+                                           + hqn(k)%vals(m+1,n  )*dx(k)%vals(m+1,n  )*dy(k)%vals(m+1,n  )*dble(lu(k)%vals(m+1,n  ))       &
+                                           + hqn(k)%vals(m  ,n+1)*dx(k)%vals(m  ,n+1)*dy(k)%vals(m  ,n+1)*dble(lu(k)%vals(m  ,n+1))       &
+                                           + hqn(k)%vals(m+1,n+1)*dx(k)%vals(m+1,n+1)*dy(k)%vals(m+1,n+1)*dble(lu(k)%vals(m+1,n+1)) ) &
+                                           /slu/dxb(k)%vals(m,n)/dyb(k)%vals(m,n)
+                    endif
 
-                if(llv(m,n)>0.5) then
-                    ! interpolating hhq given on T-grid(lu) to hhv given on v-grid(lcv).
-                    slu=dble(lu(m,n)+lu(m,n+1))
-                    hvn(m,n)=( hqn(m,n  )*dx(m,n  )*dy(m,n  )*dble(lu(m,n  ))       &
-                        + hqn(m,n+1)*dx(m,n+1)*dy(m,n+1)*dble(lu(m,n+1)) )/slu/dxh(m,n)/dyt(m,n)
-                endif
-
-                if(luh(m,n)>0.5) then
-                    ! interpolating hhq given on T-grid(lu) to hhh given on h-grid(luu).
-                    slu=dble(lu(m,n)+lu(m+1,n)+lu(m,n+1)+lu(m+1,n+1))
-                    hhn(m,n)=( hqn(m  ,n  )*dx(m  ,n  )*dy(m  ,n  )*dble(lu(m  ,n  ))       &
-                        + hqn(m+1,n  )*dx(m+1,n  )*dy(m+1,n  )*dble(lu(m+1,n  ))       &
-                        +hqn(m  ,n+1)*dx(m  ,n+1)*dy(m  ,n+1)*dble(lu(m  ,n+1))       &
-                        + hqn(m+1,n+1)*dx(m+1,n+1)*dy(m+1,n+1)*dble(lu(m+1,n+1)) )/slu/dxb(m,n)/dyb(m,n)
-                endif
-
+                end do
             end do
-        end do
+        enddo
         !$omp end parallel do
 
-        call syncborder_real8(hun, 1)
-        call syncborder_real8(hvn, 1)
-        call syncborder_real8(hhn, 1)
+        call syncborder_block2D(hun)
+        call syncborder_block2D(hvn)
+        call syncborder_block2D(hhn)
 
     endsubroutine hh_update
 
     subroutine hh_shift(hq, hqp, hqn,   &
-        hu, hup, hun,   &
-        hv, hvp, hvn,   &
-        hh, hhp, hhn)
+                        hu, hup, hun,   &
+                        hv, hvp, hvn,   &
+                        hh, hhp, hhn)
         use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         implicit none
 
-        real(8) hq(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hqp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hqn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hu(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hup(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hun(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hv(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hvp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hvn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
-            hh(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hhp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hhn(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
+        type(block2D), dimension(:), pointer :: hq, hqp, hqn,    &
+                                                hu, hup, hun,    &
+                                                hv, hvp, hvn,    &
+                                                hh, hhp, hhn
 
-        integer m, n
+        integer k, m, n
 
+        !$omp parallel do
+        do k = 1, bcount
+            call set_block_boundary(k)
+            do n=ny_start-1,ny_end+1
+                do m=nx_start-1,nx_end+1
+                    if (llu(k)%vals(m,n) > 0.5) then
+                        hup(k)%vals(m,n) = hu(k)%vals(m,n)  &
+                            + time_smooth*(hun(k)%vals(m,n) - 2.0d0*hu(k)%vals(m,n) + hup(k)%vals(m,n))/2.0d0
 
-        !$omp parallel do private(m,n)
-        do n=ny_start-1,ny_end+1
-            do m=nx_start-1,nx_end+1
+                        hu(k)%vals(m,n)= hun(k)%vals(m,n)
+                    endif
+                    if (llv(k)%vals(m,n) > 0.5) then
+                        hvp(k)%vals(m,n) = hv(k)%vals(m,n)  &
+                            + time_smooth*(hvn(k)%vals(m,n) - 2.0d0*hv(k)%vals(m,n) + hvp(k)%vals(m,n))/2.0d0
 
-                if(llu(m,n)>0.5) then
-                    hup(m,n)= hu(m,n) + time_smooth*(hun(m,n)-2.0d0*hu(m,n)+hup(m,n))/2.0d0
-                    hu(m,n)= hun(m,n)
-                endif
+                        hv(k)%vals(m,n)= hvn(k)%vals(m,n)
+                    endif
+                    if (lu(k)%vals(m,n) > 0.5) then
+                        hqp(k)%vals(m,n) = hq(k)%vals(m,n)  &
+                            + time_smooth*(hqn(k)%vals(m,n) - 2.0d0*hq(k)%vals(m,n) + hqp(k)%vals(m,n))/2.0d0
 
-                if(llv(m,n)>0.5) then
-                    hvp(m,n)= hv(m,n) + time_smooth*(hvn(m,n)-2.0d0*hv(m,n)+hvp(m,n))/2.0d0
-                    hv(m,n)= hvn(m,n)
-                endif
+                        hq(k)%vals(m,n)= hqn(k)%vals(m,n)
+                    endif
+                    if (luh(k)%vals(m,n) > 0.5) then
+                        hhp(k)%vals(m,n) = hh(k)%vals(m,n)  &
+                            + time_smooth*(hhn(k)%vals(m,n) - 2.0d0*hh(k)%vals(m,n) + hhp(k)%vals(m,n))/2.0d0
 
-                if(lu(m,n)>0.5) then
-                    hqp(m,n)= hq(m,n) + time_smooth*(hqn(m,n)-2.0d0*hq(m,n)+hqp(m,n))/2.0d0
-                    hq(m,n)= hqn(m,n)
-                endif
-
-                if(luh(m,n)>0.5) then
-                    hhp(m,n)= hh(m,n) + time_smooth*(hhn(m,n)-2.0d0*hh(m,n)+hhp(m,n))/2.0d0
-                    hh(m,n)= hhn(m,n)
-                endif
-
+                        hh(k)%vals(m,n)= hhn(k)%vals(m,n)
+                    endif
+                end do
             end do
-        end do
+        enddo
         !$omp end parallel do
 
     endsubroutine hh_shift

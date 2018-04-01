@@ -7,8 +7,8 @@ SRCCONTROL =	\
 	Control/output.f90
 
 SRCSERVICE =	    \
-    Service/grid_construction.f90     \
 	Service/basin_parameters.f90      \
+	Service/grid_construction.f90     \
 	Service/input_output_data.f90     \
 	Service/read_write_parameters.f90 \
 	Service/rw_ctl_file.f90           \
@@ -16,7 +16,10 @@ SRCSERVICE =	    \
 
 SRCFUNCTION =	\
 	Function/depth.f90   \
+	Function/mixing.f90  \
+	Function/vel_ssh.f90 \
 	Function/shallow_water.f90
+
 
 SRCMODULES = 	\
 	Modules/mod_main_basin_pars.f90      \
@@ -30,6 +33,6 @@ all: inmsom clean
 
 inmsom:
 #order is important
-	$(FC) -o inmsom $(FCFLAGS) $(SRCMODULES) inmsom_head.f90  $(SRCFUNCTION) $(SRCSERVICE) $(SRCCONTROL)
+	$(FC) -o inmsom $(FCFLAGS) $(SRCMODULES) inmsom_head.f90  $(SRCFUNCTION) $(SRCCONTROL) $(SRCSERVICE)
 clean:
 	$(RM) *.o *.mod
