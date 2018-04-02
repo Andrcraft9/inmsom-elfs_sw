@@ -43,7 +43,7 @@ real(8), parameter:: x_pole=100.0d0,   &  !lon of new north pole in geographical
                      p_pole=x_pole,    &  !lon of new south pole in geographical system
                      q_pole=-y_pole       !lat of new south pole in geographical system
 
-integer, parameter:: full_free_surface = 1
+integer, parameter:: full_free_surface = 0
 
 integer, parameter:: mgrad=1        !Number of ice thickness gradations
 !integer, parameter:: mgrad=8
@@ -69,10 +69,6 @@ real(8), parameter::    Cb_l    = 5d-4,        &
 
 ! real(8), parameter:: r_fric=0.0D-06     !Basic Rayleigh dissipation parameter (1/s) for bottom gradiend equal to 1
 real(8), parameter:: r_fric = 0.0d0
-
-!--------------------------------------------------------------------------------
-integer, parameter :: atm_forcing_on = 0 ! 0 - turn off forcing
-                                         ! 1 - turn on forcing
 
 real(8), parameter :: nbfc = 0.025 !Bottom Friction Coeff
 !--------------------------------------------------------------------------------

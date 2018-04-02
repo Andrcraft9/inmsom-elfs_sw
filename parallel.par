@@ -1,2 +1,3 @@
-128    :recommended_tot_blocks
-1      :debug parameter
+1    : blocks per one proc in x-direction
+1    : blocks per one proc in y-direction
+1    : debug parameter

@@ -15,27 +15,18 @@ subroutine shallow_water_model_step(tau)
     real*8 :: tau, diffslpr, surf_stress
     real*8 :: time_count
 
-    diffslpr = 1.0d0
+    diffslpr = 0.0d0
     surf_stress = 0.0d0
 
 !---------------------- Shallow water equ solver -------------------------------
     !call start_timer(time_count)
     do k = 1, bcount
         call set_block_boundary(k)
-        wf_tot(k)%vals = 0.0d0
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
-                if (lu(k)%vals(m,n) > 0.5) then
-                    RHSx2d(k)%vals(m, n) = (surf_stress)*dxt(k)%vals(m,n)*dyh(k)%vals(m,n) &
-                        - (diffslpr)*hhu(k)%vals(m,n)*dyh(k)%vals(m,n)/RefDen
-                    RHSy2d(k)%vals(m, n) = (surf_stress)*dyt(k)%vals(m,n)*dxh(k)%vals(m,n) &
-                        - (diffslpr)*hhv(k)%vals(m,n)*dxh(k)%vals(m,n)/RefDen
-                endif
-            enddo
-        enddo
-    enddo
 
-    do k = 1, bcount
+        wf_tot(k)%vals = 0.0d0
+        call compute_rhs(diffslpr, surf_stress, RHSx2d(k)%vals, RHSy2d(k)%vals,   &
+                            hhu(k)%vals, hhv(k)%vals,                             &
+                            dxt(k)%vals, dyt(k)%vals, dxh(k)%vals, dyh(k)%vals, lu(k)%vals)
         amuv2d(k)%vals  = lvisc_2
         amuv42d(k)%vals = lvisc_4
     enddo
@@ -72,18 +63,34 @@ subroutine shallow_water_model_step(tau)
     ! Check errors
     do k = 1, bcount
         call set_block_boundary(k)
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
-                if (lu(k)%vals(m,n) > 0.5) then
-                    if (ssh(k)%vals(m,n) < 10000.0d0 .and. ssh(k)%vals(m,n) > -10000.0d0) then
-                        continue
-                    else
-                        write(*,*) rank, 'ERR: Block k=', k, 'In the point m=', m, 'n=', n, 'ssh=', ssh(k)%vals(m,n),   &
-                            'step: ', num_step, 'lon: ', geo_lon_t(k)%vals(m, n), 'lat: ', geo_lat_t(k)%vals(m, n)
-                        call parallel_finalize; stop
-                    endif
+        call check_ssh_err(ssh(k)%vals, lu(k)%vals)
+    enddo
+
+endsubroutine shallow_water_model_step
+
+
+subroutine check_ssh_err(ssh, lu)
+    use mpi_parallel_tools
+    implicit none
+
+    real*8 :: ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+              lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+    integer :: m, n
+
+    do n = ny_start,ny_end
+        do m = nx_start,nx_end
+            if (lu(m,n)>0.5) then
+                if (ssh(m,n)<10000.0d0 .and. ssh(m,n)>-10000.0d0) then
+                  continue
+                else
+                    write(*,*) rank, 'ERROR!!! In the point m=', m, 'n=', n, 'ssh=', ssh(m,n)
+                    !write(*,*) rank, 'ERR: Block k=', k, 'In the point m=', m, 'n=', n, 'ssh=', ssh(k)%vals(m,n),   &
+                    !    'step: ', num_step, 'lon: ', geo_lon_t(k)%vals(m, n), 'lat: ', geo_lat_t(k)%vals(m, n)
+                    call parallel_finalize
+                    stop
                 endif
-            enddo
+            endif
         enddo
     enddo
-endsubroutine shallow_water_model_step
+end subroutine

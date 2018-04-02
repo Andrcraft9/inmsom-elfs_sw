@@ -1,16 +1,38 @@
 module shallow_water
     use main_basin_pars
     use mpi_parallel_tools
-    use basin_grid
-
-    !use vel_ssh
-    use depth
-
     implicit none
 
-    contains
+contains
 
-!===============================================================================
+    subroutine compute_rhs(diffslpr, surf_stress, RHSx2d, RHSy2d, hhu, hhv, dxt, dyt, dxh, dyh, lu)
+        implicit none
+
+        real*8 :: diffslpr, surf_stress
+
+        real*8 ::   RHSx2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    RHSy2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    hhu(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    hhv(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    dxt(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    dyt(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    dxh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    dyh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        integer :: m, n
+
+        do n=ny_start,ny_end
+            do m=nx_start,nx_end
+                if (lu(m,n)>0.5) then
+                    RHSx2d(m, n) = (surf_stress)*dxt(m,n)*dyh(m,n) -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
+                    RHSy2d(m, n) = (surf_stress)*dyt(m,n)*dxh(m,n) -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
+                endif
+            enddo
+        enddo
+    end subroutine
+
+
     ! explicit shallow water equation sloving
     subroutine expl_shallow_water( tau,     &
                                   ksw4,     &
@@ -39,6 +61,9 @@ module shallow_water
                                  RHSx_bfc,  &
                                  RHSy_bfc)
 
+        !use vel_ssh
+        use basin_grid
+        use depth
         implicit none
 
         real(8) tau
@@ -78,23 +103,25 @@ module shallow_water
         !$omp parallel do
         do k = 1, bcount
             call set_block_boundary(k)
-            do n=ny_start,ny_end
-                do m=nx_start,nx_end
-                    if (lu(k)%vals(m,n)>0.5) then
-                        sshn(k)%vals(m,n) = sshp(k)%vals(m,n) + 2.0d0*tau * ( wflux(k)%vals(m,n)/RefDen*dfloat(full_free_surface)   &
-                        -( ubrtr(k)%vals(m,n)*hhu(k)%vals(m,n)*dyh(k)%vals(m,n) - ubrtr(k)%vals(m-1,n)*hhu(k)%vals(m-1,n)*dyh(k)%vals(m-1,n)   &
-                         + vbrtr(k)%vals(m,n)*hhv(k)%vals(m,n)*dxh(k)%vals(m,n) - vbrtr(k)%vals(m,n-1)*hhv(k)%vals(m,n-1)*dxh(k)%vals(m,n-1) ) &
-                          /(dx(k)%vals(m,n)*dy(k)%vals(m,n)) )
-                    endif
-                enddo
-            enddo
+            call compute_ssh(tau, ubrtr(k)%vals, vbrtr(k)%vals, ssh(k)%vals, sshp(k)%vals, sshn(k)%vals ,  &
+                             hhu(k)%vals, hhv(k)%vals, wflux(k)%vals,                                      &
+                             dxh(k)%vals, dyh(k)%vals, dx(k)%vals, dy(k)%vals, lu(k)%vals)
         enddo
         !$omp end parallel do
 
         call syncborder_block2D(sshn)
 
-        if(full_free_surface>0) then
-            call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest)
+        if (full_free_surface>0) then
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call hh_update(hhqn(k)%vals, hhun(k)%vals, hhvn(k)%vals, hhhn(k)%vals, sshn(k)%vals, hhq_rest(k)%vals, &
+                               dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                               dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                               lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+            enddo
+            call syncborder_block2D(hhun)
+            call syncborder_block2D(hhvn)
+            call syncborder_block2D(hhhn)
         endif
 
         !computing advective and lateral-viscous terms for 2d-velocity
@@ -115,39 +142,11 @@ module shallow_water
         !$omp parallel do
         do k = 1, bcount
             call set_block_boundary(k)
-            do n=ny_start,ny_end
-                do m=nx_start,nx_end
-                    !zonal flux
-                    if (lcu(k)%vals(m,n) > 0.5) then
-                        bp  = hhun(k)%vals(m,n)*dxt(k)%vals(m,n)*dyh(k)%vals(m,n)/2.0d0/tau
-                        bp0 = hhup(k)%vals(m,n)*dxt(k)%vals(m,n)*dyh(k)%vals(m,n)/2.0d0/tau
-
-                        slx = -FreeFallAcc * (ssh(k)%vals(m+1,n) - ssh(k)%vals(m,n))*dyh(k)%vals(m,n)* hhu(k)%vals(m,n)
-                        !slxn= - FreeFallAcc * (sshn(m+1,n) -sshn(m,n))*dyh(m,n)*hhun_e(m,n)
-                        grx = RHSx(k)%vals(m,n) + slx + RHSx_dif(k)%vals(m,n) + RHSx_adv(k)%vals(m,n) &
-                            - (rdis(k)%vals(m,n)+rdis(k)%vals(m+1,n))/2.0d0 * ubrtrp(k)%vals(m,n)*dxt(k)%vals(m,n)*dyh(k)%vals(m,n)*hhu(k)%vals(m,n)  &
-                            + ( rlh_s(k)%vals(m,n  )*hhh(k)%vals(m,n  )*dxb(k)%vals(m,n  )*dyb(k)%vals(m,n  )*(vbrtr(k)%vals(m+1,n  ) + vbrtr(k)%vals(m,n  ))   &
-                            +   rlh_s(k)%vals(m,n-1)*hhh(k)%vals(m,n-1)*dxb(k)%vals(m,n-1)*dyb(k)%vals(m,n-1)*(vbrtr(k)%vals(m+1,n-1) + vbrtr(k)%vals(m,n-1)) )/4.0d0
-
-                        ubrtrn(k)%vals(m,n) = (ubrtrp(k)%vals(m,n)*bp0 + grx )/(bp - RHSx_bfc(k)%vals(m, n))
-                    endif
-
-                    !meridional flux
-                    if (lcv(k)%vals(m,n) > 0.5) then
-                        bp  = hhvn(k)%vals(m,n)*dyt(k)%vals(m,n)*dxh(k)%vals(m,n)/2.0d0/tau
-                        bp0 = hhvp(k)%vals(m,n)*dyt(k)%vals(m,n)*dxh(k)%vals(m,n)/2.0d0/tau
-
-                        sly = -FreeFallAcc * (ssh(k)%vals(m,n+1) - ssh(k)%vals(m,n))*dxh(k)%vals(m,n)* hhv(k)%vals(m,n)
-                        !slyn= - FreeFallAcc * (sshn(m,n+1)-sshn(m,n))*dxh(m,n)*hhvn_e(m,n)
-                        gry = RHSy(k)%vals(m,n) + sly + RHSy_dif(k)%vals(m,n) + RHSy_adv(k)%vals(m,n)      &
-                            - (rdis(k)%vals(m,n)+rdis(k)%vals(m,n+1))/2.0d0 * vbrtrp(k)%vals(m,n)*dxh(k)%vals(m,n)*dyt(k)%vals(m,n)*hhv(k)%vals(m,n)  &
-                            - ( rlh_s(k)%vals(m  ,n)*hhh(k)%vals(m  ,n)*dxb(k)%vals(m  ,n)*dyb(k)%vals(m  ,n)*(ubrtr(k)%vals(m  ,n+1) + ubrtr(k)%vals(m  ,n))  &
-                            +   rlh_s(k)%vals(m-1,n)*hhh(k)%vals(m-1,n)*dxb(k)%vals(m-1,n)*dyb(k)%vals(m-1,n)*(ubrtr(k)%vals(m-1,n+1)+ubrtr(k)%vals(m-1,n)) )/4.0d0
-
-                        vbrtrn(k)%vals(m,n) = (vbrtrp(k)%vals(m,n)*bp0 + gry )/(bp - RHSy_bfc(k)%vals(m, n))
-                    endif
-                enddo
-            enddo
+            call compute_vel(tau, ubrtr(k)%vals, ubrtrn(k)%vals, ubrtrp(k)%vals, vbrtr(k)%vals, vbrtrn(k)%vals, vbrtrp(k)%vals,  &
+                                 ssh(k)%vals, hhu(k)%vals, hhun(k)%vals, hhup(k)%vals, hhv(k)%vals, hhvn(k)%vals, hhvp(k)%vals, hhh(k)%vals, &
+                                 RHSx(k)%vals, RHSx_dif(k)%vals, RHSx_adv(k)%vals, RHSx_bfc(k)%vals, RHSy(k)%vals, RHSy_dif(k)%vals, RHSy_adv(k)%vals, RHSy_bfc(k)%vals, &
+                                 dxt(k)%vals, dyt(k)%vals, dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, rlh_s(k)%vals, &
+                                 rdis(k)%vals, lcu(k)%vals, lcv(k)%vals)
         enddo
         !$omp end parallel do
 
@@ -158,47 +157,46 @@ module shallow_water
         !$omp parallel do
         do k = 1, bcount
             call set_block_boundary(k)
-            do n=ny_start-1,ny_end+1
-                do m=nx_start-1,nx_end+1
-                    if (lu(k)%vals(m,n)>0.5) then
-                        sshp(k)%vals(m,n) = ssh(k)%vals(m,n) &
-                            +time_smooth*(sshn(k)%vals(m,n) - 2.0d0*ssh(k)%vals(m,n) + sshp(k)%vals(m,n))/2.0d0
-
-                        ssh(k)%vals(m,n) = sshn(k)%vals(m,n)
-                    endif
-                    if (lcu(k)%vals(m,n)>0.5) then
-                        !up(m,n) =  hhu_e(m,n)*u(m,n)+time_smooth*(hhun_e(m,n)*un(m,n)-2.0d0*hhu_e(m,n)*u(m,n)+hhup_e(m,n)*up(m,n))/2.0d0/dfloat(nstep)
-                        ubrtrp(k)%vals(m,n) = ubrtr(k)%vals(m,n) &
-                            + time_smooth*(ubrtrn(k)%vals(m,n) - 2.0d0*ubrtr(k)%vals(m,n) + ubrtrp(k)%vals(m,n))/2.0d0
-
-                        ubrtr(k)%vals(m,n) = ubrtrn(k)%vals(m,n)
-                    endif
-                    if (lcv(k)%vals(m,n)>0.5) then
-                        !vp(m,n) =  hhv_e(m,n)*v(m,n)+time_smooth*(hhvn_e(m,n)*vn(m,n)-2.0d0*hhv_e(m,n)*v(m,n)+hhvp_e(m,n)*vp(m,n))/2.0d0/dfloat(nstep)
-                        vbrtrp(k)%vals(m,n) = vbrtr(k)%vals(m,n) &
-                            + time_smooth*(vbrtrn(k)%vals(m,n) - 2.0d0*vbrtr(k)%vals(m,n) + vbrtrp(k)%vals(m,n))/2.0d0
-
-                        vbrtr(k)%vals(m,n) = vbrtrn(k)%vals(m,n)
-                    endif
-                enddo
-            enddo
+            call shift_var(ssh(k)%vals, sshp(k)%vals, sshn(k)%vals, lu(k)%vals)
+            call shift_var(ubrtr(k)%vals, ubrtrp(k)%vals, ubrtrn(k)%vals, lcu(k)%vals)
+            call shift_var(vbrtr(k)%vals, vbrtrp(k)%vals, vbrtrn(k)%vals, lcv(k)%vals)
         enddo
         !$omp end parallel do
 
-        if(full_free_surface>0) then
-            call hh_shift(hhq, hhqp, hhqn,   &
-                          hhu, hhup, hhun,   &
-                          hhv, hhvp, hhvn,   &
-                          hhh, hhhp, hhhn)
+        if (full_free_surface>0) then
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call hh_shift(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,   &
+                              hhu(k)%vals, hhup(k)%vals, hhun(k)%vals,   &
+                              hhv(k)%vals, hhvp(k)%vals, hhvn(k)%vals,   &
+                              hhh(k)%vals, hhhp(k)%vals, hhhn(k)%vals,   &
+                              lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+
+            enddo
         endif
 
-        if(full_free_surface>0) then
+        if (full_free_surface>0) then
             !initialize depth for external mode
-            call hh_init(hhq, hhqp, hhqn,    &
-                         hhu, hhup, hhun,    &
-                         hhv, hhvp, hhvn,    &
-                         hhh, hhhp, hhhn,    &
-                         ssh, sshp, hhq_rest)
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call hh_init(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,     &
+                              hhu(k)%vals, hhup(k)%vals, hhun(k)%vals,     &
+                              hhv(k)%vals, hhvp(k)%vals, hhvn(k)%vals,     &
+                              hhh(k)%vals, hhhp(k)%vals, hhhn(k)%vals,     &
+                              ssh(k)%vals, sshp(k)%vals, hhq_rest(k)%vals, &
+                              dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                              dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                              lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+             enddo
+             call syncborder_block2D(hhu)
+             call syncborder_block2D(hhup)
+             call syncborder_block2D(hhun)
+             call syncborder_block2D(hhv)
+             call syncborder_block2D(hhvp)
+             call syncborder_block2D(hhvn)
+             call syncborder_block2D(hhh)
+             call syncborder_block2D(hhhp)
+             call syncborder_block2D(hhhn)
         endif
 
     endsubroutine expl_shallow_water
@@ -206,7 +204,6 @@ module shallow_water
     subroutine compute_vel(tau, ubrtr, ubrtrn, ubrtrp, vbrtr, vbrtrn, vbrtrp, ssh, hhu, hhun, hhup, hhv, hhvn, hhvp, hhh, &
                            RHSx, RHSx_dif, RHSx_adv, RHSx_bfc, RHSy, RHSy_dif, RHSy_adv, RHSy_bfc,  &
                            dxt, dyt, dxh, dyh, dxb, dyb, rlh_s, rdis, lcu, lcv)
-        use mpi_parallel_tools
         implicit none
 
         real(8)  ubrtr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
@@ -216,13 +213,13 @@ module shallow_water
                 vbrtrp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 vbrtrn(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                    ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                   hhu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),  &
-                   hhun(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                   hhup(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                   hhv(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                   hhvn(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                   hhvp(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                   hhh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                   hhu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   hhun(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+                   hhup(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+                   hhv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   hhvn(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+                   hhvp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+                   hhh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                     RHSx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                     RHSy(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                     rdis(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
@@ -231,7 +228,7 @@ module shallow_water
                 RHSx_dif(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 RHSy_dif(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 RHSx_bfc(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                RHSy_bfc(bnd_x1:bnd_x2,bnd_y1:bnd_y2),  &
+                RHSy_bfc(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 dxt(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
                 dyt(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
                 dxh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
@@ -245,7 +242,6 @@ module shallow_water
         real(8) tau, bp, bp0, grx, gry, slx, sly, slxn, slyn
         integer :: m, n
 
-        !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
         do n=ny_start,ny_end
             do m=nx_start,nx_end
                 !zonal flux
@@ -279,40 +275,60 @@ module shallow_water
                 endif
             enddo
         enddo
-
     end subroutine compute_vel
-!    call compute_vel(tau,   &
-!                     ubrtr(k)%vals,  &
-!                     ubrtrn(k)%vals,  &
-!                     ubrtrp(k)%vals,  &
-!                     vbrtr(k)%vals,  &
-!                     vbrtrn(k)%vals,  &
-!                     vbrtrp(k)%vals,  &
-!                     ssh(k)%vals,  &
-!                     hhu(k)%vals,  &
-!                     hhun(k)%vals,     &
-!                     hhup(k)%vals,     &
-!                     hhv(k)%vals,         &
-!                     hhvn(k)%vals,     &
-!                     hhvp(k)%vals,     &
-!                     hhh(k)%vals,     &
-!                     RHSx(k)%vals,     &
-!                     RHSx_dif(k)%vals,     &
-!                     RHSx_adv(k)%vals,     &
-!                     RHSx_bfc(k)%vals,     &
-!                     RHSy(k)%vals,     &
-!                     RHSy_dif(k)%vals,     &
-!                     RHSy_adv(k)%vals,     &
-!                     RHSy_bfc(k)%vals,     &
-!                     dxt(k)%vals,     &
-!                     dyt(k)%vals,     &
-!                     dxh(k)%vals,     &
-!                     dyh(k)%vals,     &
-!                     dxb(k)%vals,     &
-!                     dyb(k)%vals,     &
-!                     rlh_s(k)%vals,     &
-!                     rdis(k)%vals,     &
-!                     lcu(k)%vals,     &
-!                     lcv(k)%vals)
+
+    subroutine compute_ssh(tau, ubrtr, vbrtr, ssh, sshp, sshn, hhu, hhv, wflux, dxh, dyh, dx, dy, lu)
+        implicit none
+
+        real(8)  tau
+
+        real(8)  ubrtr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                 vbrtr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   sshp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+                   sshn(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+                   hhu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   hhv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   wflux(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   dxh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   dyh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+                   dx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+                   dy(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
+                   lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        integer :: m, n
+
+        do n=ny_start,ny_end
+            do m=nx_start,nx_end
+                if(lu(m,n)>0.5) then
+                    sshn(m,n) = sshp(m,n) + 2.0d0*tau*( wflux(m,n)/RefDen*dfloat(full_free_surface)   &
+                    - ( ubrtr(m,n)*hhu(m,n)*dyh(m,n) - ubrtr(m-1,n)*hhu(m-1,n)*dyh(m-1,n)             &
+                      + vbrtr(m,n)*hhv(m,n)*dxh(m,n) - vbrtr(m,n-1)*hhv(m,n-1)*dxh(m,n-1) )/(dx(m,n)*dy(m,n))  )
+                endif
+            enddo
+        enddo
+
+    end subroutine
+
+    subroutine shift_var(var, varp, varn, lvar)
+        implicit none
+
+        real*8 ::   var(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    varp(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    varn(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+                    lvar(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+
+        integer :: m, n
+
+        do n = ny_start-1,ny_end+1
+            do m = nx_start-1,nx_end+1
+                if (lvar(m,n)>0.5) then
+                    varp(m,n) = var(m,n) + time_smooth*(varn(m,n) - 2.0d0*var(m,n) + varp(m,n))/2.0d0
+                    var(m,n) = varn(m,n)
+                endif
+            enddo
+        enddo
+
+    end subroutine
 
 endmodule

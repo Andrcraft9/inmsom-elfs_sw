@@ -153,7 +153,7 @@ program INMSOM
 
     !------------------------- Check points ----------------------------------------!
     !call parallel_check_point(38.990d0, 47.270d0) !Taganrog
-    call parallel_check_point(38.590d0, 46.700d0) !Eesk
+    !call parallel_check_point(38.590d0, 46.700d0) !Eesk
     call parallel_check_point(32.0d0, 43.0d0)
     call parallel_check_point(40.0d0, 42.0d0)
 
@@ -239,7 +239,7 @@ program INMSOM
 
                 ! Azov sea
                 !call parallel_point_output(path2ocp, num_step, 38.990d0, 47.270d0, 'Taganrog')
-                call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
+                !call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
                 call parallel_point_output(path2ocp, num_step, 32.0d0, 43.0d0, 'Test')
                 call parallel_point_output(path2ocp, num_step, 40.0d0, 42.0d0, 'Test2')
 

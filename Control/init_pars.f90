@@ -231,11 +231,26 @@ subroutine zero_sw_init
         sshp(k)%vals = 0.0
     enddo
 
-    call hh_init(hhq, hhqp, hhqn,    &
-                 hhu, hhup, hhun,    &
-                 hhv, hhvp, hhvn,    &
-                 hhh, hhhp, hhhn,    &
-                 ssh, sshp, hhq_rest)
+    do k = 1, bcount
+        call set_block_boundary(k)
+        call hh_init(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,     &
+                     hhu(k)%vals, hhup(k)%vals, hhun(k)%vals,     &
+                     hhv(k)%vals, hhvp(k)%vals, hhvn(k)%vals,     &
+                     hhh(k)%vals, hhhp(k)%vals, hhhn(k)%vals,     &
+                     ssh(k)%vals, sshp(k)%vals, hhq_rest(k)%vals, &
+                     dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                     dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                     lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+    enddo
+    call syncborder_block2D(hhu)
+    call syncborder_block2D(hhup)
+    call syncborder_block2D(hhun)
+    call syncborder_block2D(hhv)
+    call syncborder_block2D(hhvp)
+    call syncborder_block2D(hhvn)
+    call syncborder_block2D(hhh)
+    call syncborder_block2D(hhhp)
+    call syncborder_block2D(hhhn)
 
 end subroutine
 
@@ -277,10 +292,25 @@ subroutine sw_only_inicond(flag_init, path2ocp)
         sshp(k)%vals = ssh(k)%vals
     enddo
 
-    call hh_init(hhq, hhqp, hhqn,    &
-                 hhu, hhup, hhun,    &
-                 hhv, hhvp, hhvn,    &
-                 hhh, hhhp, hhhn,    &
-                 ssh, sshp, hhq_rest)
+    do k = 1, bcount
+        call set_block_boundary(k)
+        call hh_init(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,     &
+                     hhu(k)%vals, hhup(k)%vals, hhun(k)%vals,     &
+                     hhv(k)%vals, hhvp(k)%vals, hhvn(k)%vals,     &
+                     hhh(k)%vals, hhhp(k)%vals, hhhn(k)%vals,     &
+                     ssh(k)%vals, sshp(k)%vals, hhq_rest(k)%vals, &
+                     dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                     dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                     lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+    enddo
+    call syncborder_block2D(hhu)
+    call syncborder_block2D(hhup)
+    call syncborder_block2D(hhun)
+    call syncborder_block2D(hhv)
+    call syncborder_block2D(hhvp)
+    call syncborder_block2D(hhvn)
+    call syncborder_block2D(hhh)
+    call syncborder_block2D(hhhp)
+    call syncborder_block2D(hhhn)
 
 endsubroutine sw_only_inicond

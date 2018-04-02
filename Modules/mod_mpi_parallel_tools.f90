@@ -6,7 +6,7 @@ module mpi_parallel_tools
     !include 'mpif.h'
     include "omp_lib.h"
 
-    integer :: recommended_tot_blocks
+    integer :: bppnx, bppny
     integer :: parallel_dbg
 
     integer :: nx_start, nx_end, ny_start, ny_end
@@ -97,21 +97,24 @@ contains
             print *, 'Read parallel.par...'
 
             open(90, file='parallel.par', status='old')
-            read(90, *) recommended_tot_blocks
-            print *, 'recommended_tot_blocks=', recommended_tot_blocks
+            read(90, *) bppnx
+            print *, 'bppnx=', bppnx
+            read(90, *) bppny
+            print *, 'bppny=', bppny
             read(90, *) parallel_dbg
             print *, 'parallel_dbg=', parallel_dbg
 
             close(90)
         endif
-        call mpi_bcast(recommended_tot_blocks, 1, mpi_integer, 0, mpi_comm_world, ierr)
+        call mpi_bcast(bppnx, 1, mpi_integer, 0, mpi_comm_world, ierr)
+        call mpi_bcast(bppny, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(parallel_dbg, 1, mpi_integer, 0, mpi_comm_world, ierr)
 
-        if (rank .eq. 0) then
-            if (.not. MPI_SUBARRAYS_SUPPORTED) then
-                print *, 'MPI_SUBARRAYS_SUPPORTED = FALSE'
-            endif
-        endif
+        !if (rank .eq. 0) then
+        !    if (.not. MPI_SUBARRAYS_SUPPORTED) then
+        !        print *, 'MPI_SUBARRAYS_SUPPORTED = FALSE'
+        !    endif
+        !endif
 
         p_period = (/.true., .true./)
         p_size = (/0,0/)
@@ -234,10 +237,12 @@ contains
         integer, allocatable :: buf_int(:, :)
 
         ! Set Cart grid of blocks
-        bnx = floor(sqrt(recommended_tot_blocks * real(nx-4) / real(ny-4)))
-        bny = floor(sqrt(recommended_tot_blocks * real(ny-4) / real(nx-4)))
-        bnx = bnx - mod(bnx, p_size(1))
-        bny = bny - mod(bny, p_size(2))
+        !bnx = floor(sqrt(recommended_tot_blocks * real(nx-4) / real(ny-4)))
+        !bny = floor(sqrt(recommended_tot_blocks * real(ny-4) / real(nx-4)))
+        !bnx = bnx - mod(bnx, p_size(1))
+        !bny = bny - mod(bny, p_size(2))
+        bnx = bppnx * p_size(1)
+        bny = bppny * p_size(2)
         if (parallel_dbg >= 1 .and. rank == 0) print *, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
         call mpi_barrier(cart_comm, ierr)
 
@@ -393,7 +398,7 @@ contains
             allocate(sync_buf8_send_nxm(k)%vals(nx_dir_size), sync_buf8_recv_nxm(k)%vals(nx_dir_size))
         enddo
 
-        allocate(reqsts(8*bcount), statuses(MPI_STATUS_SIZE, 8*bcount))
+        allocate(reqsts(2*8*bcount), statuses(MPI_STATUS_SIZE, 2*8*bcount))
     end subroutine
 
     subroutine parallel_int_output(arr, x1, x2, y1, y2, msg)
