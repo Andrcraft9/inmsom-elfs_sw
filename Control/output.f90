@@ -109,7 +109,7 @@ subroutine parallel_point_output(path2data, nstep, lon, lat, name)
     implicit none
 
     character fname*256
-    character(20) name
+    character*(*) name
     character*(*) path2data
     integer :: nstep, m, n, r, ierr
     real*8 :: lon, lat
@@ -128,6 +128,51 @@ subroutine parallel_point_output(path2data, nstep, lon, lat, name)
 
     return
 end subroutine parallel_point_output
+
+subroutine patallel_energy_output(path2data, nstep)
+    use main_basin_pars
+    use mpi_parallel_tools
+    use basin_grid
+    use ocean_variables
+
+    implicit none
+
+    character fname*256
+    character*(*) path2data
+    integer :: nstep, ierr
+    integer :: m, n
+    real*8 :: kinetic_e, potential_e
+    real*8 :: buf_k, buf_p
+
+    ! TotalEnergy = 0.5 rho dx dy Sum[h_u u**2 + h_v v**2 + g ssh**2]
+    kinetic_e = 0.0d0; potential_e = 0.0d0
+    do n = ny_start, ny_end
+        do m = nx_start, nx_end
+            if (lcu(m,n)>0.5) then
+                kinetic_e = kinetic_e + 0.5d0*RefDen*dxt(m,n)*dyh(m,n)*hhu(m,n)*(ubrtr(m,n)**2)
+            endif
+            if (lcv(m,n)>0.5) then
+                kinetic_e = kinetic_e + 0.5d0*RefDen*dxh(m,n)*dyt(m,n)*hhv(m,n)*(vbrtr(m,n)**2)
+            endif
+
+            if (lu(m,n)>0.5) then
+                potential_e = potential_e + 0.5d0*RefDen*dx(m,n)*dy(m,n)*FreeFallAcc*(ssh(m,n)**2)
+            endif
+        enddo
+    enddo
+    buf_k = kinetic_e; buf_p = potential_e
+    call mpi_allreduce(buf_k, kinetic_e, 1, mpi_real8, mpi_sum, cart_comm, ierr)
+    call mpi_allreduce(buf_p, potential_e, 1, mpi_real8, mpi_sum, cart_comm, ierr)
+
+    if (rank .eq. 0) then
+        call fulfname(fname, path2data, 'kinetic_potential_energy', ierr)
+        open(40, file=fname, status='unknown', position='append')
+        write(40, *) nstep, kinetic_e, potential_e
+        close(40)
+    endif
+
+    return
+end subroutine
 
 subroutine parallel_local_output(path2data,  &
                                  nrec,       &
