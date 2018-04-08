@@ -1,5 +1,5 @@
-!-----------module for definition of array dimensions and boundaries------------
 module mpi_parallel_tools
+    use hilbert_curve
     use mpi
     implicit none
 
@@ -156,23 +156,26 @@ contains
         if (allocated(bglob_proc)) deallocate(bglob_proc)
         if (allocated(lbasins)) deallocate(lbasins)
 
-        if (allocated(reqsts)) deallocate(reqsts)
-        if (allocated(statuses)) deallocate(statuses)
+        ! MPI buffers
+        if (allocated(reqsts)) then
+            deallocate(reqsts)
+            deallocate(statuses)
 
-        !if (allocated(sync_buf8_send_nyp)) then
-        do k = 1, bcount
-            deallocate(sync_buf8_send_nyp(k)%vals, sync_buf8_recv_nyp(k)%vals)
-            deallocate(sync_buf8_send_nxp(k)%vals, sync_buf8_recv_nxp(k)%vals)
-            deallocate(sync_buf8_send_nym(k)%vals, sync_buf8_recv_nym(k)%vals)
-            deallocate(sync_buf8_send_nxm(k)%vals, sync_buf8_recv_nxm(k)%vals)
-        enddo
-        deallocate(sync_buf8_send_nyp, sync_buf8_recv_nyp)
-        deallocate(sync_buf8_send_nxp, sync_buf8_recv_nxp)
-        deallocate(sync_buf8_send_nym, sync_buf8_recv_nym)
-        deallocate(sync_buf8_send_nxm, sync_buf8_recv_nxm)
-        !endif
-        !if (allocated(sync_buf8_send_nyp)) deallocate(sync_buf8_send_nyp)
-        !if (allocated(sync_buf8_recv_nyp)) deallocate(sync_buf8_recv_nyp)
+            !if (allocated(sync_buf8_send_nyp)) then
+            do k = 1, bcount
+                deallocate(sync_buf8_send_nyp(k)%vals, sync_buf8_recv_nyp(k)%vals)
+                deallocate(sync_buf8_send_nxp(k)%vals, sync_buf8_recv_nxp(k)%vals)
+                deallocate(sync_buf8_send_nym(k)%vals, sync_buf8_recv_nym(k)%vals)
+                deallocate(sync_buf8_send_nxm(k)%vals, sync_buf8_recv_nxm(k)%vals)
+            enddo
+            deallocate(sync_buf8_send_nyp, sync_buf8_recv_nyp)
+            deallocate(sync_buf8_send_nxp, sync_buf8_recv_nxp)
+            deallocate(sync_buf8_send_nym, sync_buf8_recv_nym)
+            deallocate(sync_buf8_send_nxm, sync_buf8_recv_nxm)
+            !endif
+            !if (allocated(sync_buf8_send_nyp)) deallocate(sync_buf8_send_nyp)
+            !if (allocated(sync_buf8_recv_nyp)) deallocate(sync_buf8_recv_nyp)
+        endif
 
         call mpi_finalize(ierr)
     end subroutine
@@ -224,8 +227,9 @@ contains
         use main_basin_pars
         implicit none
 
-        integer, allocatable :: bweight(:)
-        real*8 :: weight
+        real*8, allocatable :: bglob_weight(:, :)
+        real*8 :: bweight
+        real*8 :: tot_weight, mean_weight
 
         integer :: loc_bnx, loc_bny
 
@@ -233,8 +237,12 @@ contains
         integer :: xblock_start, yblock_start
         integer :: land_blocks
         integer :: ierr
+
+        integer :: hilbert_index, hilbert_coord_x, hilbert_coord_y
+        integer, allocatable :: load_balanced_bglob_proc(:, :)
         ! Buffers for MPI subroutines
         integer, allocatable :: buf_int(:, :)
+        real*8, allocatable :: buf_real8(:, :)
 
         ! Set Cart grid of blocks
         !bnx = floor(sqrt(recommended_tot_blocks * real(nx-4) / real(ny-4)))
@@ -243,7 +251,20 @@ contains
         !bny = bny - mod(bny, p_size(2))
         bnx = bppnx * p_size(1)
         bny = bppny * p_size(2)
+        hilbert_index = int(log(real(bnx))/ log(2.0))
+        ierr = 0
+        if (bnx /= bny) then
+            print *, 'bnx not equal to bny! Can`t build Hilbert curve for this geometry!'
+            ierr = 1
+        endif
+        if (2**hilbert_index /= bnx) then
+            print *, '2**M not eqal to bnx! Can`t build Hilbert curve for this geometry!'
+            ierr = 1
+        endif
+        call parallel_check_err(ierr)
+
         if (parallel_dbg >= 1 .and. rank == 0) print *, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
+        if (parallel_dbg >= 1 .and. rank == 0) print *, 'Hilbert curve index:', hilbert_index
         call mpi_barrier(cart_comm, ierr)
 
         ! Unifrom distribute blocks to procs
@@ -271,22 +292,23 @@ contains
         call mpi_barrier(cart_comm, ierr)
 
         allocate(bglob_proc(bnx, bny))
+        allocate(bglob_weight(bnx, bny))
         allocate(bindx(bcount, 2))
         allocate(bnx_start(bcount), bnx_end(bcount),     &
                  bny_start(bcount), bny_end(bcount))
         allocate(bbnd_x1(bcount), bbnd_x2(bcount),       &
                  bbnd_y1(bcount), bbnd_y2(bcount))
-        allocate(bweight(bcount))
 
         bindx = 0
         bnx_start = 0; bnx_end = 0; bny_start = 0; bny_end = 0
         bbnd_x1 = 0; bbnd_x2 = 0; bbnd_y1 = 0; bbnd_y2 = 0
         bweight = 0
+        bglob_weight = 0.0d0
         bglob_proc = -1
 
         k = 1
         land_blocks = 0
-        weight = 0.0d0
+        bweight = 0.0d0
         do m = xblock_start, xblock_start + loc_bnx - 1
             do n = yblock_start, yblock_start + loc_bny - 1
 
@@ -321,12 +343,12 @@ contains
                 ! Compute load-balance
                 do i = bnx_start(k), bnx_end(k)
                     do j = bny_start(k), bny_end(k)
-                        bweight(k) = bweight(k) + (1.0d0 - real(lbasins(i, j)))
+                        bglob_weight(m, n) = bglob_weight(m, n) + (1.0d0 - real(lbasins(i, j)))
                     enddo
                 enddo
-                weight = weight + real(bweight(k)) !/ real((bnx_end(k) - bnx_start(k) + 1)*(bny_end(k) - bny_start(k) + 1))
+                bweight = bweight + bglob_weight(m, n) !/ real((bnx_end(k) - bnx_start(k) + 1)*(bny_end(k) - bny_start(k) + 1))
                 ! Ignore only-land blocks
-                if (bweight(k) == 0.0) then
+                if (bglob_weight(m, n) == 0.0d0) then
                     land_blocks = land_blocks + 1
                     bglob_proc(m, n) = -1
                 else
@@ -335,34 +357,74 @@ contains
             enddo
         enddo
 
-        if (parallel_dbg >= 1) print *, rank, 'Total blocks with land:', land_blocks, 'Total Load-Balancing:', weight / ((nx-4)*(ny-4))
-        call mpi_barrier(cart_comm, ierr)
         bcount = bcount - land_blocks
-        if (parallel_dbg >= 1) print *, rank, 'Updated block count', bcount
-        call mpi_barrier(cart_comm, ierr)
         ierr = 0
-        if (bcount <= 0) then
-            print *, rank, 'All blocks with land blocks!'
+        if (bcount < 0) then
+            print *, rank, 'land blocks > bcount... Error!'
             ierr = 1
         endif
         call parallel_check_err(ierr)
         call mpi_allreduce(bcount, total_blocks, 1, mpi_integer,      &
                            mpi_sum, cart_comm, ierr)
-        if (parallel_dbg >= 1 .and. rank == 0) print *, 'Updated Total block count', total_blocks
-        call mpi_barrier(cart_comm, ierr)
 
-        if (rank == 0) then
-            print *, 'Block surface-to-volume ratio', 2.0d0*(bnx_end(1)-bnx_start(1) + bny_end(1)-bny_start(1)) &
-                                /((bnx_end(1)-bnx_start(1))*(bny_end(1)-bny_start(1)))
+        ! Sync bglob_weight array
+        allocate(buf_real8(bnx, bny))
+        buf_real8 = bglob_weight
+        call mpi_allreduce(buf_real8, bglob_weight, bnx*bny, mpi_real8, mpi_sum, cart_comm, ierr)
+        tot_weight = sum(bglob_weight)
+        mean_weight = tot_weight / procs
+
+        ! Print uniform decomposition information
+        if (parallel_dbg >= 1) then
+            print *, rank, 'Blocks with land per proc:', land_blocks, 'Load-Balancing per proc:', bweight !/ ((nx-4)*(ny-4))
+            call mpi_barrier(cart_comm, ierr)
+            print *, rank, 'Updated blocks count per proc', bcount
+            call mpi_barrier(cart_comm, ierr)
+            if (rank == 0) print *, 'Updated Total blocks count', total_blocks
+            call mpi_barrier(cart_comm, ierr)
+            print *, rank, 'Total blocks weigth:', tot_weight, "Mean blocks weigth:", mean_weight
+            call mpi_barrier(cart_comm, ierr)
+            !if (rank == 0) then
+            !    print *, 'Block surface-to-volume ratio', 2.0d0*(bnx_end(1)-bnx_start(1) + bny_end(1)-bny_start(1)) &
+            !                        /((bnx_end(1)-bnx_start(1))*(bny_end(1)-bny_start(1)))
+            !endif
         endif
 
         ! Sync bglob_proc array
-        if (parallel_dbg >= 2) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc before')
+        if (parallel_dbg >= 3) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc before')
         allocate(buf_int(bnx, bny))
         buf_int = bglob_proc + 1
         call mpi_allreduce(buf_int, bglob_proc, bnx*bny, mpi_integer, mpi_sum, cart_comm, ierr)
         bglob_proc = bglob_proc - 1
-        if (parallel_dbg >= 2) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc after')
+        if (parallel_dbg >= 3) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc after')
+
+        ! Load-Balancing
+        allocate(load_balanced_bglob_proc(bnx, bny))
+        bweight = 0.0d0
+        i = 0
+        if (rank .eq. 0) then
+            print *, 'Hilbert curve: k, x, y'
+            do k = 1, bnx*bny
+                call hilbert_d2xy(hilbert_index, k-1, hilbert_coord_x, hilbert_coord_y)
+                hilbert_coord_x = hilbert_coord_x + 1; hilbert_coord_y = hilbert_coord_y + 1
+                bweight = bweight + bglob_weight(hilbert_coord_x, hilbert_coord_y)
+                if (bweight >= mean_weight) then
+                    bweight = 0.0d0
+                    i =  i + 1
+                    if (i > procs) then
+                        i = procs
+                        print *, 'Warning! Last procs overloaded...'
+                    endif
+                endif
+                load_balanced_bglob_proc(hilbert_coord_x, hilbert_coord_y) = i
+                print *, k, hilbert_coord_x, hilbert_coord_y
+            enddo
+        endif
+        call mpi_bcast(load_balanced_bglob_proc, bnx*bny, mpi_integer, 0, mpi_comm_world, ierr)
+        if (parallel_dbg >= 2) then
+            call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc')
+            call parallel_int_output(load_balanced_bglob_proc, 1, bnx, 1, bny, 'load_balanced_bglob_proc')
+        endif
 
         !allocate(buf_int(bcount), recv_buf_int(procs), displs(procs))
         !call mpi_allgather(bcount, 1, mpi_integer, recv_buf_int, 1, mpi_integer, cart_comm, ierr)
@@ -375,8 +437,10 @@ contains
 
         call allocate_mpi_buffers()
 
-        deallocate(bweight)
+        deallocate(bglob_weight)
         deallocate(buf_int)
+        deallocate(buf_real8)
+        deallocate(load_balanced_bglob_proc)
 
     end subroutine
 
@@ -534,7 +598,7 @@ contains
         integer :: reqst
         integer :: ierr
 
-        if (parallel_dbg >= 2) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
+        if (parallel_dbg >= 3) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
         !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
         !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
         call mpi_irecv(buff, buff_size, mpi_real8, src_proc, tag, cart_comm, reqst, ierr)
@@ -551,7 +615,7 @@ contains
         integer :: reqst
         integer :: ierr
 
-        if (parallel_dbg >= 2) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
+        if (parallel_dbg >= 3) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
         !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
         !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
         call mpi_isend(buff, buff_size, mpi_real8, dist_proc, tag, cart_comm, reqst, ierr)
@@ -695,7 +759,7 @@ contains
             endif
 
         enddo
-        if (parallel_dbg >= 2) print *, rank, 'icount recv:', icount-1
+        if (parallel_dbg >= 3) print *, rank, 'icount recv:', icount-1
 
         ! Non-blocking Send calls
         do k = 1, bcount
@@ -824,7 +888,7 @@ contains
             endif
 
         enddo
-        if (parallel_dbg >= 2) print *, rank, 'icount totl:', icount-1
+        if (parallel_dbg >= 3) print *, rank, 'icount totl:', icount-1
 
         ! Wait all, sync point
         call mpi_waitall(icount-1, reqsts, statuses, ierr)
@@ -903,6 +967,19 @@ contains
 
     end subroutine
 
+    integer function check_cart_coord(coord, grid_size)
+        implicit none
+        integer, dimension(2), intent(in) :: coord, grid_size
+
+        check_cart_coord = 0
+        !write(*,*) coord,all(coord.ge.0),all((p_size-coord).ge.1)
+        !print *, coord, p_size - coord, all((p_size-coord).ge.1)
+        if (all(coord .ge. 0) .and. all((grid_size - coord) .ge. 1)) then
+            check_cart_coord = 1
+        endif
+        return
+    end function
+
     subroutine get_block_and_rank_by_point(m, n, out)
         implicit none
 
@@ -932,8 +1009,6 @@ contains
 
     end subroutine
 
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
     integer function get_rank_by_point(m, n)
         implicit none
 
@@ -954,294 +1029,4 @@ contains
         return
     end function
 
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-    integer function check_cart_coord(coord, grid_size)
-        implicit none
-        integer, dimension(2), intent(in) :: coord, grid_size
-
-        check_cart_coord = 0
-        !write(*,*) coord,all(coord.ge.0),all((p_size-coord).ge.1)
-        !print *, coord, p_size - coord, all((p_size-coord).ge.1)
-        if (all(coord .ge. 0) .and. all((grid_size - coord) .ge. 1)) then
-            check_cart_coord = 1
-        endif
-        return
-    end function
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-    subroutine directsync_real8(field, p_dist, xd1, xd2, yd1, yd2,             &
-                                       p_src,  xs1, xs2, ys1, ys2, nz)
-        implicit none
-        integer :: nz
-        real*8, intent(in out) :: field(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
-        integer, dimension(2), intent(in) :: p_dist, p_src
-        integer :: xd1, xd2, yd1, yd2 ! bound of array which sending to p_dist
-        integer :: xs1, xs2, ys1, ys2 ! bound of array which recieving from p_src
-
-        integer :: dist_rank, src_rank
-        integer :: flag_dist, flag_src
-        integer :: ierr, debg
-        integer :: stat(mpi_status_size)
-
-        debg = 0
-
-        if ( ((xd1-xd2+1)*(yd1-yd2+1)) .ne. (xs1-xs2+1)*(ys1-ys2+1) ) then
-            print *, "Error in sync arrays size!"
-        endif
-
-        flag_dist = check_cart_coord(p_dist, p_size)
-        flag_src = check_cart_coord(p_src, p_size)
-
-        if ( (flag_src .eq. 1) .and. (flag_dist .eq. 1) ) then
-            call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
-            call mpi_cart_rank(cart_comm, p_src, src_rank, ierr)
-
-            call mpi_sendrecv(field(xd1:xd2, yd1:yd2, 1:nz),                          &
-                              (xd2 - xd1 + 1)*(yd2 - yd1 + 1)*nz,                 &
-                              mpi_real8, dist_rank, 1,                         &
-                              field(xs1:xs2, ys1:ys2, 1:nz),                          &
-                              (xs2 - xs1 + 1)*(ys2 - ys1 + 1)*nz,                 &
-                              mpi_real8, src_rank, 1,                          &
-                              cart_comm, stat, ierr)
-!            print *, rank, "rsendecv", ierr
-        else
-            if (flag_src .eq. 1) then
-                call mpi_cart_rank(cart_comm,p_src,src_rank,ierr)
-
-                call mpi_recv(field(xs1:xs2, ys1:ys2, 1:nz),                          &
-                              (xs2 - xs1 + 1)*(ys2 - ys1 + 1)*nz,                 &
-                              mpi_real8, src_rank, 1,                          &
-                              cart_comm, stat, ierr)
-!                print *, rank, src_rank, "recv", xs1, xs2, ys1, ys2, field(xs1:xs2, ys1:ys2)
-            endif
-
-            if (flag_dist .eq. 1) then
-                call mpi_cart_rank(cart_comm,p_dist,dist_rank,ierr)
-
-                call mpi_send(field(xd1:xd2, yd1:yd2, 1:nz),                          &
-                             (xd2 - xd1 + 1)*(yd2 - yd1 + 1)*nz,                  &
-                             mpi_real8, dist_rank, 1,                          &
-                             cart_comm, ierr)
-!                print *, rank, dist_rank, "send", xd1, xd2, yd1, yd2, field(xd1:xd2, yd1:yd2)
-            endif
-        endif
-
-    end subroutine directsync_real8
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-    subroutine syncborder_real8(field, nz)
-        implicit none
-        integer :: nz
-        real*8, intent(in out) :: field(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
-
-        integer, dimension(2) :: p_dist, p_src
-        real*8 :: time_count
-
-        !call start_timer(time_count)
-!------------------ send-recv in ny+ -------------------------------------------
-        p_dist(1) = p_coord(1)
-        p_dist(2) = p_coord(2) + 1
-        p_src(1) = p_coord(1)
-        p_src(2) = p_coord(2) - 1
-        call directsync_real8(field, p_dist, nx_start, nx_end, ny_end, ny_end,       &
-                                     p_src,  nx_start, nx_end, bnd_y1 + 1, bnd_y1 + 1, nz)
-!------------------ send-recv in nx+ -------------------------------------------
-        p_dist(1) = p_coord(1) + 1
-        p_dist(2) = p_coord(2)
-        p_src(1) = p_coord(1) - 1
-        p_src(2) = p_coord(2)
-        call directsync_real8(field, p_dist, nx_end, nx_end, ny_start, ny_end,       &
-                                     p_src,  bnd_x1 + 1, bnd_x1 + 1, ny_start, ny_end, nz)
-!------------------ send-recv in ny- -------------------------------------------
-        p_dist(1) = p_coord(1)
-        p_dist(2) = p_coord(2) - 1
-        p_src(1) = p_coord(1)
-        p_src(2) = p_coord(2) + 1
-        call directsync_real8(field, p_dist, nx_start, nx_end, ny_start, ny_start,   &
-                                     p_src,  nx_start, nx_end, bnd_y2 - 1, bnd_y2 - 1, nz)
-!------------------ send-recv in nx- -------------------------------------------
-        p_dist(1) = p_coord(1) - 1
-        p_dist(2) = p_coord(2)
-        p_src(1) = p_coord(1) + 1
-        p_src(2) = p_coord(2)
-        call directsync_real8(field, p_dist, nx_start, nx_start, ny_start, ny_end,   &
-                                     p_src,  bnd_x2 - 1, bnd_x2 - 1, ny_start, ny_end, nz)
-
-
-!------------------ Sync edge points (EP) --------------------------------------
-!------------------ send-recv EP in nx+,ny+ ------------------------------------
-         p_dist(1) = p_coord(1) + 1
-         p_dist(2) = p_coord(2) + 1
-         p_src(1) = p_coord(1) - 1
-         p_src(2) = p_coord(2) - 1
-         call directsync_real8(field, p_dist, nx_end, nx_end, ny_end, ny_end,   &
-                                      p_src,  bnd_x1 + 1, bnd_x1 + 1, bnd_y1 + 1, bnd_y1 + 1, nz)
-!------------------ send-recv EP in nx+,ny- ------------------------------------
-         p_dist(1) = p_coord(1) + 1
-         p_dist(2) = p_coord(2) - 1
-         p_src(1) = p_coord(1) - 1
-         p_src(2) = p_coord(2) + 1
-         call directsync_real8(field, p_dist, nx_end, nx_end, ny_start, ny_start,   &
-                                      p_src,  bnd_x1 + 1, bnd_x1 + 1, bnd_y2 - 1 , bnd_y2 - 1, nz)
-!------------------ send-recv EP in nx-,ny- ------------------------------------
-         p_dist(1) = p_coord(1) - 1
-         p_dist(2) = p_coord(2) - 1
-         p_src(1) = p_coord(1) + 1
-         p_src(2) = p_coord(2) + 1
-         call directsync_real8(field, p_dist, nx_start, nx_start, ny_start, ny_start,   &
-                                      p_src,  bnd_x2 - 1, bnd_x2 - 1, bnd_y2 - 1, bnd_y2 - 1, nz)
-
-!------------------ send-recv EP in nx-,ny+ ------------------------------------
-         p_dist(1) = p_coord(1) - 1
-         p_dist(2) = p_coord(2) + 1
-         p_src(1) = p_coord(1) + 1
-         p_src(2) = p_coord(2) - 1
-         call directsync_real8(field, p_dist, nx_start, nx_start, ny_end, ny_end,  &
-                                      p_src,  bnd_x2 - 1, bnd_x2 - 1, bnd_y1 + 1, bnd_y1 + 1, nz)
-
-        !call end_timer(time_count)
-        !time_sync = time_sync + time_count
-        return
-    end subroutine syncborder_real8
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-    subroutine directsync_real(field, p_dist, xd1, xd2, yd1, yd2,             &
-                                       p_src,  xs1, xs2, ys1, ys2, nz)
-        implicit none
-        integer :: nz
-        real*4, intent(in out) :: field(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
-        integer, dimension(2), intent(in) :: p_dist, p_src
-        integer :: xd1, xd2, yd1, yd2 ! bound of array which sending to p_dist
-        integer :: xs1, xs2, ys1, ys2 ! bound of array which recieving from p_src
-
-        integer :: dist_rank, src_rank
-        integer :: flag_dist, flag_src
-        integer :: ierr, debg
-        integer :: stat(mpi_status_size)
-
-        debg = 0
-
-        if ( ((xd1-xd2+1)*(yd1-yd2+1)) .ne. (xs1-xs2+1)*(ys1-ys2+1) ) then
-            print *, "Error in sync arrays size!"
-        endif
-
-        flag_dist = check_cart_coord(p_dist, p_size)
-        flag_src = check_cart_coord(p_src, p_size)
-
-        if ( (flag_src .eq. 1) .and. (flag_dist .eq. 1) ) then
-            call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
-            call mpi_cart_rank(cart_comm, p_src, src_rank, ierr)
-
-            call mpi_sendrecv(field(xd1:xd2, yd1:yd2, 1:nz),                          &
-                              (xd2 - xd1 + 1)*(yd2 - yd1 + 1)*nz,                 &
-                              mpi_real4, dist_rank, 1,                         &
-                              field(xs1:xs2, ys1:ys2, 1:nz),                          &
-                              (xs2 - xs1 + 1)*(ys2 - ys1 + 1)*nz,                 &
-                              mpi_real4, src_rank, 1,                          &
-                              cart_comm, stat, ierr)
-!            print *, rank, "rsendecv", ierr
-        else
-            if (flag_src .eq. 1) then
-                call mpi_cart_rank(cart_comm,p_src,src_rank,ierr)
-
-                call mpi_recv(field(xs1:xs2, ys1:ys2, 1:nz),                          &
-                              (xs2 - xs1 + 1)*(ys2 - ys1 + 1)*nz,                 &
-                              mpi_real4, src_rank, 1,                          &
-                              cart_comm, stat, ierr)
-!                print *, rank, src_rank, "recv", xs1, xs2, ys1, ys2, field(xs1:xs2, ys1:ys2)
-            endif
-
-            if (flag_dist .eq. 1) then
-                call mpi_cart_rank(cart_comm,p_dist,dist_rank,ierr)
-
-                call mpi_send(field(xd1:xd2, yd1:yd2, 1:nz),                          &
-                             (xd2 - xd1 + 1)*(yd2 - yd1 + 1)*nz,                  &
-                             mpi_real4, dist_rank, 1,                          &
-                             cart_comm, ierr)
-!                print *, rank, dist_rank, "send", xd1, xd2, yd1, yd2, field(xd1:xd2, yd1:yd2)
-            endif
-        endif
-        return
-    end subroutine directsync_real
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-    subroutine syncborder_real(field, nz)
-        implicit none
-        integer :: nz
-        real*4, intent(in out) :: field(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
-
-        integer, dimension(2) :: p_dist, p_src
-
-!------------------ send-recv in ny+ -------------------------------------------
-        p_dist(1) = p_coord(1)
-        p_dist(2) = p_coord(2) + 1
-        p_src(1) = p_coord(1)
-        p_src(2) = p_coord(2) - 1
-        call directsync_real(field, p_dist, nx_start, nx_end, ny_end, ny_end,       &
-                                     p_src,  nx_start, nx_end, bnd_y1 + 1, bnd_y1 + 1, nz)
-!------------------ send-recv in nx+ -------------------------------------------
-        p_dist(1) = p_coord(1) + 1
-        p_dist(2) = p_coord(2)
-        p_src(1) = p_coord(1) - 1
-        p_src(2) = p_coord(2)
-        call directsync_real(field, p_dist, nx_end, nx_end, ny_start, ny_end,       &
-                                     p_src,  bnd_x1 + 1, bnd_x1 + 1, ny_start, ny_end, nz)
-!------------------ send-recv in ny- -------------------------------------------
-        p_dist(1) = p_coord(1)
-        p_dist(2) = p_coord(2) - 1
-        p_src(1) = p_coord(1)
-        p_src(2) = p_coord(2) + 1
-        call directsync_real(field, p_dist, nx_start, nx_end, ny_start, ny_start,   &
-                                     p_src,  nx_start, nx_end, bnd_y2 - 1, bnd_y2 - 1, nz)
-!------------------ send-recv in nx- -------------------------------------------
-        p_dist(1) = p_coord(1) - 1
-        p_dist(2) = p_coord(2)
-        p_src(1) = p_coord(1) + 1
-        p_src(2) = p_coord(2)
-        call directsync_real(field, p_dist, nx_start, nx_start, ny_start, ny_end,   &
-                                     p_src,  bnd_x2 - 1, bnd_x2 - 1, ny_start, ny_end, nz)
-
-
-!------------------ Sync edge points (EP) --------------------------------------
-!------------------ send-recv EP in nx+,ny+ ------------------------------------
-         p_dist(1) = p_coord(1) + 1
-         p_dist(2) = p_coord(2) + 1
-         p_src(1) = p_coord(1) - 1
-         p_src(2) = p_coord(2) - 1
-         call directsync_real(field, p_dist, nx_end, nx_end, ny_end, ny_end,   &
-                                      p_src,  bnd_x1 + 1, bnd_x1 + 1, bnd_y1 + 1, bnd_y1 + 1, nz)
-!------------------ send-recv EP in nx+,ny- ------------------------------------
-         p_dist(1) = p_coord(1) + 1
-         p_dist(2) = p_coord(2) - 1
-         p_src(1) = p_coord(1) - 1
-         p_src(2) = p_coord(2) + 1
-         call directsync_real(field, p_dist, nx_end, nx_end, ny_start, ny_start,   &
-                                      p_src,  bnd_x1 + 1, bnd_x1 + 1, bnd_y2 - 1 , bnd_y2 - 1, nz)
-!------------------ send-recv EP in nx-,ny- ------------------------------------
-         p_dist(1) = p_coord(1) - 1
-         p_dist(2) = p_coord(2) - 1
-         p_src(1) = p_coord(1) + 1
-         p_src(2) = p_coord(2) + 1
-         call directsync_real(field, p_dist, nx_start, nx_start, ny_start, ny_start,   &
-                                      p_src,  bnd_x2 - 1, bnd_x2 - 1, bnd_y2 - 1, bnd_y2 - 1, nz)
-
-!------------------ send-recv EP in nx-,ny+ ------------------------------------
-         p_dist(1) = p_coord(1) - 1
-         p_dist(2) = p_coord(2) + 1
-         p_src(1) = p_coord(1) + 1
-         p_src(2) = p_coord(2) - 1
-         call directsync_real(field, p_dist, nx_start, nx_start, ny_end, ny_end,  &
-                                      p_src,  bnd_x2 - 1, bnd_x2 - 1, bnd_y1 + 1, bnd_y1 + 1, nz)
-
-        return
-    end subroutine syncborder_real
-
-
 endmodule mpi_parallel_tools
-!---------------------end module for definition of array dimensions and boundaries-----------------

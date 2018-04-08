@@ -21,6 +21,7 @@ SRCFUNCTION =	\
 SRCMODULES = 	\
 	Modules/mod_main_basin_pars.f90      \
 	Modules/mod_rec_length.f90           \
+	Modules/mod_hilbert_curve.f90            \
 	Modules/mod_mpi_parallel_tools.f90   \
 	Modules/mod_basin_grid.f90           \
 	Modules/mod_ocean_variables.f90      \
