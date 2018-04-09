@@ -133,7 +133,11 @@ subroutine ocean_model_parameters(tau)
 
     ! Init block grid with sea-land mask
     call parallel_read_mask(t_mask_file)
-    call parallel_uniform_distribution
+    call parallel_blocks_distribution
+
+    call test_sync
+    call parallel_finalize()
+    stop
 
     ! Allocating main arrays
     call model_grid_allocate

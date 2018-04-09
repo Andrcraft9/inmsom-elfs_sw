@@ -6,6 +6,7 @@ module mpi_parallel_tools
     !include 'mpif.h'
     include "omp_lib.h"
 
+    integer :: mod_decomposition
     integer :: bppnx, bppny
     integer :: parallel_dbg
 
@@ -58,10 +59,10 @@ module mpi_parallel_tools
     type(block1D), dimension(:), pointer :: sync_buf8_send_nxp, sync_buf8_recv_nxp
     type(block1D), dimension(:), pointer :: sync_buf8_send_nym, sync_buf8_recv_nym
     type(block1D), dimension(:), pointer :: sync_buf8_send_nxm, sync_buf8_recv_nxm
-    real*8 :: sync_edge_buf8_recv_nxp_nyp
-    real*8 :: sync_edge_buf8_recv_nxp_nym
-    real*8 :: sync_edge_buf8_recv_nxm_nyp
-    real*8 :: sync_edge_buf8_recv_nxm_nym
+    real*8, allocatable :: sync_edge_buf8_recv_nxp_nyp(:)
+    real*8, allocatable :: sync_edge_buf8_recv_nxp_nym(:)
+    real*8, allocatable :: sync_edge_buf8_recv_nxm_nyp(:)
+    real*8, allocatable :: sync_edge_buf8_recv_nxm_nym(:)
 
     ! Timers
     real*8 :: time_barotrop
@@ -97,6 +98,8 @@ contains
             print *, 'Read parallel.par...'
 
             open(90, file='parallel.par', status='old')
+            read(90, *) mod_decomposition
+            print *, 'mod_decomposition=', mod_decomposition
             read(90, *) bppnx
             print *, 'bppnx=', bppnx
             read(90, *) bppny
@@ -106,6 +109,7 @@ contains
 
             close(90)
         endif
+        call mpi_bcast(mod_decomposition, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppnx, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppny, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(parallel_dbg, 1, mpi_integer, 0, mpi_comm_world, ierr)
@@ -172,6 +176,11 @@ contains
             deallocate(sync_buf8_send_nxp, sync_buf8_recv_nxp)
             deallocate(sync_buf8_send_nym, sync_buf8_recv_nym)
             deallocate(sync_buf8_send_nxm, sync_buf8_recv_nxm)
+
+            deallocate(sync_edge_buf8_recv_nxp_nyp)
+            deallocate(sync_edge_buf8_recv_nxp_nym)
+            deallocate(sync_edge_buf8_recv_nxm_nyp)
+            deallocate(sync_edge_buf8_recv_nxm_nym)
             !endif
             !if (allocated(sync_buf8_send_nyp)) deallocate(sync_buf8_send_nyp)
             !if (allocated(sync_buf8_recv_nyp)) deallocate(sync_buf8_recv_nyp)
@@ -223,34 +232,224 @@ contains
         stop 1
     end subroutine
 
-    subroutine parallel_uniform_distribution()
+    subroutine parallel_blocks_distribution()
         use main_basin_pars
         implicit none
 
         real*8, allocatable :: bglob_weight(:, :)
         real*8 :: bweight
-        real*8 :: tot_weight, mean_weight
 
-        integer :: loc_bnx, loc_bny
+        integer, allocatable :: glob_bnx_start(:, :), glob_bnx_end(:, :),    &
+                                glob_bny_start(:, :), glob_bny_end(:, :)
+        integer, allocatable :: glob_bbnd_x1(:, :), glob_bbnd_x2(:, :),  &
+                                glob_bbnd_y1(:, :), glob_bbnd_y2(:, :)
 
-        integer :: m, n, i, j, k, glob_k, locn
-        integer :: xblock_start, yblock_start
+        integer :: m, n, i, j, k, locn
         integer :: land_blocks
         integer :: ierr
 
-        integer :: hilbert_index, hilbert_coord_x, hilbert_coord_y
-        integer, allocatable :: load_balanced_bglob_proc(:, :)
-        ! Buffers for MPI subroutines
-        integer, allocatable :: buf_int(:, :)
-        real*8, allocatable :: buf_real8(:, :)
-
         ! Set Cart grid of blocks
-        !bnx = floor(sqrt(recommended_tot_blocks * real(nx-4) / real(ny-4)))
-        !bny = floor(sqrt(recommended_tot_blocks * real(ny-4) / real(nx-4)))
-        !bnx = bnx - mod(bnx, p_size(1))
-        !bny = bny - mod(bny, p_size(2))
         bnx = bppnx * p_size(1)
         bny = bppny * p_size(2)
+
+        if (rank == 0) print *, "PARALLEL BLOCKS DISTRIBUTION WITH MOD:", mod_decomposition
+        if (rank == 0) print *, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
+        call mpi_barrier(cart_comm, ierr)
+
+        ! Check bnx and bny
+        ierr = 0
+        if (mod(bnx, p_size(1)) /= 0) then
+            print *, 'Error in bnx! mod(bnx, p_size(1)) /= 0 !...'
+            ierr = 1
+        endif
+        if (mod(bny, p_size(2)) /= 0) then
+            print *, 'Error in bny! mod(bny, p_size(2)) /= 0 !...'
+            ierr = 1
+        endif
+        call parallel_check_err(ierr)
+
+        allocate(bglob_weight(bnx, bny))
+        allocate(glob_bnx_start(bnx, bny), glob_bnx_end(bnx, bny),     &
+                 glob_bny_start(bnx, bny), glob_bny_end(bnx, bny))
+        allocate(glob_bbnd_x1(bnx, bny), glob_bbnd_x2(bnx, bny),       &
+                 glob_bbnd_y1(bnx, bny), glob_bbnd_y2(bnx, bny))
+
+        glob_bnx_start = 0; glob_bnx_end = 0; glob_bny_start = 0; glob_bny_end = 0
+        glob_bbnd_x1 = 0; glob_bbnd_x2 = 0; glob_bbnd_y1 = 0; glob_bbnd_y2 = 0
+        bweight = 0
+        bglob_weight = 0.0d0
+
+        land_blocks = 0
+        do m = 1, bnx
+            do n = 1, bny
+                locn = floor(real(nx - 4)/real(bnx))
+                glob_bnx_start(m, n) = locn*(m-1) + 1 + 2
+                if (m .eq. bnx) then
+                    locn = (nx - 2) - glob_bnx_start(m, n) + 1
+                endif
+                glob_bnx_end(m, n) = glob_bnx_start(m, n) + locn - 1
+                glob_bnx_start(m, n) = glob_bnx_start(m, n)
+                ! border area
+                glob_bbnd_x1(m, n) = glob_bnx_start(m, n) - 2
+                glob_bbnd_x2(m, n) = glob_bnx_end(m, n) + 2
+
+                locn = floor(real(ny - 4)/real(bny))
+                glob_bny_start(m, n) = locn*(n-1) + 1 + 2
+                if (n .eq. bny) then
+                    locn = (ny - 2) - glob_bny_start(m, n) + 1
+                endif
+                glob_bny_end(m, n) = glob_bny_start(m, n) + locn - 1
+                glob_bny_start(m, n) = glob_bny_start(m, n)
+                ! border area
+                glob_bbnd_y1(m, n) = glob_bny_start(m, n) - 2
+                glob_bbnd_y2(m, n) = glob_bny_end(m, n) + 2
+
+                ! Compute load-balance
+                do i = glob_bnx_start(m, n), glob_bnx_end(m, n)
+                    do j = glob_bny_start(m, n), glob_bny_end(m, n)
+                        bglob_weight(m, n) = bglob_weight(m, n) + (1.0d0 - real(lbasins(i, j)))
+                    enddo
+                enddo
+                ! Only-land blocks
+                if (bglob_weight(m, n) == 0.0d0) then
+                    land_blocks = land_blocks + 1
+                endif
+            enddo
+        enddo
+        if (rank == 0) print *, "Total land blocks:", land_blocks
+
+        ! Compute bglob_proc
+        allocate(bglob_proc(bnx, bny))
+        if (mod_decomposition == 0) then
+            if (rank == 0) print *, "Uniform blocks decomposition!..."
+            call parallel_uniform_decomposition(bglob_proc, bglob_weight, bnx, bny)
+        elseif (mod_decomposition == 1) then
+            if (rank == 0) print *, "Load-Balancing blocks decomposition with using Hilbert curve!..."
+            call parallel_hilbert_curve_decomposition(bglob_proc, bglob_weight, bnx, bny)
+        endif
+
+        ! Compute blocks per proc
+        bcount = 0; bweight = 0.0d0
+        do m = 1, bnx
+            do n = 1, bny
+                if (bglob_proc(m, n) == rank) then
+                    bcount = bcount + 1
+                    bweight = bweight + bglob_weight(m, n)
+                endif
+            enddo
+        enddo
+        call mpi_allreduce(bcount, total_blocks, 1, mpi_integer, mpi_sum, cart_comm, ierr)
+
+        ierr = 0
+        if (bcount < 0) then
+            print *, rank, 'Proc with only land-blocks... Error!'
+            ierr = 1
+        endif
+        call parallel_check_err(ierr)
+
+        ! Print information about blocks
+        if (parallel_dbg >= 1) then
+            print *, rank, 'Total blocks:', total_blocks, 'Blocks per proc:', bcount, 'Load-Balancing per proc:', bweight !/ ((nx-4)*(ny-4))
+            call mpi_barrier(cart_comm, ierr)
+        endif
+
+        ! Allocate blocks arrays per proc
+        allocate(bindx(bcount, 2))
+        allocate(bnx_start(bcount), bnx_end(bcount),     &
+                 bny_start(bcount), bny_end(bcount))
+        allocate(bbnd_x1(bcount), bbnd_x2(bcount),       &
+                 bbnd_y1(bcount), bbnd_y2(bcount))
+        bindx = 0
+        bnx_start = 0; bnx_end = 0; bny_start = 0; bny_end = 0
+        bbnd_x1 = 0; bbnd_x2 = 0; bbnd_y1 = 0; bbnd_y2 = 0
+
+        k = 1
+        do m = 1, bnx
+            do n = 1, bny
+                if (bglob_proc(m, n) == rank) then
+                    ! Map local block numeration to block coords
+                    bindx(k, 1) = m
+                    bindx(k, 2) = n
+
+                    bnx_start(k) = glob_bnx_start(m, n)
+                    bnx_end(k) = glob_bnx_end(m, n)
+                    bny_start(k) = glob_bny_start(m, n)
+                    bny_end(k) = glob_bny_end(m, n)
+
+                    bbnd_x1(k) = glob_bbnd_x1(m, n)
+                    bbnd_x2(k) = glob_bbnd_x2(m, n)
+                    bbnd_y1(k) = glob_bbnd_y1(m, n)
+                    bbnd_y2(k) = glob_bbnd_y2(m, n)
+
+                    k = k + 1
+                endif
+            enddo
+        enddo
+
+        call allocate_mpi_buffers()
+
+        deallocate(bglob_weight)
+        deallocate(glob_bnx_start, glob_bnx_end, glob_bny_start, glob_bny_end)
+        deallocate(glob_bbnd_x1, glob_bbnd_x2, glob_bbnd_y1, glob_bbnd_y2)
+
+    end subroutine
+
+    subroutine parallel_uniform_decomposition(bgproc, bgweight, bnx, bny)
+        implicit none
+
+        integer :: bnx, bny
+        integer :: bgproc(bnx, bny)
+        real*8 :: bgweight(bnx, bny)
+
+        integer :: m, n, ierr
+        integer :: loc_bnx, loc_bny
+        integer :: xblock_start, yblock_start
+        integer, allocatable :: buf_int(:, :)
+
+        loc_bnx = bnx / p_size(1)
+        loc_bny = bny / p_size(2)
+        !bcount = loc_bnx*loc_bny
+        !if (parallel_dbg >= 1) print *, rank, 'loc_bnx, loc_bny and Blocks per proc: ', loc_bnx, loc_bny, bcount
+        !call mpi_barrier(cart_comm, ierr)
+
+        xblock_start = 1 + p_coord(1)*loc_bnx
+        yblock_start = 1 + p_coord(2)*loc_bny
+        !if (parallel_dbg >= 2) print *, rank, 'xb_start, yb_start', xblock_start, yblock_start
+        !call mpi_barrier(cart_comm, ierr)
+        bgproc = -1
+        do m = xblock_start, xblock_start + loc_bnx - 1
+            do n = yblock_start, yblock_start + loc_bny - 1
+                bgproc(m, n) = rank
+                if (bgweight(m, n) == 0.0d0) then
+                    bgproc(m, n) = -1
+                endif
+            enddo
+        enddo
+        ! Sync bglob_proc array
+        allocate(buf_int(bnx, bny))
+        buf_int = bgproc + 1
+        call mpi_allreduce(buf_int, bgproc, bnx*bny, mpi_integer, mpi_sum, cart_comm, ierr)
+        bgproc = bgproc - 1
+
+        if (parallel_dbg >= 2) then
+            call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from uniform decomposition')
+        endif
+
+        deallocate(buf_int)
+
+    end subroutine
+
+    subroutine parallel_hilbert_curve_decomposition(bgproc, bgweight, bnx, bny)
+        implicit none
+
+        integer :: bnx, bny
+        integer :: bgproc(bnx, bny)
+        real*8 :: bgweight(bnx, bny)
+
+        integer :: k, i, ierr
+        integer :: hilbert_index, hilbert_coord_x, hilbert_coord_y
+        real*8 :: weight, tot_weight, mean_weight
+
         hilbert_index = int(log(real(bnx))/ log(2.0))
         ierr = 0
         if (bnx /= bny) then
@@ -263,184 +462,38 @@ contains
         endif
         call parallel_check_err(ierr)
 
-        if (parallel_dbg >= 1 .and. rank == 0) print *, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
-        if (parallel_dbg >= 1 .and. rank == 0) print *, 'Hilbert curve index:', hilbert_index
-        call mpi_barrier(cart_comm, ierr)
+        if (rank == 0) print *, 'Hilbert curve index:', hilbert_index
 
-        ! Unifrom distribute blocks to procs
-        ierr = 0
-        if (mod(bnx, p_size(1)) /= 0) then
-            print *, 'Uniform blocks distribution is impossible',     &
-                        'Please check procs and total blocks numbers!'
-            ierr = 1
-        endif
-        if (mod(bny, p_size(2)) /= 0) then
-            print *, 'Uniform blocks distribution is impossible',     &
-                        'Please check procs and total blocks numbers!'
-            ierr = 1
-        endif
-        call parallel_check_err(ierr)
-        loc_bnx = bnx / p_size(1)
-        loc_bny = bny / p_size(2)
-        bcount = loc_bnx*loc_bny
-        if (parallel_dbg >= 1) print *, rank, 'loc_bnx, loc_bny and Blocks per proc: ', loc_bnx, loc_bny, bcount
-        call mpi_barrier(cart_comm, ierr)
-
-        xblock_start = 1 + p_coord(1)*loc_bnx
-        yblock_start = 1 + p_coord(2)*loc_bny
-        if (parallel_dbg >= 2) print *, rank, 'xb_start, yb_start', xblock_start, yblock_start
-        call mpi_barrier(cart_comm, ierr)
-
-        allocate(bglob_proc(bnx, bny))
-        allocate(bglob_weight(bnx, bny))
-        allocate(bindx(bcount, 2))
-        allocate(bnx_start(bcount), bnx_end(bcount),     &
-                 bny_start(bcount), bny_end(bcount))
-        allocate(bbnd_x1(bcount), bbnd_x2(bcount),       &
-                 bbnd_y1(bcount), bbnd_y2(bcount))
-
-        bindx = 0
-        bnx_start = 0; bnx_end = 0; bny_start = 0; bny_end = 0
-        bbnd_x1 = 0; bbnd_x2 = 0; bbnd_y1 = 0; bbnd_y2 = 0
-        bweight = 0
-        bglob_weight = 0.0d0
-        bglob_proc = -1
-
-        k = 1
-        land_blocks = 0
-        bweight = 0.0d0
-        do m = xblock_start, xblock_start + loc_bnx - 1
-            do n = yblock_start, yblock_start + loc_bny - 1
-
-                ! Map block coords to procs
-                bglob_proc(m, n) = rank
-                ! Map local block numeration to block coords
-                bindx(k, 1) = m
-                bindx(k, 2) = n
-
-                locn = floor(real(nx - 4)/real(bnx))
-                bnx_start(k) = locn*(m-1) + 1 + 2
-                if (m .eq. bnx) then
-                    locn = (nx - 2) - bnx_start(k) + 1
-                endif
-                bnx_end(k) = bnx_start(k) + locn - 1
-                bnx_start(k) = bnx_start(k)
-                ! border area
-                bbnd_x1(k) = bnx_start(k) - 2
-                bbnd_x2(k) = bnx_end(k) + 2
-
-                locn = floor(real(ny - 4)/real(bny))
-                bny_start(k) = locn*(n-1) + 1 + 2
-                if (n .eq. bny) then
-                    locn = (ny - 2) - bny_start(k) + 1
-                endif
-                bny_end(k) = bny_start(k) + locn - 1
-                bny_start(k) = bny_start(k)
-                ! border area
-                bbnd_y1(k) = bny_start(k) - 2
-                bbnd_y2(k) = bny_end(k) + 2
-
-                ! Compute load-balance
-                do i = bnx_start(k), bnx_end(k)
-                    do j = bny_start(k), bny_end(k)
-                        bglob_weight(m, n) = bglob_weight(m, n) + (1.0d0 - real(lbasins(i, j)))
-                    enddo
-                enddo
-                bweight = bweight + bglob_weight(m, n) !/ real((bnx_end(k) - bnx_start(k) + 1)*(bny_end(k) - bny_start(k) + 1))
-                ! Ignore only-land blocks
-                if (bglob_weight(m, n) == 0.0d0) then
-                    land_blocks = land_blocks + 1
-                    bglob_proc(m, n) = -1
-                else
-                    k = k + 1
-                endif
-            enddo
-        enddo
-
-        bcount = bcount - land_blocks
-        ierr = 0
-        if (bcount < 0) then
-            print *, rank, 'land blocks > bcount... Error!'
-            ierr = 1
-        endif
-        call parallel_check_err(ierr)
-        call mpi_allreduce(bcount, total_blocks, 1, mpi_integer,      &
-                           mpi_sum, cart_comm, ierr)
-
-        ! Sync bglob_weight array
-        allocate(buf_real8(bnx, bny))
-        buf_real8 = bglob_weight
-        call mpi_allreduce(buf_real8, bglob_weight, bnx*bny, mpi_real8, mpi_sum, cart_comm, ierr)
-        tot_weight = sum(bglob_weight)
+        tot_weight = sum(bgweight)
         mean_weight = tot_weight / procs
 
-        ! Print uniform decomposition information
         if (parallel_dbg >= 1) then
-            print *, rank, 'Blocks with land per proc:', land_blocks, 'Load-Balancing per proc:', bweight !/ ((nx-4)*(ny-4))
-            call mpi_barrier(cart_comm, ierr)
-            print *, rank, 'Updated blocks count per proc', bcount
-            call mpi_barrier(cart_comm, ierr)
-            if (rank == 0) print *, 'Updated Total blocks count', total_blocks
-            call mpi_barrier(cart_comm, ierr)
-            print *, rank, 'Total blocks weigth:', tot_weight, "Mean blocks weigth:", mean_weight
-            call mpi_barrier(cart_comm, ierr)
-            !if (rank == 0) then
-            !    print *, 'Block surface-to-volume ratio', 2.0d0*(bnx_end(1)-bnx_start(1) + bny_end(1)-bny_start(1)) &
-            !                        /((bnx_end(1)-bnx_start(1))*(bny_end(1)-bny_start(1)))
-            !endif
+            if (rank == 0 ) print *, 'Total blocks weigth:', tot_weight, "Mean blocks weigth:", mean_weight
         endif
 
-        ! Sync bglob_proc array
-        if (parallel_dbg >= 3) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc before')
-        allocate(buf_int(bnx, bny))
-        buf_int = bglob_proc + 1
-        call mpi_allreduce(buf_int, bglob_proc, bnx*bny, mpi_integer, mpi_sum, cart_comm, ierr)
-        bglob_proc = bglob_proc - 1
-        if (parallel_dbg >= 3) call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc after')
-
-        ! Load-Balancing
-        allocate(load_balanced_bglob_proc(bnx, bny))
-        bweight = 0.0d0
+        weight = 0.0d0
         i = 0
-        if (rank .eq. 0) then
-            print *, 'Hilbert curve: k, x, y'
-            do k = 1, bnx*bny
-                call hilbert_d2xy(hilbert_index, k-1, hilbert_coord_x, hilbert_coord_y)
-                hilbert_coord_x = hilbert_coord_x + 1; hilbert_coord_y = hilbert_coord_y + 1
-                bweight = bweight + bglob_weight(hilbert_coord_x, hilbert_coord_y)
-                if (bweight >= mean_weight) then
-                    bweight = 0.0d0
-                    i =  i + 1
-                    if (i > procs) then
-                        i = procs
-                        print *, 'Warning! Last procs overloaded...'
-                    endif
+        do k = 1, bnx*bny
+            call hilbert_d2xy(hilbert_index, k-1, hilbert_coord_x, hilbert_coord_y)
+            hilbert_coord_x = hilbert_coord_x + 1; hilbert_coord_y = hilbert_coord_y + 1
+            weight = weight + bgweight(hilbert_coord_x, hilbert_coord_y)
+            if (weight >= mean_weight) then
+                weight = 0.0d0
+                i =  i + 1
+                if (i > procs) then
+                    i = procs
+                    print *, rank, 'Warning! Last procs overloaded...'
                 endif
-                load_balanced_bglob_proc(hilbert_coord_x, hilbert_coord_y) = i
-                print *, k, hilbert_coord_x, hilbert_coord_y
-            enddo
-        endif
-        call mpi_bcast(load_balanced_bglob_proc, bnx*bny, mpi_integer, 0, mpi_comm_world, ierr)
+            endif
+            bgproc(hilbert_coord_x, hilbert_coord_y) = i
+            if (bgweight(hilbert_coord_x, hilbert_coord_y) == 0.0d0) then
+                bgproc(hilbert_coord_x, hilbert_coord_y) = -1
+            endif
+        enddo
+
         if (parallel_dbg >= 2) then
-            call parallel_int_output(bglob_proc, 1, bnx, 1, bny, 'bglob_proc')
-            call parallel_int_output(load_balanced_bglob_proc, 1, bnx, 1, bny, 'load_balanced_bglob_proc')
+            call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from load-balanced hilbert curve decomposition')
         endif
-
-        !allocate(buf_int(bcount), recv_buf_int(procs), displs(procs))
-        !call mpi_allgather(bcount, 1, mpi_integer, recv_buf_int, 1, mpi_integer, cart_comm, ierr)
-        !displs(1) = 1
-        !do k = 2, procs
-        !    displs(k) = displs(k-1) + recv_buf_int(k)
-        !enddo
-        !buf_int = bglob_proc(1:bcount)
-        !call mpi_allgatherv(buf_int, bcount, mpi_integer, bglob_proc, recv_buf_int, displs, mpi_integer, cart_comm, ierr)
-
-        call allocate_mpi_buffers()
-
-        deallocate(bglob_weight)
-        deallocate(buf_int)
-        deallocate(buf_real8)
-        deallocate(load_balanced_bglob_proc)
 
     end subroutine
 
@@ -461,6 +514,11 @@ contains
             allocate(sync_buf8_send_nym(k)%vals(ny_dir_size), sync_buf8_recv_nym(k)%vals(ny_dir_size))
             allocate(sync_buf8_send_nxm(k)%vals(nx_dir_size), sync_buf8_recv_nxm(k)%vals(nx_dir_size))
         enddo
+
+        allocate(sync_edge_buf8_recv_nxp_nyp(bcount))
+        allocate(sync_edge_buf8_recv_nxp_nym(bcount))
+        allocate(sync_edge_buf8_recv_nxm_nyp(bcount))
+        allocate(sync_edge_buf8_recv_nxm_nym(bcount))
 
         allocate(reqsts(2*8*bcount), statuses(MPI_STATUS_SIZE, 2*8*bcount))
     end subroutine
@@ -661,7 +719,8 @@ contains
 
             ! irecv in ny+
             src_block(1) = bm; src_block(2) = bn - 1
-            tag = src_block(2) + (src_block(1) - 1)*bnx
+            !tag = src_block(2) + (src_block(1) - 1)*bnx
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 1
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
@@ -674,7 +733,8 @@ contains
             endif
             ! irecv in nx+
             src_block(1) = bm - 1; src_block(2) = bn
-            tag = src_block(2) + (src_block(1) - 1)*bnx
+            !tag = src_block(2) + (src_block(1) - 1)*bnx
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 2
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
@@ -687,7 +747,8 @@ contains
             endif
             ! irecv in ny-
             src_block(1) = bm; src_block(2) = bn + 1
-            tag = src_block(2) + (src_block(1) - 1)*bnx
+            !tag = src_block(2) + (src_block(1) - 1)*bnx
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 3
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
@@ -700,7 +761,8 @@ contains
             endif
             ! irecv in nx-
             src_block(1) = bm + 1; src_block(2) = bn
-            tag = src_block(2) + (src_block(1) - 1)*bnx
+            !tag = src_block(2) + (src_block(1) - 1)*bnx
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 4
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
@@ -715,44 +777,52 @@ contains
             !----------------------------Edge points----------------------------!
             ! Edge irecv in nx+ ny+
             src_block(1) = bm - 1; src_block(2) = bn - 1
-            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            !tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 5
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    call mpi_irecv(sync_edge_buf8_recv_nxp_nyp, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    call mpi_irecv(sync_edge_buf8_recv_nxp_nyp(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
             endif
             ! Edge irecv in nx+ ny-
             src_block(1) = bm - 1; src_block(2) = bn + 1
-            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            !tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 6
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    call mpi_irecv(sync_edge_buf8_recv_nxp_nym, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    call mpi_irecv(sync_edge_buf8_recv_nxp_nym(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
             endif
             ! Edge irecv in nx- ny+
             src_block(1) = bm + 1; src_block(2) = bn - 1
-            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            !tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 7
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    call mpi_irecv(sync_edge_buf8_recv_nxm_nyp, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    call mpi_irecv(sync_edge_buf8_recv_nxm_nyp(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
             endif
             ! Edge irecv in nx- ny-
             src_block(1) = bm + 1; src_block(2) = bn + 1
-            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            !tag = 10*(src_block(2) + (src_block(1) - 1)*bnx)
+            tag = 10*(src_block(2) + (src_block(1) - 1)*bnx) + 8
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    call mpi_irecv(sync_edge_buf8_recv_nxm_nym, 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    call mpi_irecv(sync_edge_buf8_recv_nxm_nym(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
@@ -766,9 +836,11 @@ contains
             bm = bindx(k, 1)
             bn = bindx(k, 2)
 
-            tag = bn + (bm - 1)*bnx
+            !tag = bn + (bm - 1)*bnx
+
             ! isend in ny+
             dist_block(1) = bm; dist_block(2) = bn + 1
+            tag = 10*(bn + (bm - 1)*bnx) + 1
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
@@ -785,6 +857,7 @@ contains
             endif
             ! isend in nx+
             dist_block(1) = bm + 1; dist_block(2) = bn
+            tag = 10*(bn + (bm - 1)*bnx) + 2
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
@@ -801,6 +874,7 @@ contains
             endif
             ! isend in ny-
             dist_block(1) = bm; dist_block(2) = bn - 1
+            tag = 10*(bn + (bm - 1)*bnx) + 3
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
@@ -817,6 +891,7 @@ contains
             endif
             ! isend in nx-
             dist_block(1) = bm - 1; dist_block(2) = bn
+            tag = 10*(bn + (bm - 1)*bnx) + 4
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
@@ -833,13 +908,16 @@ contains
             endif
 
             !----------------------------Edge points----------------------------!
-            tag = 10*(bn + (bm - 1)*bnx)
+            !tag = 10*(bn + (bm - 1)*bnx)
+
             ! Edge isend in nx+ ny+
             dist_block(1) = bm + 1; dist_block(2) = bn + 1
+            tag = 10*(bn + (bm - 1)*bnx) + 5
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_end(k), bny_end(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -849,10 +927,12 @@ contains
             endif
             ! Edge isend in nx+ ny-
             dist_block(1) = bm + 1; dist_block(2) = bn - 1
+            tag = 10*(bn + (bm - 1)*bnx) + 6
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_end(k), bny_start(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -862,10 +942,12 @@ contains
             endif
             ! Edge isend in nx- ny+
             dist_block(1) = bm - 1; dist_block(2) = bn + 1
+            tag = 10*(bn + (bm - 1)*bnx) + 7
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_start(k), bny_end(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -875,10 +957,12 @@ contains
             endif
             ! Edge isend in nx- ny-
             dist_block(1) = bm - 1; dist_block(2) = bn - 1
+            tag = 10*(bn + (bm - 1)*bnx) + 8
             call check_block_status(dist_block, dist_p)
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_start(k), bny_start(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
+                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -936,7 +1020,7 @@ contains
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    blks(k)%vals(bbnd_x1(k) + 1, bbnd_y1(k) + 1) = sync_edge_buf8_recv_nxp_nyp
+                    blks(k)%vals(bbnd_x1(k) + 1, bbnd_y1(k) + 1) = sync_edge_buf8_recv_nxp_nyp(k)
                 endif
             endif
             ! Edge in nx+ ny-
@@ -944,7 +1028,7 @@ contains
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    blks(k)%vals(bbnd_x1(k) + 1, bbnd_y2(k) - 1) = sync_edge_buf8_recv_nxp_nym
+                    blks(k)%vals(bbnd_x1(k) + 1, bbnd_y2(k) - 1) = sync_edge_buf8_recv_nxp_nym(k)
                 endif
             endif
             ! Edge irecv in nx- ny+
@@ -952,7 +1036,7 @@ contains
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    blks(k)%vals(bbnd_x2(k) - 1, bbnd_y1(k) + 1) = sync_edge_buf8_recv_nxm_nyp
+                    blks(k)%vals(bbnd_x2(k) - 1, bbnd_y1(k) + 1) = sync_edge_buf8_recv_nxm_nyp(k)
                 endif
             endif
             ! Edge irecv in nx- ny-
@@ -960,7 +1044,7 @@ contains
             call check_block_status(src_block, src_p)
             if (src_p >= 0) then
                 if (src_p /= rank) then
-                    blks(k)%vals(bbnd_x2(k) - 1, bbnd_y2(k) - 1) = sync_edge_buf8_recv_nxm_nym
+                    blks(k)%vals(bbnd_x2(k) - 1, bbnd_y2(k) - 1) = sync_edge_buf8_recv_nxm_nym(k)
                 endif
             endif
         enddo

@@ -146,9 +146,6 @@ program INMSOM
     call sw_only_inicond(0, path2ocp)
     !call zero_sw_init
 
-    call parallel_finalize
-    stop
-
     ! Check scheme for shallow water equtions
     if (rank .eq. 0) print *, '=================================================================='
     if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, BLOCKMPI --------------'
