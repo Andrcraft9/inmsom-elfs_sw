@@ -135,10 +135,6 @@ subroutine ocean_model_parameters(tau)
     call parallel_read_mask(t_mask_file)
     call parallel_blocks_distribution
 
-    call test_sync
-    call parallel_finalize()
-    stop
-
     ! Allocating main arrays
     call model_grid_allocate
     call ocean_variables_allocate

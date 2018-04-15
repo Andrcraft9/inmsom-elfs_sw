@@ -1,6 +1,8 @@
 module shallow_water
     use main_basin_pars
     use mpi_parallel_tools
+    use mixing
+    use vel_ssh
     implicit none
 
 contains
@@ -99,7 +101,7 @@ contains
         real*8 time_count
         integer ierr
 
-        !computing ssh
+        ! Computing ssh
         !$omp parallel do
         do k = 1, bcount
             call set_block_boundary(k)
@@ -108,7 +110,6 @@ contains
                              dxh(k)%vals, dyh(k)%vals, dx(k)%vals, dy(k)%vals, lu(k)%vals)
         enddo
         !$omp end parallel do
-
         call syncborder_block2D(sshn)
 
         if (full_free_surface>0) then
@@ -124,21 +125,62 @@ contains
             call syncborder_block2D(hhhn)
         endif
 
-        !computing advective and lateral-viscous terms for 2d-velocity
-        !call stress_components(ubrtrp, vbrtrp, str_t2d,str_s2d,1)
+        ! Computing advective and lateral-viscous terms for 2d-velocity
+        if (trans_terms > 0) then
+            !$omp parallel do
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call uv_vort(ubrtr(k)%vals, vbrtr(k)%vals, vort(k)%vals,        &
+                             dxt(k)%vals, dyt(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                             luu(k)%vals)
+            enddo
+            !$omp end parallel do
+            call syncborder_block2D(vort)
 
-        !computing advective and lateral-viscous terms for 2d-velocity
-        !call uv_trans(ubrtr, vbrtr, vort,     &
-        !              hhq, hhu, hhv, hhh,     &
-        !              RHSx_adv, RHSy_adv, 1)
+            !$omp parallel do
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call uv_trans(ubrtr(k)%vals, vbrtr(k)%vals, vort(k)%vals,         &
+                              hhq(k)%vals, hhu(k)%vals, hhv(k)%vals, hhh(k)%vals, &
+                              RHSx_adv(k)%vals, RHSy_adv(k)%vals,                 &
+                              dxh(k)%vals, dyh(k)%vals,                           &
+                              lcu(k)%vals, lcv(k)%vals, luu(k)%vals)
+            enddo
+            !$omp end parallel do
+        endif
 
-        !call uv_diff2( mu, str_t2d, str_s2d,  &
-        !               hhq, hhu, hhv, hhh,     &
-        !               RHSx_dif, RHSy_dif, 1  )
+        if (diff_terms > 0) then
+            !$omp parallel do
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call stress_components(ubrtrp(k)%vals, vbrtrp(k)%vals, str_t2d(k)%vals, str_s2d(k)%vals,  &
+                                       dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                                       dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                                       lu(k)%vals, luu(k)%vals)
+
+            enddo
+            !$omp end parallel do
+            call syncborder_block2D(str_t2d)
+            call syncborder_block2D(str_s2d)
+
+            !$omp parallel do
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call uv_diff2(mu(k)%vals, str_t2d(k)%vals, str_s2d(k)%vals,        &
+                              hhq(k)%vals, hhu(k)%vals, hhv(k)%vals, hhh(k)%vals,  &
+                              RHSx_dif(k)%vals, RHSy_dif(k)%vals,                  &
+                              dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,    &
+                              dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals,  &
+                              lcu(k)%vals, lcv(k)%vals)
+
+            enddo
+            !$omp end parallel do
+        endif
 
         ! compute BottomFriction (bfc)
         !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
 
+        ! Compute velocities
         !$omp parallel do
         do k = 1, bcount
             call set_block_boundary(k)
@@ -149,11 +191,10 @@ contains
                                  rdis(k)%vals, lcu(k)%vals, lcv(k)%vals)
         enddo
         !$omp end parallel do
-
         call syncborder_block2D(ubrtrn)
         call syncborder_block2D(vbrtrn)
 
-        !shifting time indices
+        ! Shifting time indices
         !$omp parallel do
         do k = 1, bcount
             call set_block_boundary(k)
@@ -164,6 +205,7 @@ contains
         !$omp end parallel do
 
         if (full_free_surface>0) then
+            !$omp parallel do
             do k = 1, bcount
                 call set_block_boundary(k)
                 call hh_shift(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,   &
@@ -173,10 +215,12 @@ contains
                               lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
 
             enddo
+            !$omp end parallel do
         endif
 
         if (full_free_surface>0) then
-            !initialize depth for external mode
+            ! Initialize depth for external mode
+            !$omp parallel do
             do k = 1, bcount
                 call set_block_boundary(k)
                 call hh_init(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,     &
@@ -188,6 +232,7 @@ contains
                               dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
                               lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
              enddo
+             !$omp end parallel do
              call syncborder_block2D(hhu)
              call syncborder_block2D(hhup)
              call syncborder_block2D(hhun)

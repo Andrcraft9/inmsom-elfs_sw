@@ -16,6 +16,8 @@ SRCSERVICE =	    \
 
 SRCFUNCTION =	\
 	Function/depth.f90   \
+	Function/mixing.f90  \
+	Function/vel_ssh.f90 \
 	Function/shallow_water.f90
 
 SRCMODULES = 	\
