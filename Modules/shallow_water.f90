@@ -103,22 +103,24 @@ module shallow_water
         endif
 
         !computing advective and lateral-viscous terms for 2d-velocity
-        !call stress_components(ubrtrp, vbrtrp, str_t2d,str_s2d,1)
+        if (trans_terms > 0) then
+            call uv_trans(ubrtr, vbrtr, vort,     &
+                          hhq, hhu, hhv, hhh,     &
+                          RHSx_adv, RHSy_adv, 1)
+        endif
 
-        !computing advective and lateral-viscous terms for 2d-velocity
-        !call uv_trans(ubrtr, vbrtr, vort,     &
-        !              hhq, hhu, hhv, hhh,     &
-        !              RHSx_adv, RHSy_adv, 1)
+        if (diff_terms > 0) then
+            call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1)
 
-        !call uv_diff2( mu, str_t2d, str_s2d,  &
-        !               hhq, hhu, hhv, hhh,     &
-        !               RHSx_dif, RHSy_dif, 1  )
-
-        ! if(ksw4>0) then
-        !   call uv_diff4( mu4, str_t2d, str_s2d,  &
-        !                  fx, fy, hhq, hhu, hhv, hhh,    &
-        !                  RHSx_dif, RHSy_dif, 1 )
-        ! endif
+            call uv_diff2(mu, str_t2d, str_s2d,   &
+                          hhq, hhu, hhv, hhh,     &
+                          RHSx_dif, RHSy_dif, 1)
+            ! if(ksw4>0) then
+            !   call uv_diff4( mu4, str_t2d, str_s2d,  &
+            !                  fx, fy, hhq, hhu, hhv, hhh,    &
+            !                  RHSx_dif, RHSy_dif, 1 )
+            ! endif
+        endif
 
         ! compute BottomFriction (bfc)
         !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)

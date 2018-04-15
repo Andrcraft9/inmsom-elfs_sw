@@ -160,7 +160,7 @@ call ocean_model_parameters(time_step)
 if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
 
 ! Initializing SW init conditions
-call sw_only_inicond(1, path2ocp)
+call sw_only_inicond(0, path2ocp)
 !call sw_test2
 !call zero_sw_init
 
@@ -177,6 +177,8 @@ endif
 !------------------------- Check points ----------------------------------------!
 !call parallel_check_point(38.990d0, 47.270d0) !Taganrog
 !call parallel_check_point(38.590d0, 46.700d0) !Eesk
+call parallel_check_point(32.0d0, 43.0d0)
+call parallel_check_point(40.0d0, 42.0d0)
 
 !call print_basin_grid()
 !call  parallel_local_output(path2ocp,  &
@@ -239,11 +241,11 @@ do while(num_step<num_step_max)
     call atm_data_spatial_interpol
   endif
 
-  !call start_timer(t_local)
+  call start_timer(t_local)
   !computing one step of ocean dynamics
   call shallow_water_model_step(time_step)
-  !call end_timer(t_local)
-  !time_model_step = time_model_step + t_local
+  call end_timer(t_local)
+  time_model_step = time_model_step + t_local
 
 !-----------------------------------------------------------
 !moving to the next time step
@@ -281,6 +283,9 @@ if( key_write_local>0) then
   ! Azov sea
   !call parallel_point_output(path2ocp, num_step, 38.990d0, 47.270d0, 'Taganrog')
   !call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
+  call parallel_point_output(path2ocp, num_step, 32.0d0, 43.0d0, 'Test')
+  call parallel_point_output(path2ocp, num_step, 40.0d0, 42.0d0, 'Test2')
+
   ! Tohoku tsunami
   !call parallel_point_output(path2ocp, num_step, 148.694d0, 38.711d0, 'DART21418') ! DART 21418
   !call parallel_point_output(path2ocp, num_step, 152.117d0, 30.515d0, 'DART21413') ! DART 21413
@@ -297,15 +302,15 @@ if( key_write_local>0) then
   !call parallel_point_output(path2ocp, num_step, 141.617d0, 38.5167d0, 'S3')
 
   !call start_timer(t_local)
-  call  parallel_local_output(path2ocp,  &
-                     nrec_loc,  &
-                     year_loc,  &
-                      mon_loc,  &
-                      day_loc,  &
-                     hour_loc,  &
-                      min_loc,  &
-               loc_data_tstep,  &
-                      yr_type  )
+  !call  parallel_local_output(path2ocp,  &
+  !                 nrec_loc,  &
+  !                 year_loc,  &
+  !                  mon_loc,  &
+  !                  day_loc,  &
+  !                 hour_loc,  &
+  !                  min_loc,  &
+  !           loc_data_tstep,  &
+  !                  yr_type  )
   !call end_timer(t_local)
   !time_output = time_output + t_local
   call model_time_print(num_step,         &
