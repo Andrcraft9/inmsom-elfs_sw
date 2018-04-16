@@ -137,8 +137,6 @@ real(8) :: hx2, hy2
    call gridcon(t_mask_file)
    if (rank .eq. 0) print *, "--------------------END OF GRIDCON----------------------"
 
-   call init_computational_domains(lu)
-
    !  setting vertical t-,w- grid levels
    call vgrid
    if (rank .eq. 0) print *, "--------------------END OF VGRID----------------------"
@@ -165,8 +163,10 @@ real(8) :: hx2, hy2
        call cyclize8_y(hhq_rest,nx,ny,1,nnn,nn)
    end if
 
-!--------------Rayleigh friction initialization
-!$omp parallel do private(m, n, hx2, hy2)
+   call init_computational_domains(lu)
+
+   !--------------Rayleigh friction initialization
+   !$omp parallel do private(m, n, hx2, hy2)
    do n=ny_start,ny_end
        do m=nx_start,nx_end
            if (lu(m,n)*lu(m+1,n)>0.5 .and. lu(m,n)*lu(m,n+1)>0.5) then
@@ -179,7 +179,7 @@ real(8) :: hx2, hy2
            endif
        enddo
    enddo
-!$omp end parallel do
+   !$omp end parallel do
 
    call syncborder_real8(r_diss, 1)
    if(periodicity_x/=0) then

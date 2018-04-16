@@ -287,6 +287,10 @@ module mpi_parallel_tools
         integer, dimension(2) :: p_dist, p_src
         real*8 :: time_count
 
+        if (comput_domain(rank + 1) == 0.0) then
+            return
+        endif
+
         !call start_timer(time_count)
         !------------------ send-recv in ny+ -----------------------------------
         p_dist(1) = p_coord(1)
@@ -416,6 +420,10 @@ module mpi_parallel_tools
         real*4, intent(in out) :: field(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
 
         integer, dimension(2) :: p_dist, p_src
+
+        if (comput_domain(rank + 1) == 0.0) then
+            return
+        endif
 
         !------------------ send-recv in ny+ -----------------------------------
         p_dist(1) = p_coord(1)
