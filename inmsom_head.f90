@@ -190,7 +190,7 @@ call parallel_check_point(40.0d0, 42.0d0)
 !                    min_loc,  &
 !             loc_data_tstep,  &
 !                    yr_type  )
-!call mpi_finalize(ierr)
+!call parallel_finalize()
 !call exit(0)
 
 !-------------------------------------------------------------------------------!
@@ -339,6 +339,6 @@ call print_times
 call ocean_variables_deallocate
 call model_grid_deallocate
 
-call mpi_finalize(ierr)
+call parallel_finalize()
 
 endprogram INMSOM

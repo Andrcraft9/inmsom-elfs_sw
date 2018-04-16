@@ -101,7 +101,7 @@ subroutine shallow_water_model_step(tau)
                   write(*,*) rank, 'ERROR!!! In the point m=', m, 'n=', n, 'ssh=', ssh(m,n),   &
                     'step: ', num_step, 'lon: ', geo_lon_t(m, n), 'lat: ', geo_lat_t(m, n)
 
-                  call mpi_finalize(ierr)
+                  call parallel_finalize()
                   call exit(0)
               endif
           endif
