@@ -20,73 +20,10 @@ endsubroutine non_mpi_array_boundary_definition
 
 !array boundary definition for mpi arrays
 subroutine mpi_array_boundary_definition
-    use main_basin_pars
     use mpi_parallel_tools
     implicit none
 
-    include "omp_lib.h"
-
-    integer :: ierr, procn, i
-    integer :: locn
-    integer :: count_threads, num_thread
-
-    call mpi_init(ierr)
-
-    period = (/1,1/)
-    p_size = (/0,0/)
-    ierr = 0
-
-    call mpi_comm_rank(mpi_comm_world, rank, ierr)
-    call mpi_comm_size(mpi_comm_world, procs, ierr)
-    call mpi_dims_create(procs, 2, p_size, ierr)
-    call mpi_cart_create(mpi_comm_world, 2, p_size, period, 0, cart_comm, ierr)
-    call mpi_cart_coords(cart_comm, rank, 2, p_coord, ierr)
-
-!-----------------------------------NX------------------------------------------!
-    locn = floor(real(nx - 4)/real(p_size(1)))
-    nx_start = locn*p_coord(1) + 1 + 2
-    if ( p_coord(1) .EQ. p_size(1) - 1 ) then
-        locn = (nx - 2) - nx_start + 1
-    endif
-    nx_end = nx_start + locn - 1
-    nx_start = nx_start
-!   border area
-    bnd_x1 = nx_start - 2
-!    if (bnd_x1 < 1) bnd_x1 = 1
-    bnd_x2 = nx_end + 2
-!    if (bnd_x2 > nx) bnd_x2 = nx
-
-!-----------------------------------NY------------------------------------------!
-    locn = floor(real(ny - 4)/real(p_size(2)))
-    ny_start = locn*p_coord(2) + 1 + 2
-    if ( p_coord(2) .EQ. p_size(2) - 1 ) then
-        locn = (ny - 2) - ny_start + 1
-    endif
-    ny_end = ny_start + locn - 1
-    ny_start = ny_start
-!   border area
-    bnd_y1 = ny_start - 2
-!    if (bnd_y1 < 1) bnd_y1 = 1
-    bnd_y2 = ny_end + 2
-!    if (bnd_y2 > ny) bnd_y2 = ny
-
-    call mpi_comm_size(cart_comm, procn, ierr)
-    if (rank .eq. 0) print *, "MPI pocs: ", procn, " Domain decomposition:"
-    do i = 0, procn-1
-        if (rank .eq. i) then
-            print *, "nx ", rank, p_coord, nx_start, nx_end, ny_start, ny_end
-            print *, "bnd", rank, p_coord, bnd_x1, bnd_x2, bnd_y1, bnd_y2
-        endif
-        call mpi_barrier(cart_comm, ierr)
-    enddo
-
-    !$omp parallel
-    count_threads = omp_get_num_threads()
-    num_thread = omp_get_thread_num()
-    if (num_thread .eq. 0) print *, "OMP Threads: ", count_threads
-    !$omp end parallel
-
-    call mpi_barrier(cart_comm, ierr)
+    call parallel_init()
 
 endsubroutine mpi_array_boundary_definition
 !-------------------------------------------------------------------------------

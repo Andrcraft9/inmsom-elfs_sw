@@ -133,15 +133,17 @@ real(8) :: hx2, hy2
 ! igrzts_surf  = min(IABS(ksw_ssbc),2) ! type of condition for T and S on sea surface
 ! igrzts_bot = 2                   ! type of condition for T and S on sea bottom
 
- ! area mask initialization
+   ! area mask initialization
    call gridcon(t_mask_file)
    if (rank .eq. 0) print *, "--------------------END OF GRIDCON----------------------"
 
-!  setting vertical t-,w- grid levels
+   call init_computational_domains(lu)
+
+   !  setting vertical t-,w- grid levels
    call vgrid
    if (rank .eq. 0) print *, "--------------------END OF VGRID----------------------"
 
-! define grid geographical coordinates, steps and coriolis parameters
+   ! define grid geographical coordinates, steps and coriolis parameters
    call basinpar
    if (rank .eq. 0) print *, "--------------------END OF BASINPAR----------------------"
 
