@@ -1,2 +1,2 @@
-Shallow water model, 2017.
-Explicit scheme, LCHC mode.
+Shallow water model, 2017. Version with explicit leap-frog shceme.
+Low-Communication High-Extra Computation parallel algorithm.
