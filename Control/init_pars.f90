@@ -150,10 +150,10 @@ subroutine ocean_model_parameters(tau)
     if (bottom_topography_file .eq. 'none') then
         if (rank .eq. 0) then
             print *, 'none topography !'
-            print *, "HHQ_REST = 3000m, topo file was ingored !"
+            print *, "HHQ_REST = 300m, topo file was ingored !"
         endif
         do k = 1, bcount
-            hhq_rest(k)%vals = 3000.0d0
+            hhq_rest(k)%vals = 300.0d0
         enddo
     else
         if (rank .eq. 0) print *, 'ERR: cant read topo with block! ...'

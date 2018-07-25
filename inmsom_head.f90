@@ -142,6 +142,12 @@ program INMSOM
     call ocean_model_parameters(time_step)
     if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
 
+    if (parallel_mod == 1) then
+        if (rank == 0) print *, 'mode: stop program after decomposition'
+        call parallel_finalize()
+        stop 
+    endif
+    
     ! Initializing SW init conditions
     call sw_only_inicond(0, path2ocp)
     !call zero_sw_init
@@ -152,10 +158,10 @@ program INMSOM
     if (rank .eq. 0) print *, '=================================================================='
 
     !------------------------- Check points ----------------------------------------!
-    !call parallel_check_point(38.990d0, 47.270d0) !Taganrog
-    !call parallel_check_point(38.590d0, 46.700d0) !Eesk
-    call parallel_check_point(32.0d0, 43.0d0)
-    call parallel_check_point(40.0d0, 42.0d0)
+    call parallel_check_point(38.990d0, 47.270d0) !Taganrog
+    call parallel_check_point(38.590d0, 46.700d0) !Eesk
+    !call parallel_check_point(32.0d0, 43.0d0)
+    !call parallel_check_point(40.0d0, 42.0d0)
 
     !-------------------------------------------------------------------------------!
     if (rank .eq. 0) then
@@ -238,10 +244,10 @@ program INMSOM
                 nrec_loc=num_step/loc_data_wr_period_step
 
                 ! Azov sea
-                !call parallel_point_output(path2ocp, num_step, 38.990d0, 47.270d0, 'Taganrog')
-                !call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
-                call parallel_point_output(path2ocp, num_step, 32.0d0, 43.0d0, 'Test')
-                call parallel_point_output(path2ocp, num_step, 40.0d0, 42.0d0, 'Test2')
+                call parallel_point_output(path2ocp, num_step, 38.990d0, 47.270d0, 'Taganrog')
+                call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
+                !call parallel_point_output(path2ocp, num_step, 32.0d0, 43.0d0, 'Test')
+                !call parallel_point_output(path2ocp, num_step, 40.0d0, 42.0d0, 'Test2')
 
                 call model_time_print(num_step,         &
                     m_sec_of_min,     &    !second counter in minute,output

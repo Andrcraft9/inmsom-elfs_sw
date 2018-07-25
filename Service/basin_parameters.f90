@@ -88,7 +88,7 @@ contains
                 !    ' maximal y-coordinate (n=nn ) =',yt(nn)
             endif
 
-            write(*,'(2(a,i2))') 'Periodicity on X =', periodicity_x,', Periodicity on Y =', periodicity_y
+            !write(*,'(2(a,i2))') 'Periodicity on X =', periodicity_x,', Periodicity on Y =', periodicity_y
             write(*,'(4(a,i4))') '  nx=',nx, ';  ny=',ny,';  nz=',nz
             write(*,'(4(a,i4))') ' mmm=',mmm,';  mm=',mm,'; nnn=',nnn,';  nn=',nn
 

@@ -9,6 +9,7 @@ module mpi_parallel_tools
     integer :: mod_decomposition
     integer :: bppnx, bppny
     integer :: parallel_dbg
+    integer :: parallel_mod
 
     integer :: nx_start, nx_end, ny_start, ny_end
     integer :: bnd_x1, bnd_x2, bnd_y1, bnd_y2
@@ -106,6 +107,8 @@ contains
             print *, 'bppny=', bppny
             read(90, *) parallel_dbg
             print *, 'parallel_dbg=', parallel_dbg
+            read(90, *) parallel_mod
+            print *, 'parallel_mod=', parallel_mod
 
             close(90)
         endif
@@ -113,6 +116,7 @@ contains
         call mpi_bcast(bppnx, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppny, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(parallel_dbg, 1, mpi_integer, 0, mpi_comm_world, ierr)
+        call mpi_bcast(parallel_mod, 1, mpi_integer, 0, mpi_comm_world, ierr)
 
         !if (rank .eq. 0) then
         !    if (.not. MPI_SUBARRAYS_SUPPORTED) then
@@ -237,7 +241,7 @@ contains
         implicit none
 
         real*8, allocatable :: bglob_weight(:, :)
-        real*8 :: bweight
+        real*8 :: bweight, max_bweight
 
         integer, allocatable :: glob_bnx_start(:, :), glob_bnx_end(:, :),    &
                                 glob_bny_start(:, :), glob_bny_end(:, :)
@@ -328,6 +332,18 @@ contains
             call parallel_hilbert_curve_decomposition(bglob_proc, bglob_weight, bnx, bny)
         endif
 
+        ! Debug Output
+        if (parallel_dbg >= 2) then
+            if (rank == 0) then
+                print *,  'm,   n,   bglob_proc(m, n),   bglob_weight(m,n)'
+                do m = 1, bnx
+                    do n = 1, bny
+                        print *, m, n, bglob_proc(m, n), bglob_weight(m, n)
+                    enddo 
+                enddo
+            endif
+        endif
+
         ! Compute blocks per proc
         bcount = 0; bweight = 0.0d0
         do m = 1, bnx
@@ -339,6 +355,7 @@ contains
             enddo
         enddo
         call mpi_allreduce(bcount, total_blocks, 1, mpi_integer, mpi_sum, cart_comm, ierr)
+        call mpi_allreduce(bweight, max_bweight, 1, mpi_real8, mpi_max, cart_comm, ierr)
 
         ierr = 0
         if (bcount < 0) then
@@ -349,7 +366,9 @@ contains
 
         ! Print information about blocks
         if (parallel_dbg >= 1) then
-            print *, rank, 'Total blocks:', total_blocks, 'Blocks per proc:', bcount, 'Load-Balancing per proc:', bweight !/ ((nx-4)*(ny-4))
+            if (rank == 0) print *, 'Total blocks:', total_blocks, 'Load imbalance: ', max_bweight / (sum(bglob_weight) / real(procs))
+            call mpi_barrier(cart_comm, ierr)
+            print *, rank, 'Blocks per proc:', bcount, 'Load-Balancing per proc:', bweight !/ ((nx-4)*(ny-4))
             call mpi_barrier(cart_comm, ierr)
         endif
 
@@ -431,7 +450,7 @@ contains
         call mpi_allreduce(buf_int, bgproc, bnx*bny, mpi_integer, mpi_sum, cart_comm, ierr)
         bgproc = bgproc - 1
 
-        if (parallel_dbg >= 2) then
+        if (parallel_dbg >= 3) then
             call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from uniform decomposition')
         endif
 
@@ -491,7 +510,7 @@ contains
             endif
         enddo
 
-        if (parallel_dbg >= 2) then
+        if (parallel_dbg >= 3) then
             call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from load-balanced hilbert curve decomposition')
         endif
 
@@ -656,7 +675,7 @@ contains
         integer :: reqst
         integer :: ierr
 
-        if (parallel_dbg >= 3) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
+        if (parallel_dbg >= 4) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
         !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
         !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
         call mpi_irecv(buff, buff_size, mpi_real8, src_proc, tag, cart_comm, reqst, ierr)
@@ -673,7 +692,7 @@ contains
         integer :: reqst
         integer :: ierr
 
-        if (parallel_dbg >= 3) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
+        if (parallel_dbg >= 4) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
         !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
         !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
         call mpi_isend(buff, buff_size, mpi_real8, dist_proc, tag, cart_comm, reqst, ierr)
@@ -783,7 +802,7 @@ contains
             if (src_p >= 0) then
                 if (src_p /= rank) then
                     call mpi_irecv(sync_edge_buf8_recv_nxp_nyp(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
@@ -796,7 +815,7 @@ contains
             if (src_p >= 0) then
                 if (src_p /= rank) then
                     call mpi_irecv(sync_edge_buf8_recv_nxp_nym(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
@@ -809,7 +828,7 @@ contains
             if (src_p >= 0) then
                 if (src_p /= rank) then
                     call mpi_irecv(sync_edge_buf8_recv_nxm_nyp(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
@@ -822,14 +841,14 @@ contains
             if (src_p >= 0) then
                 if (src_p /= rank) then
                     call mpi_irecv(sync_edge_buf8_recv_nxm_nym(k), 1, mpi_real8, src_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 endif
             endif
 
         enddo
-        if (parallel_dbg >= 3) print *, rank, 'icount recv:', icount-1
+        if (parallel_dbg >= 4) print *, rank, 'icount recv:', icount-1
 
         ! Non-blocking Send calls
         do k = 1, bcount
@@ -917,7 +936,7 @@ contains
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_end(k), bny_end(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -932,7 +951,7 @@ contains
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_end(k), bny_start(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -947,7 +966,7 @@ contains
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_start(k), bny_end(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -962,7 +981,7 @@ contains
             if (dist_p >= 0) then
                 if (dist_p /= rank) then
                     call mpi_isend(blks(k)%vals(bnx_start(k), bny_start(k)), 1, mpi_real8, dist_p, tag, cart_comm, reqst, ierr)
-                    if (parallel_dbg >= 4) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
+                    if (parallel_dbg >= 5) print *, rank, 'ISEND EDGE. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_p, 'tag', tag
                     reqsts(icount) = reqst
                     icount = icount + 1
                 else
@@ -972,7 +991,7 @@ contains
             endif
 
         enddo
-        if (parallel_dbg >= 3) print *, rank, 'icount totl:', icount-1
+        if (parallel_dbg >= 4) print *, rank, 'icount totl:', icount-1
 
         ! Wait all, sync point
         call mpi_waitall(icount-1, reqsts, statuses, ierr)
