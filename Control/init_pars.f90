@@ -157,30 +157,6 @@ subroutine test_init
 
 end subroutine
 
-subroutine zero_sw_init
-    use main_basin_pars
-    use mpi_parallel_tools
-    use basin_grid
-    use ocean_variables
-    use depth_routes
-    implicit none
-
-    ubrtr = 0.0
-    ubrtrp = 0.0
-
-    vbrtr = 0.0
-    vbrtrp = 0.0
-
-    ssh = 0.0
-    sshp = 0.0
-    call hh_init(hhq, hhqp, hhqn,    &
-                 hhu, hhup, hhun,    &
-                 hhv, hhvp, hhvn,    &
-                 hhh, hhhp, hhhn,    &
-                 ssh, sshp, hhq_rest)
-
-end subroutine
-
 subroutine sw_test2
     use main_basin_pars
     use mpi_parallel_tools
