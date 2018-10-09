@@ -1,9 +1,13 @@
-!===============================================================================
+module velssh_routes
+implicit none
+  
+contains
+
 ! RHS for implicit bfc scheme
-subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
+subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, nbfc)
     use main_basin_pars
     use mpi_parallel_tools
-    use basin_grid
+    use basin_grid 
     implicit none
 
     real(8) u(bnd_x1:bnd_x2,bnd_y1:bnd_y2),       & !Transporting zonal velocity
@@ -16,9 +20,10 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
             hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
             hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
             hh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+    
+    real*8 :: nbfc
 
     integer :: m, n
-    integer :: bnd_step
 
     real*8 :: k_bfc, s
     real*8 :: k1, k2
@@ -65,9 +70,8 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, bnd_step)
 
 end subroutine uv_bfc
 
-!===============================================================================
 ! RHS for implicit bfc scheme
-subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy)
+subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy, nbfc)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
@@ -83,7 +87,9 @@ subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy)
             hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
             hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
             hh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
+    
+    real*8 :: nbfc
+    
     integer :: m, n
     real*8 :: k_bfc, s1, s2
 
@@ -123,7 +129,6 @@ subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy)
 
 end subroutine uv_bfc_v2
 
-!===========================================================================================
 subroutine uv_trans( u, v, vort,    &
                    hq, hu, hv, hh,         &
                    RHSx, RHSy, nlev    )
@@ -235,10 +240,8 @@ integer m,n,k
 
 !  call syncborder_real8(RHSx, nlev)
 !  call syncborder_real8(RHSy, nlev)
-
 endsubroutine uv_trans
 
-!===========================================================================================
 subroutine uv_diff2( mu, str_t, str_s,    &
                      hq, hu, hv, hh,      &
                      RHSx, RHSy, nlev     )
@@ -308,13 +311,13 @@ integer m,n,k
 
 endsubroutine uv_diff2
 
-!================================================================================
 subroutine uv_diff4( mu, str_t, str_s,      &
                fx, fy, hq, hu, hv, hh,      &
                RHSx, RHSy, nlev     )
 use main_basin_pars
 use mpi_parallel_tools
 use basin_grid
+use mixing_routes
 implicit none
 integer nlev
 real(8) muh_p, muh_m
@@ -438,5 +441,6 @@ fy=0.0d0
 
 !  call syncborder_real8(RHSx, nlev)
 !  call syncborder_real8(RHSy, nlev)
-
 endsubroutine uv_diff4
+
+endmodule velssh_routes

@@ -6,14 +6,16 @@ integer, parameter:: m1loc=mmm,     &                 !left  point number for lo
                      ny_loc=n2loc-n1loc+1             !local array dimension on Y
 
 integer, parameter:: uv_output=1,     &
-                     ww_output=1,     &
                     ssh_output=1,     &
-                     tt_output=1,     &
-                     ss_output=1,     &
-                   wstr_output=0,     &
-                   wind_output=0,     &
-                    sfl_output=0,     &
-                   amuv_output=1,     &
-                   anzu_output=1
+                 points_output=1,     &
+                 energy_output=1
 
 integer, parameter:: grid_shift=1                     !0 - output velocity at model grid, 1 - interpolation to T-grid
+
+! ssh output in points
+integer, parameter:: nloc_points = 2
+real*8 :: lon_loc_points(nloc_points), lat_loc_points(nloc_points)
+character*80 :: name_points(nloc_points)
+data name_points/    'Test1',   'Test2'  /
+data lon_loc_points/  32.0d0,   40.0d0   /
+data lat_loc_points/  43.0d0,   42.0d0   /

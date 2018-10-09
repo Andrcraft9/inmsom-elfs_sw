@@ -1,3 +1,8 @@
+module time_routes
+implicit none
+
+contains
+
 !======================================================================
 subroutine model_time_def(   num_step,            &     !step counter,            input
                              time_step,           &    !time step in seconds,    input
@@ -211,3 +216,5 @@ data month_name/'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug',     &
                  '   month of all:', m_month
       endif
 endsubroutine model_time_print
+
+endmodule time_routes

@@ -1,153 +1,18 @@
-!======================================================================
-subroutine vgrid
-use main_basin_pars
-use basin_grid
-use mpi_parallel_tools
+module basinpar_routes
 implicit none
-  ! for setting vertical t-,w- grid levels
-  ! zw(1) is surface, zw(nz+1) is bottom w-levels.
-  ! version with calibration on levitus levels.
-  ! hh0 is reference depth of ocean.
 
-include 'vgrid.fi'
-real(8), parameter:: hh0=3500.0d0 !mean depth of the World Ocean
-integer, parameter:: nlev=33
-real(8) dlev(nlev)         !levitus horizonts in meters for analitical set
-data dlev/0.0d0,10.0d0,20.0d0,30.0d0,50.0d0,75.0d0,100.0d0,125.0d0,150.0d0,200.0d0,250.0d0,   &
-  300.0d0,400.0d0,500.0d0,600.0d0,700.0d0,800.0d0,900.0d0,1000.0d0,1100.0d0,1200.0d0,         &
- 1300.0d0,1400.0d0,1500.0d0,1750.0d0,2000.0d0,2500.0d0,3000.0d0,3500.0d0,4000.0d0,            &
- 4500.0d0,5000.0d0,5500.0d0/
-integer k, nrefl
-real(8) bottom, devih, a, b, unidepth
+contains
 
-  ! finding levitus number of reference depth
-   nrefl=1
-   devih=dlev(33)
-
- ! analytical set of vertical grid
-    do k=2,33
-       if (abs(dlev(k)-hh0) <= devih) then
-            devih=abs(dlev(k)-hh0)
-            nrefl=k
-       endif
-    enddo
-    if (rank .eq. 0) then
-        write(*,'(a,i3,a,f8.2)')  ' number of levitus horizonts:',nrefl,' for h=',hh0
-    endif
-    a=10.0d0*dfloat(nrefl-1)/dlev(nrefl)   ! gradient in upper ocean
-    b=exp(1.0)
- ! may use b1 for more slightly levels in upper ocean
- !     b1=sqrt((float(nrefl)/float(nz)))
-
-    zw(1)=0.0d0                  !sea surface
-    zw(nz+1)=1.0d0               !bottom
-
-    if (wgr_in_tgr) then
- ! w-levels are arranged in the middles of t-layers
-      if(analytical_set) then
- ! analitical t-levels setting
-       do k=2,nz-1
-        z(k)=unidepth((dfloat(k)-0.5d0)/(dfloat(nz)-0.5d0),a,b)
-       enddo
-      else
- ! non-analitical t-levels setting
- ! prove the levels
-      do k = 2,nz
-       if(z_manual(k) <= z_manual(k-1)) then
-        write(*,'(a,i4,f10.5)')  '  error in seting z-levels in 0vgrid.fi. horizont #',k,z_manual(k)
-        stop 1
-       end if
-      enddo
-
- ! correct the levels for 1-depth
-      bottom=z_manual(nz)+(z_manual(nz)-z_manual(nz-1))/2.0d0
-      do k=1,nz
-       z(k)=z_manual(k)/bottom
-      enddo
-
-    end if
- ! regulating top and bottom t-levels
-    z( 1) =        z(2)   /3.0d0
-    z(nz) =2.0d0/3.0d0 + z(nz-1)/3.0d0
- ! w-levels setting in the middles of t-layers
-    do k =2,nz
-      zw(k  )= (z (k)  + z (k-1))/2.0d0
-    enddo
-
-    else
-
- ! t-levels are arranged in the middles of w-layers
-    if(analytical_set) then
- ! analitical w-level setting
-     do k=3,nz
-      zw(k)=unidepth((dfloat(k-1))/(dfloat(nz)-0.5d0),a,b)
-     enddo
-
-    else
-
- ! non-analytical w-levels setting
- ! prove the levels
-    do k = 2,nz
-     if(z_manual(k) <= z_manual(k-1)) then
-     write(*,'(a,i4,f10.5)') '  error in setting z-levels in 1vgrid.fi. horizon �',k,z_manual(k)
-     stop 1
-     end if
-    enddo
-
- ! correct the levels for 1-depth
-          bottom=z_manual(nz)+(z_manual(nz)-z_manual(nz-1))
-          do k=2,nz
-           zw(k)=z_manual(k)/bottom
-          enddo
-
-         endif
- ! regulating top and bottom levels
-           zw( 2) =  zw(3)/2.0d0
-           zw(nz) = (zw(nz-1)+zw(nz+1))/2.0d0
-
- ! t-level setting in the middle of w-layer
-          do k =1,nz
-           z(k )  = (zw(k+1) + zw(k))/2.0d0
-          enddo
-       endif
-
- ! t and w -grid steps:
-        hzt(1) = z (1)
-         dz(1) = zw(2)
-       do  k=2,nz
-        hzt(k) = z (k)   - z (k-1)
-         dz(k) = zw(k+1) - zw(k)
-       enddo
-        hzt(nz+1) = 1.0d0-z(nz)
-
- !     bottom=hh0
-       bottom=1000.0d0
-
-       if (rank .eq. 0) then
-           if (wgr_in_tgr) then
-               write(*,*)'  w-levels are arranged in the middles of t-layers.'
-           else
-               write(*,*)'  t-levels are arranged in the middles of w-layers.'
-           end if
-
-           write(*,110) bottom
-   110     format('  w-levels w-steps  t-levels t-steps *',f7.2)
-           do k=1,nz
-               write(*,111)zw(k+1)*bottom,dz(k)*bottom,z(k)*bottom,hzt(k)*bottom
-           enddo
-   111     format(2(2x,2f8.2))
-       endif
-
-endsubroutine vgrid
 !============================================================================================
-      function unidepth(x,a,b)
-        implicit none
-      !  universal dimensionless function of non-uniform oceanographic horizons
-      !  constructed on levitus oceanographic horizons
-      !  x-dimensionless level value from [0,1]
-        real(8) unidepth, x, a, b
-        unidepth=(2.0d0-a)**(x**b)+a*x-1.0d0
-      endfunction unidepth
+function unidepth(x,a,b)
+    implicit none
+    !  universal dimensionless function of non-uniform oceanographic horizons
+    !  constructed on levitus oceanographic horizons
+    !  x-dimensionless level value from [0,1]
+    real(8) unidepth, x, a, b
+    unidepth=(2.0d0-a)**(x**b)+a*x-1.0d0
+endfunction unidepth
+
 !===========================================================================================
 !initializing basin grid parameters
  subroutine basinpar
@@ -1206,3 +1071,5 @@ endif
  !$omp end parallel do
 
  endsubroutine grid_parameters_curvilinear
+
+endmodule basinpar_routes

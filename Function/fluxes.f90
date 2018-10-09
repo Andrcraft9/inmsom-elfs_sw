@@ -1,4 +1,8 @@
-!========================================================================
+module flux_routes
+implicit none
+
+contains
+
 subroutine sea_surface_fluxes_simple
     use main_basin_pars
     use mpi_parallel_tools
@@ -41,13 +45,13 @@ subroutine sea_surface_fluxes_simple
 
 endsubroutine sea_surface_fluxes_simple
 
-!========================================================================
 subroutine sea_surface_fluxes
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
     use atm_forcing
+    use ocalg_routes
     implicit none
 
     integer m,n,k,ierr
@@ -172,3 +176,6 @@ subroutine sea_surface_fluxes
     endif
 
 endsubroutine sea_surface_fluxes
+
+endmodule flux_routes
+

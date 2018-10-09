@@ -7,21 +7,22 @@ subroutine shallow_water_model_step(tau)
     use basin_grid
     use ocean_variables
     use shallow_water
-
+    use flux_routes
     use time_integration
-
+    use key_switches
+    
     implicit none
     integer :: m, n, k, ierr
-    real(8) tau, diffslpr
+    real*8 :: diffslpr, tau
     real*8 :: time_count
 
     diffslpr = 0.0d0
-    surf_stress_x = 0.0d0
-    surf_stress_y = 0.0d0
+    !surf_stress_x = 0.0d0
+    !surf_stress_y = 0.0d0
 
 !---------------------- Shallow water equ solver -------------------------------
     !call start_timer(time_count)
-    if (atm_forcing_on == 1) then
+    if (ksw_atmforc == 1) then
         !Computation of sea surface boundary conditions
         if(ksw_ssbc > 0) then
             call sea_surface_fluxes
@@ -61,7 +62,6 @@ subroutine shallow_water_model_step(tau)
     amuv42d = lvisc_4
 
     call expl_shallow_water(tau,     &
-                          ksw_lat4,  &
                             ubrtr,   &
                             ubrtrp,  &
                             ubrtrn,  &
@@ -95,14 +95,14 @@ subroutine shallow_water_model_step(tau)
     do n=ny_start,ny_end
       do m=nx_start,nx_end
           if(lu(m,n)>0.5) then
-              if(ssh(m,n)<10000.0d0.and.ssh(m,n)>-10000.0d0) then
+              if(ssh(m,n)<10000.0d0 .and. ssh(m,n)>-10000.0d0) then
                   continue
               else
                   write(*,*) rank, 'ERROR!!! In the point m=', m, 'n=', n, 'ssh=', ssh(m,n),   &
                     'step: ', num_step, 'lon: ', geo_lon_t(m, n), 'lat: ', geo_lat_t(m, n)
 
-                  call parallel_finalize()
-                  call exit(0)
+                  call mpi_abort(cart_comm, 1, ierr)
+                  stop
               endif
           endif
       enddo

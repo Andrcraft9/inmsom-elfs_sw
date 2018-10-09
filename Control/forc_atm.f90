@@ -1,3 +1,8 @@
+module forc_atm_routes
+implicit none
+  
+contains
+
 !======================================================================
 subroutine build_intrp_mtrx(path2flux,atmask)
 use main_basin_pars
@@ -6,6 +11,8 @@ use basin_grid
 use atm_pars
 use atm2oc_interpol
 use rec_length
+use atm2oc_routes
+use iodata_routes
 implicit none
 
 character(256) filename
@@ -47,20 +54,21 @@ character*(*) path2flux , atmask
 
 !     initialization of atmospheric sea-land mask
       if(atmask.eq.'NONE'.or.atmask.eq.'none') then
-            atm_mask=0
-      else
+          atm_mask=0
+      else 
           atm_mask=1
-! full file name of atmospheric mask on atmospheric grid
-        call fulfname(filename,path2flux,atmask,ierr)
 
-        open (11,file=filename,status='old',recl=nxa*lrecl)
-        if (rank .eq. 0) then
-           write(*,'(a,a)') ' read file with atmospheric mask: ', filename(1:len_trim(filename))
-        endif
-        do n=nya,1,-1
-            read(11,frmt,end=99) (atm_mask(m,n),m=1,nxa)
-        enddo
-        close(11)
+          if (rank == 0) then
+              ! full file name of atmospheric mask on atmospheric grid
+              call fulfname(filename,path2flux,atmask,ierr)
+              open (11,file=filename,status='old',recl=nxa*lrecl)
+              write(*,'(a,a)') ' read file with atmospheric mask: ', filename(1:len_trim(filename))
+              do n=nya,1,-1
+                  read(11,frmt,end=99) (atm_mask(m,n),m=1,nxa)
+              enddo
+              close(11)
+          endif
+          call mpi_bcast(atm_mask, nxa*nya, mpi_integer, 0, cart_comm, ierr)
 
       end if
 
@@ -96,6 +104,7 @@ character*(*) path2flux , atmask
     return
 
 99    write(*,*)' error in reading file atmmask.arr ', filename(1:len_trim(filename))
+      call mpi_abort(cart_comm, 1, ierr)
       stop 1
 
 endsubroutine build_intrp_mtrx
@@ -110,7 +119,7 @@ use ocean_variables
 use atm_pars
 use atm_forcing
 use atm2oc_interpol
-!use seaice
+use atm2oc_routes
 implicit none
 
  integer m, n
@@ -426,8 +435,9 @@ implicit none
     enddo
    enddo
 !$omp end parallel do
-    endif
-
- endif
+   endif
+  endif
 
 endsubroutine atm_data_spatial_interpol
+
+endmodule forc_atm_routes

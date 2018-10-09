@@ -1,3 +1,8 @@
+module gridcon_routes
+implicit none
+
+contains
+
 !======================================================================
 ! grid consruction module by temperature mask.
 subroutine gridcon(ftemask)
@@ -135,3 +140,5 @@ return
 99    write(*,*)'  error in reading file ',ftemask(1:len_trim(ftemask))
 stop 1
 endsubroutine gridcon
+
+endmodule gridcon_routes

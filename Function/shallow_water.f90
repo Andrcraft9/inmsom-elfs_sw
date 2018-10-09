@@ -3,6 +3,13 @@ module shallow_water
     use mpi_parallel_tools
     use basin_grid
 
+    use key_switches
+
+    use ocalg_routes
+    use depth_routes
+    use mixing_routes
+    use flux_routes
+    use velssh_routes
     implicit none
 
     contains
@@ -10,7 +17,6 @@ module shallow_water
 !===============================================================================
     ! explicit shallow water equation sloving
     subroutine expl_shallow_water( tau,     &
-                                  ksw4,     &
                                    ubrtr,   &
                                    ubrtrp,  &
                                    ubrtrn,  &
@@ -41,7 +47,7 @@ module shallow_water
         implicit none
 
         real(8) tau
-        integer ksw4, m, n
+        integer m, n
 
         real(8)  ubrtr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 ubrtrp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
@@ -72,7 +78,6 @@ module shallow_water
 
         real(8) bp, bp0, grx, gry, slx, sly, slxn, slyn
 
-        real*8 time_count
         integer ierr
 
         !computing ssh
@@ -98,7 +103,7 @@ module shallow_water
             call cyclize8_y(sshn,nx,ny,1,nnn,nn)
         endif
 
-        if(full_free_surface>0) then
+        if (full_free_surface>0) then
             call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest)
         endif
 
@@ -109,21 +114,23 @@ module shallow_water
                           RHSx_adv, RHSy_adv, 1)
         endif
 
-        if (diff_terms > 0) then
+        if (ksw_lat > 0) then
             call stress_components(ubrtrp, vbrtrp, str_t2d, str_s2d, 1)
-
             call uv_diff2(mu, str_t2d, str_s2d,   &
                           hhq, hhu, hhv, hhh,     &
                           RHSx_dif, RHSy_dif, 1)
-            ! if(ksw4>0) then
-            !   call uv_diff4( mu4, str_t2d, str_s2d,  &
-            !                  fx, fy, hhq, hhu, hhv, hhh,    &
-            !                  RHSx_dif, RHSy_dif, 1 )
-            ! endif
+            
+            if(ksw_lat4 > 0) then
+                call uv_diff4( mu4, str_t2d, str_s2d,  &
+                               fx, fy, hhq, hhu, hhv, hhh,    &
+                               RHSx_dif, RHSy_dif, 1 )
+            endif
         endif
 
-        ! compute BottomFriction (bfc)
-        !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
+        !compute Bottom Friction (bfc)
+        if (ksw_bfc > 0) then
+            call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc, nbfc)
+        endif
 
         !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
         do n=ny_start,ny_end

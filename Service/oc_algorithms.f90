@@ -1,3 +1,8 @@
+module ocalg_routes
+implicit none
+
+contains
+
 !=====================================================
 subroutine cyclize_x(ff,nx,ny,nz,mmm,mm)
     use mpi_parallel_tools
@@ -96,44 +101,105 @@ endsubroutine cyclize8_x
 
 !=====================================================
 subroutine cyclize_y(ff,nx,ny,nz,nnn,nn)
-implicit none
+  use mpi_parallel_tools
+  implicit none 
 !---------------------------------------------------------------------
 ! adds periodically bottom (n=nnn-1) and top (n=nn+1) for cyclic lines
- integer nx, ny, nz
- integer nnn, nn, m, k
- real(4) ff(nx,ny,nz)
+!do m=1,nx do k=1,nz
+!  ff(m,nnn-1,k) = ff(m,nn ,k)
+!  ff(m, nn+1,k) = ff(m,nnn,k)
+!enddo enddo
+  integer nx, ny, nz
+  integer nnn, nn, m, k
+  real(4) ff(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
 
-!$omp parallel do private(m,k)
-  do m=1,nx
-   do k=1,nz
-      ff(m,nnn-1,k) = ff(m,nn ,k)
-      ff(m, nn+1,k) = ff(m,nnn,k)
-   enddo
-  enddo
-!$omp end parallel do
+  integer, dimension(2) :: p_dist
+  integer :: dist_rank
+  integer :: ierr
+  integer stat(MPI_status_size)
+
+  if (p_coord(2) .eq. 0) then
+!-------------- proc has mmm-1 area --------------------------------------------
+      p_dist(1) = p_coord(1) 
+      p_dist(2) = p_size(2) - 1
+      call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
+
+      call mpi_sendrecv(ff(bnd_x1:bnd_x2, nnn, 1:nz),     &
+                        (bnd_x2 - bnd_x1 + 1)*nz,         &
+                        mpi_real4, dist_rank, 1,          &
+                        ff(bnd_x1:bnd_x2, nnn-1, 1:nz),   &
+                        (bnd_x2 - bnd_x1 + 1)*nz,         &
+                        mpi_real4, dist_rank, 1,          &
+                        cart_comm, stat, ierr)
+  endif
+
+  if (p_coord(2) .eq. (p_size(2) - 1)) then
+!-------------- proc has mm+1 area ---------------------------------------------
+      p_dist(1) = p_coord(1)
+      p_dist(2) = 0
+      call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
+
+      call mpi_sendrecv(ff(bnd_x1:bnd_x2, nn, 1:nz),          &
+                        (bnd_x2 - bnd_x1 + 1)*nz,             &
+                        mpi_real4, dist_rank, 1,              &
+                        ff(bnd_x1:bnd_x2, nn+1, 1:nz),        &
+                        (bnd_x2 - bnd_x1 + 1)*nz,             &
+                        mpi_real4, dist_rank, 1,              &
+                        cart_comm, stat, ierr)
+  endif
 
 endsubroutine cyclize_y
 
 !=====================================================
 subroutine cyclize8_y(ff,nx,ny,nz,nnn,nn)
-implicit none
+  use mpi_parallel_tools
+  implicit none 
 !---------------------------------------------------------------------
 ! adds periodically bottom (n=nnn-1) and top (n=nn+1) for cyclic lines
- integer nx, ny, nz
- integer nnn, nn, m, k
- real(8) ff(nx,ny,nz)
+!do m=1,nx do k=1,nz
+!  ff(m,nnn-1,k) = ff(m,nn ,k)
+!  ff(m, nn+1,k) = ff(m,nnn,k)
+!enddo enddo
+  integer nx, ny, nz
+  integer nnn, nn, m, k
+  real(8) ff(bnd_x1:bnd_x2, bnd_y1:bnd_y2, nz)
 
-!$omp parallel do private(m,k)
-  do m=1,nx
-   do k=1,nz
-      ff(m,nnn-1,k) = ff(m,nn ,k)
-      ff(m, nn+1,k) = ff(m,nnn,k)
-   enddo
-  enddo
-!$omp end parallel do
+  integer, dimension(2) :: p_dist
+  integer :: dist_rank
+  integer :: ierr
+  integer stat(MPI_status_size)
+
+  if (p_coord(2) .eq. 0) then
+!-------------- proc has mmm-1 area --------------------------------------------
+      p_dist(1) = p_coord(1) 
+      p_dist(2) = p_size(2) - 1
+      call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
+
+      call mpi_sendrecv(ff(bnd_x1:bnd_x2, nnn, 1:nz),     &
+                        (bnd_x2 - bnd_x1 + 1)*nz,         &
+                        mpi_real8, dist_rank, 1,          &
+                        ff(bnd_x1:bnd_x2, nnn-1, 1:nz),   &
+                        (bnd_x2 - bnd_x1 + 1)*nz,         &
+                        mpi_real8, dist_rank, 1,          &
+                        cart_comm, stat, ierr)
+  endif
+
+  if (p_coord(2) .eq. (p_size(2) - 1)) then
+!-------------- proc has mm+1 area ---------------------------------------------
+      p_dist(1) = p_coord(1)
+      p_dist(2) = 0
+      call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
+
+      call mpi_sendrecv(ff(bnd_x1:bnd_x2, nn, 1:nz),          &
+                        (bnd_x2 - bnd_x1 + 1)*nz,             &
+                        mpi_real8, dist_rank, 1,              &
+                        ff(bnd_x1:bnd_x2, nn+1, 1:nz),        &
+                        (bnd_x2 - bnd_x1 + 1)*nz,             &
+                        mpi_real8, dist_rank, 1,              &
+                        cart_comm, stat, ierr)
+  endif
 
 endsubroutine cyclize8_y
-
 
 !=============================================================================
 subroutine air_sea_turbulent_fluxes(wnd,        &   ! wind modulo, m/s
@@ -279,3 +345,5 @@ implicit none
       ty = rho_a*cd*u
 
 endsubroutine air_sea_turbulent_fluxes
+
+endmodule ocalg_routes

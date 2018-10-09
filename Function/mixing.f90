@@ -1,4 +1,8 @@
-!====================================================================================
+module mixing_routes
+implicit none
+
+contains
+
 subroutine stress_components(u,v,str_t,str_s,nlev)
  use main_basin_pars
  use mpi_parallel_tools
@@ -53,3 +57,5 @@ subroutine stress_components(u,v,str_t,str_s,nlev)
       end if
 
 endsubroutine stress_components
+
+endmodule mixing_routes

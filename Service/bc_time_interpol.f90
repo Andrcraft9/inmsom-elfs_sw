@@ -1,3 +1,8 @@
+module bc_time_routes
+implicit none
+
+contains
+
 !======================================================================
 ! atmospheric data time interpolation on atmospheric grid
 subroutine atm_data_time_interpol
@@ -352,7 +357,7 @@ endsubroutine atm_data_time_interpol
                         path2flux,    & ! path to flux data
                          ind_clim,    & ! index of climaticity (0-climatic data, 1 - real year data)
                            m_year)      ! current year number
-
+ use iodata_routes
  implicit none
 
  character*(*) path2flux,filename,full_filename
@@ -439,9 +444,13 @@ implicit none
 
 117    write(*,'(1x,a)')'   error in opening file:'
        write(*,'(5x,a)') filename(1:len_trim(filename))
+       call mpi_abort(cart_comm, 1, ierr)
        stop
 119    write(*,'(1x,a)')'   error in reading file:'
        write(*,'(5x,a)') filename(1:len_trim(filename))
+       call mpi_abort(cart_comm, 1, ierr)
        stop
 
 endsubroutine bc_data_read
+
+endmodule bc_time_routes

@@ -1,4 +1,8 @@
-!============================================================
+module depth_routes
+implicit none
+
+contains
+
 subroutine hh_init(hq, hqp, hqn,    &
                    hu, hup, hun,    &
                    hv, hvp, hvn,    &
@@ -106,7 +110,6 @@ subroutine hh_init(hq, hqp, hqn,    &
       end if
 endsubroutine hh_init
 
-!============================================================
 subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
  use main_basin_pars
  use mpi_parallel_tools
@@ -173,8 +176,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
 
 endsubroutine hh_update
 
-
-!============================================================
 subroutine hh_shift(hq, hqp, hqn,   &
                     hu, hup, hun,   &
                     hv, hvp, hvn,   &
@@ -222,36 +223,4 @@ subroutine hh_shift(hq, hqp, hqn,   &
 
 endsubroutine hh_shift
 
-!======================================================================
-subroutine depth_ave(u,utr,mask,kbcl)
-use main_basin_pars
-use mpi_parallel_tools
-use basin_grid
-implicit none
-!-----------------------------------------------------------------------
-! makes baroclinic and barotropic velocity component
-! utr= <u>, u' = u - <u>.
- real(8) u(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nz)
- real(4) mask(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
- real(8) utr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),ff0
- integer m, n, k
- integer kbcl      ! key to remove barotropic component from the field: 0 - not, 1 - yes
-
-!$omp parallel do private(m,n,k,ff0)
-      do n=bnd_y1+1,bnd_y2-1
-       do m=bnd_x1+1,bnd_x2-1
-        if (mask(m,n)>0.5) then
-
-           ff0 = 0.0d0
-           do k=1,nz
-             ff0 = ff0 + u(m,n,k) * dz(k)
-           enddo
-           utr(m,n) = ff0
-           u(m,n,1:nz) = u(m,n,1:nz)-dfloat(kbcl)*ff0
-        endif
-       enddo
-      enddo
-!$omp end parallel do
-
-
-endsubroutine depth_ave
+endmodule depth_routes

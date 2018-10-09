@@ -2,14 +2,13 @@
 module time_integration
 implicit none
 
-integer start_type,        &  !Type of starting run (0 - from TS only, 1 - from the full checkpoint)
-        nstep_icedyn,      &  !Number of internal time steps for ice dynamics
-        nstep_barotrop        !Number of internal time steps for barotropic task
-
+integer start_type   !Type of starting run (0 - from TS only, 1 - from the full checkpoint)
+        
 integer(8) num_step,        &  !Number of time step during the run
-           num_step_max,    &  !The maximum number of time step for the run
-           init_year           !Initial year number for the run
-
+           num_step_max        !The maximum number of time step for the run
+           
+integer    init_year           !Initial year number for the run
+ 
 real(4) run_duration,         &  !Duration of the run in days
         loc_data_tstep,       &  !Time step for writing  local data
        glob_data_tstep,       &  !Time step for writing global data

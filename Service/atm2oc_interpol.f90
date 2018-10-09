@@ -1,3 +1,8 @@
+module atm2oc_routes
+implicit none
+  
+contains
+
 !=====================================================================
 subroutine weight_matrix_intrp(xin,           & !array(1-D) of input x-grid values (input)
                                yin,           & !array(1-D) of input y-grid values (input)
@@ -603,7 +608,7 @@ real(8) bilin_denom
 
 real(8) x_left,x_right,y_down,y_up, ret_lon, ret_lat
 real(8) xl, yl, zl, xo, yo, zo, dist, dist_min
-real(8) fnclon, fnclat
+!real(8) fnclon, fnclat
 real(8), allocatable:: xinp(:),yinp(:),  temp(:)        !recalculated grid for periodic case
 
 integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
@@ -891,3 +896,5 @@ implicit none
 !   bilinear interpolation
       fnclon =longitude
 endfunction fnclon
+
+endmodule atm2oc_routes

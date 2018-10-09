@@ -2,37 +2,19 @@
 module key_switches
 implicit none
 
-integer ksw_ts,         &     !Temperature and salinity equation solving (0 - no, 1 - yes)
-        ksw_age,        &     !Ideal age equation solving (0 - no, 1 - yes)
-        ksw_pt,         &     !Passive tracer equation solving (0 - no, 1 - yes)
-        ksw_uv,         &     !Momentum equation solving (0 - no, 1 - yes)
-        ksw_lat,        &     !Lateral 2nd order mix parametrization (0 - constant coeff, 1 - Smagorinski)
+integer ksw_atmforc,    &     !Atmospheric forcing (0 - no, 1 - yes)
+        ksw_bfc,        &     !Bottom friction (0 - no, 1 - yes)
+        ksw_lat,        &     !Lateral 2nd order mix parametrization (0 - no, 1 - yes)
         ksw_lat4,       &     !Lateral 4nd order momentum mix parametrization (0 - no, 1 - yes)
-        ksw_vert,       &     !vertical mix parametrization (0 - constant coeff, 1 - Pacanowski&Philander)
-        ksw_dens,       &     !pressure gradient computation (0 - no (constant density), 1 - yes)
-        ksw_ice_th,     &     !sea ice thermodynamics using (0 - no, 1 - yes)
-        ksw_ice_tran,   &     !sea ice transport using (0 - no, 1 - yes)
-        ksw_ice_dyn,    &     !sea ice dynamics using (0 - no, 1 - yes)
         ksw_ssbc,       &     !Type of surface boundary conditions (1 - surface T&S and wind stress are set; 2 - T&S fluxes and wind stress are set; 3 - T&S fluxes and wind stress are computed
         ksw_wflux,      &     !normalize global mean salt balance (0 - no, 1 - normalize water flux, 2 - normalize salinity flux)
         ksw_lbc_ts,     &     !open boundary conditions for T&S using (0 - no, 1 - yes)
         ksw_lbc_uv,     &     !open boundary conditions for U&V using (0 - no, 1 - yes)
         ksw_lbc_ssh           !open boundary conditions for SSH using (0 - no, 1 - yes)
 
-real(8) sst_relax,      &     !Relaxation coefficient for temperature [m/s]
-        sss_relax,      &     !Relaxation coefficient for salinity [m/s]
-        ldiff_ts,       &     !lateral diffusion for temperature [m**2/s]
-        lvisc_2,        &     !lateral  vicosity(2nd order)[m**2/s]
+real(8) lvisc_2,        &     !lateral  vicosity(2nd order)[m**2/s]
         lvisc_4,        &     !lateral  vicosity(4th order) [undim]
-     tsfrac_lat,        &     !fraction of salinity lateral diffusion due to one for temperature
-        vdiff_ts_min,   &     !vertical background diffusion coefficient for T [m**2/s]
-        vdiff_ts_max,   &     !vertical max(top) diffusion coefficient for T [m**2/s]
-        vvisc_min,      &     !vertical background viscous coefficient [m**2/s]
-        vvisc_max,      &     !vertical max(top) viscous coefficient [m**2/s]
-      tsfrac_vert,      &     !fraction of salinity lateral diffusion due to one for temperature
-        z_frac,         &     !weight coefficient for lateral Z-Diffusion
-        r_frac,         &     !weight coefficient for lateral R-Diffusion
-        gm_ratio              !weight coefficient for Gent&McWilliams transport
+        nbfc                  !Bottom friction coeff (Manning's roughness)
 
 endmodule key_switches
 
