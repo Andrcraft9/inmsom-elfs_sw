@@ -138,6 +138,7 @@ endif
 
 return
 99    write(*,*)'  error in reading file ',ftemask(1:len_trim(ftemask))
+call mpi_abort(cart_comm, 1, ierr)
 stop 1
 endsubroutine gridcon
 
