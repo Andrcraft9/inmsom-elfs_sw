@@ -15,7 +15,7 @@ subroutine shallow_water_model_step(tau)
     real*8 :: tau, diffslpr, surf_stress
     real*8 :: time_count
 
-    diffslpr = 0.0d0
+    diffslpr = 1000.0d0
     surf_stress = 0.0d0
 
 !---------------------- Shallow water equ solver -------------------------------
@@ -76,7 +76,7 @@ subroutine check_ssh_err(ssh, lu)
     real*8 :: ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
               lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
-    integer :: m, n
+    integer :: m, n, ierr
 
     do n = ny_start,ny_end
         do m = nx_start,nx_end
@@ -87,7 +87,8 @@ subroutine check_ssh_err(ssh, lu)
                     write(*,*) rank, 'ERROR!!! In the point m=', m, 'n=', n, 'ssh=', ssh(m,n)
                     !write(*,*) rank, 'ERR: Block k=', k, 'In the point m=', m, 'n=', n, 'ssh=', ssh(k)%vals(m,n),   &
                     !    'step: ', num_step, 'lon: ', geo_lon_t(k)%vals(m, n), 'lat: ', geo_lat_t(k)%vals(m, n)
-                    call parallel_finalize
+                    
+                    call mpi_abort(cart_comm, 1, ierr)
                     stop
                 endif
             endif

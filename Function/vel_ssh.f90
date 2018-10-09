@@ -1,6 +1,7 @@
 module vel_ssh
     use main_basin_pars
     use mpi_parallel_tools
+    use key_switches
     implicit none
 
 contains

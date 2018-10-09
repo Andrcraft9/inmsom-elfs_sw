@@ -3,6 +3,7 @@ module shallow_water
     use mpi_parallel_tools
     use mixing
     use vel_ssh
+    use key_switches
     implicit none
 
 contains
@@ -149,7 +150,7 @@ contains
             !$omp end parallel do
         endif
 
-        if (diff_terms > 0) then
+        if (ksw_lat > 0) then
             !$omp parallel do
             do k = 1, bcount
                 call set_block_boundary(k)
@@ -178,7 +179,16 @@ contains
         endif
 
         ! compute BottomFriction (bfc)
-        !call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc)
+        if (ksw_bfc > 0) then
+            !$omp parallel do
+            do k = 1, bcount
+                call set_block_boundary(k)
+                call uv_bfc(ubrtrp(k)%vals, vbrtrp(k)%vals, hhq(k)%vals, hhu(k)%vals, hhv(k)%vals, hhh(k)%vals,  &
+                            RHSx_bfc(k)%vals, RHSy_bfc(k)%vals,                                                  &
+                            dxb(k)%vals, dyb(k)%vals, lcu(k)%vals, lcv(k)%vals)
+            enddo
+            !$omp end parallel do
+        endif
 
         ! Compute velocities
         !$omp parallel do

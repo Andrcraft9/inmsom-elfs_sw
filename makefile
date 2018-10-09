@@ -33,6 +33,6 @@ all: inmsom clean
 
 inmsom:
 #order is important
-	$(FC) -o inmsom $(FCFLAGS) $(SRCMODULES) inmsom_head.f90  $(SRCFUNCTION) $(SRCSERVICE) $(SRCCONTROL)
+	$(FC) -o inmsom $(FCFLAGS) $(SRCMODULES) $(SRCSERVICE) $(SRCFUNCTION) $(SRCCONTROL) inmsom_head.f90	
 clean:
 	$(RM) *.o *.mod

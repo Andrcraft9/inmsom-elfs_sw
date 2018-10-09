@@ -1,3 +1,8 @@
+module rwpar_routes
+implicit none
+
+contains
+
 !======================================================================
 subroutine readpar(filename,comments,nofcom)
 use mpi_parallel_tools
@@ -90,3 +95,5 @@ character(*) out_string
  out_string = trim   (out_string)
  out_string = out_string(1 : index(out_string, ' '))
 endsubroutine get_first_lexeme
+
+endmodule rwpar_routes

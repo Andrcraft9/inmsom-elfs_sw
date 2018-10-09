@@ -1,3 +1,8 @@
+module rw_ctl_routes
+implicit none
+
+contains
+
 subroutine ctl_file_write(fname,    &     !file name
                           undef,    &     !value for undefined points
                           nx,       &     !x-dimension
@@ -219,8 +224,8 @@ endsubroutine sec_to_yr_mo_hr_mn
 
       character(256) string
       integer i,l,l1,l2,nb,line,inform,lprint,k
-!  external functions
-    integer nonblank
+    !external functions
+    !integer nonblank
       integer       nx, ny, nz, nt     !dimension of data
 character month1(12)*3,month2(12)*3,month3(12)*3
 data month1/'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug',       &
@@ -624,91 +629,4 @@ integer function charposition(string,nb1,char0)
 
 endfunction charposition
 
-!======================================================================
-subroutine compare_grids(maxgridlen,ierr,                                        &
-                         undefa,nxa,nya,nza,nta,xa,hxa,ya,hya,ta,hta,za,hza,     &
-                         undefb,nxb,nyb,nzb,ntb,xb,hxb,yb,hyb,tb,htb,zb,hzb)
-    implicit none
-    integer maxgridlen,ierr,i
-! parameters for temperature
-    real  undefa
-      real(8)      xa(maxgridlen),hxa,    &
-                   ya(maxgridlen),hya,    &
-                   za(maxgridlen),hza
-      real ta,hta
-    integer nxa,nya,nza,nta
-
-! parameters for salinity
-    real  undefb
-      real(8)      xb(maxgridlen),hxb,    &
-                   yb(maxgridlen),hyb,    &
-                   zb(maxgridlen),hzb
-      real tb,htb
-    integer nxb,nyb,nzb,ntb
-
-    ierr=0
-
-    if(nxa.gt.maxgridlen) then
-    ierr=1
-    write(*,'(a,i7,a,i7)') ' numbers of x-grid points ',nxa,' > ',' max be',maxgridlen
-    return
-    end if
-
-    if(nya.gt.maxgridlen) then
-    ierr=1
-    write(*,'(a,i7,a,i7)') ' numbers of y-grid points ',nya,' > ',' max be',maxgridlen
-    return
-    end if
-
-    if(nza.gt.maxgridlen) then
-    ierr=1
-    write(*,'(a,i7,a,i7)') ' numbers of z-grid points ',nza,' > ',' max be',maxgridlen
-    return
-    end if
-
-    if(nxa.ne.nxb) then
-    ierr=1
-    write(*,'(a,i7,a,a,i7)') ' numbers of a x-grid points ',nxa,' is not equal to', ' numbers of b x-grid points ',nxb
-    return
-    end if
-
-    if(nya.ne.nyb) then
-    ierr=1
-    write(*,'(a,i7,a,a,i7)') ' numbers of a y-grid points ',nya,' is not equal to', ' nmubers of b y-grid points ',nyb
-    return
-    end if
-
-    if(nza.ne.nzb) then
-    ierr=1
-    write(*,'(a,i7,a,a,i7)') ' numbers of a z-grid points ',nza,' is not equal to', ' numbers of b z-grid points ',nzb
-    return
-    end if
-
-    if(nta.ne.ntb) then
-    ierr=1
-    write(*,'(a,i7,a,a,i7)') ' numbers of a y-grid points ',nya,' is not equal to', ' numbers of b y-grid points ',nyb
-    return
-    end if
-
-    do i=1,nxa
-     if(xa(i).ne.xb(i)) then
-     write(*,*)' x-grids (a) and (b) are different!'
-     ierr=2
-     end if
-    end do
-
-    do i=1,nya
-     if(ya(i).ne.yb(i)) then
-     write(*,*)' y-grids (a) and (b) are different!'
-     ierr=2
-     end if
-    end do
-
-    do i=1,nza
-     if(za(i).ne.zb(i)) then
-     write(*,*)' z-grids (a) and (b) are different!'
-     ierr=2
-     end if
-    end do
-
-endsubroutine compare_grids
+endmodule rw_ctl_routes

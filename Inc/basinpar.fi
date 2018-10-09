@@ -1,8 +1,8 @@
 !Parameters of the ocean model
 
 real(8), parameter:: time_smooth=0.05d0
-integer, parameter:: nx=289,  &	   !number of total points in x-direction in base arrays
-                     ny=163,  &     !number of total points in y-direction in base arrays
+integer, parameter:: nx=289,  &	     !number of total points in x-direction in base arrays
+                     ny=163,  &      !number of total points in y-direction in base arrays
                      nz=1,     &     !number of s-levels in vertical direction for 3d arrays
                      mmm=3,    &     !begin of significant area in x-direction
                      nnn=3,    &     !begin of significant area in y-direction
@@ -39,42 +39,30 @@ real(8),parameter:: rotation_on_lon = 0.0d0,    &     !geographic coordinates of
 
 !Parameters of curvature(in case of curvilinear cordinate system)
 real(8), parameter:: x_pole=100.0d0,   &  !lon of new north pole in geographical system
-	                   y_pole=70.0d0,    &  !lat of new north pole in geographical system
+                     y_pole=70.0d0,    &  !lat of new north pole in geographical system
                      p_pole=x_pole,    &  !lon of new south pole in geographical system
                      q_pole=-y_pole       !lat of new south pole in geographical system
 
+!Nonlinear terms for SWE
 integer, parameter:: full_free_surface = 1
-integer, parameter:: diff_terms = 1
 integer, parameter:: trans_terms = 1
 
-integer, parameter:: mgrad=1        !Number of ice thickness gradations
-!integer, parameter:: mgrad=8
-
- real(8) hmax(mgrad)      !top values for ice gradations in meters
-data hmax/900.0d0/
-!data hmax/0.1d0,0.3d0,0.7d0,1.2d0,2.0d0,4.0d0,6.0d0,900.0d0/
-
 !bottom friction parameters
-
 !  Type_fric - flag:
-integer, parameter:: type_fric = 2  ! 0 - no bottom fric
+!integer, parameter:: type_fric = 2  ! 0 - no bottom fric
                                     ! 1 - linear
                                     ! 2 - nonlinear
-
 !Cb_l  - coef of    linear bottom friction (typical value 5d-4 m/s)
 !Cb_nl - coef of nonlinear bottom friction (typical value 1.0d-3 )
 !Ebottom - bottom turbulent kinetic Energy (typical value 0: (5d-2 m/s)**2)
-real(8), parameter::    Cb_l    = 5d-4,        &
-                        Cb_nl   = 2.5d-3,      &   !Popov S.K.
+!real(8), parameter::    Cb_l    = 5d-4,        &
+!                        Cb_nl   = 2.5d-3,      &   !Popov S.K.
 !                       Cb_nl   = 1.0d-3,      &   !FRAM
-                        Ebottom = 25.0d-4
+!                        Ebottom = 25.0d-4
+!Basic Rayleigh dissipation parameter (1/s) for bottom gradiend equal to 1
+real(8), parameter:: r_fric = 0.0d0 !0.0D-06     
 
-! real(8), parameter:: r_fric=0.0D-06     !Basic Rayleigh dissipation parameter (1/s) for bottom gradiend equal to 1
-real(8), parameter:: r_fric = 0.0d0
-
-real(8), parameter :: nbfc = 0.025 !Bottom Friction Coeff
-!--------------------------------------------------------------------------------
-
+! Physical constants
 real(8), parameter:: Pi = 3.141592653589793d0,   & !Pi-constant
                RadEarth = 6371000.0d0,           & !Earth radius[m]
             EarthAngVel = 7.292115974546454d-5,  & !earth angular velocity[rad/sec]
@@ -84,10 +72,7 @@ real(8), parameter:: Pi = 3.141592653589793d0,   & !Pi-constant
                DenFresh = 1000.0d0                 !Fresh water density[kg/m^3]
 
 ! Albedo
-real(8), parameter::   AlbOpWater=0.066d0        ! open water albedo
-
-real(8), parameter:: StephBoltz = 5.67036713d-8  ! stephan-boltzman (W/m**2/K^4)
-
-real(8), parameter:: EmissWater=1.0d0            !water emissitivity
-
-real(8), parameter :: lambda_f= 3.337d5    !J/kg   Heat of snow fusion
+real(8), parameter::  AlbOpWater=0.066d0        ! open water albedo
+real(8), parameter::  StephBoltz = 5.67036713d-8  ! stephan-boltzman (W/m**2/K^4)
+real(8), parameter::  EmissWater=1.0d0            !water emissitivity
+real(8), parameter :: lambda_f= 3.337d5          !J/kg   Heat of snow fusion

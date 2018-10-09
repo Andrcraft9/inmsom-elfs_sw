@@ -2,7 +2,6 @@ MAKE = make
 
 #Translator for Cluster
 FC = mpif90
-#FC = mpiifort
 
 # Sequental options
 FCFLAGS = -ffree-line-length-0 -O3 -fopenmp -I./Inc

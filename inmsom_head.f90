@@ -2,6 +2,10 @@ program INMSOM
     use time_integration
     use key_switches
     use mpi_parallel_tools
+    use output_routes
+    use iodata_routes
+    use rwpar_routes
+    use time_routes
     implicit none
 
     include 'basinpar.fi'
@@ -43,7 +47,6 @@ program INMSOM
     if (rank .eq. 0) then
         call readpar(filepar,comments,nofcom)
     endif
-
     call mpi_bcast(comments, 256*256, mpi_character, 0, cart_comm, ierr)
 
     read(comments( 1),*) start_type          !Type of starting run (0 - from TS only, 1 - frim the full checkpoint)
@@ -53,37 +56,8 @@ program INMSOM
     read(comments( 5),*) init_year           !Initial year number for the run
     read(comments( 6),*) loc_data_wr_period  !Period for writing local instantaneous data (minutes)
     read(comments( 7),*) glob_data_wr_period !Period for writing global time average data (minutes)
-    read(comments( 8),*) nstep_icedyn        !Number of internal time steps for ice dynamics
-    read(comments( 9),*) nstep_barotrop      !Number of internal time steps for barotropic task
-    call get_first_lexeme(comments(10), path2ocp    )  !path to checkpoints(results)
-    ! Files with data on oceanic grid:
-    call get_first_lexeme(comments(11), path2ocssdata)   !path to ocean SS data
-    call get_first_lexeme(comments(12), ss_ocfiles(1)  )  !file with SST
-    call get_first_lexeme(comments(13), ss_ocfiles(2)  )  !file with SSS
-    call get_first_lexeme(comments(14), ss_ocfiles(3)  )  !file with river runoff
-    call get_first_lexeme(comments(15), ss_ocfiles(4)  )  !file with TLBC
-    call get_first_lexeme(comments(16), ss_ocfiles(5)  )  !file with SLBC
-    call get_first_lexeme(comments(17), ss_ocfiles(6)  )  !file with ULBC
-    call get_first_lexeme(comments(18), ss_ocfiles(7)  )  !file with VLBC
-    call get_first_lexeme(comments(19), ss_ocfiles(8)  )  !file with SSHLBC
-    ! Files with data on atmospheric grid:
-    call get_first_lexeme(comments(20), path2atmssdata )  !path to atmospheric data
-    call get_first_lexeme(comments(21), ss_atmfiles(1) )  !file with      zonal wind stress (1 and 2 condition)
-    call get_first_lexeme(comments(22), ss_atmfiles(2) )  !file with meridional wind stress (1 and 2 condition)
-    call get_first_lexeme(comments(23), ss_atmfiles(3) )  !file with          heat balance (2 condition)
-    call get_first_lexeme(comments(24), ss_atmfiles(4) )  !file with shortwave rad balance (2 condition)
-    call get_first_lexeme(comments(25), ss_atmfiles(5) )  !file with    freshwater balance (2 condition)
-    call get_first_lexeme(comments(26), ss_atmfiles(6) )  !file with       air temperature (3 condition)
-    call get_first_lexeme(comments(27), ss_atmfiles(7) )  !file with          air humidity (3 condition)
-    call get_first_lexeme(comments(28), ss_atmfiles(8) )  !file with wind      zonal speed (3 condition)
-    call get_first_lexeme(comments(29), ss_atmfiles(9) )  !file with wind meridional speed (3 condition)
-    call get_first_lexeme(comments(30), ss_atmfiles(10) )  !file with SLP (3 condition)
-    call get_first_lexeme(comments(31), ss_atmfiles(11) )  !file with downwelling longwave radiation (3 condition)
-    call get_first_lexeme(comments(32), ss_atmfiles(12) )  !file with downwelling shortwave radiation (3 condition)
-    call get_first_lexeme(comments(33), ss_atmfiles(13) )  !file with wind liquid precipitation (rain)
-    call get_first_lexeme(comments(34), ss_atmfiles(14) )  !file with wind solid precipitation (snow)
-    call get_first_lexeme(comments(35), atmask)
-
+    call get_first_lexeme(comments(8), path2ocp    )  !path to checkpoints(results)
+    
     if(loc_data_wr_period>0.0001) then
         key_write_local=1
     else
@@ -140,7 +114,7 @@ program INMSOM
 
     ! Initializing ocean model parameters
     call ocean_model_parameters(time_step)
-    if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
+    !if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
 
     if (parallel_mod == 1) then
         if (rank == 0) print *, 'mode: stop program after decomposition'
@@ -152,17 +126,9 @@ program INMSOM
     call sw_only_inicond(0, path2ocp)
     !call zero_sw_init
 
-    ! Check scheme for shallow water equtions
-    if (rank .eq. 0) print *, '=================================================================='
-    if (rank .eq. 0) print *, '------------ Eplicit shallow water scheme, BLOCKMPI --------------'
-    if (rank .eq. 0) print *, '=================================================================='
-
     !------------------------- Check points ----------------------------------------!
-    call parallel_check_point(38.990d0, 47.270d0) !Taganrog
-    call parallel_check_point(38.590d0, 46.700d0) !Eesk
-    !call parallel_check_point(32.0d0, 43.0d0)
-    !call parallel_check_point(40.0d0, 42.0d0)
-
+    call parallel_check_point()
+    
     !-------------------------------------------------------------------------------!
     if (rank .eq. 0) then
         write(*,'(2x,5hstep:,f7.2,4hhrs;,f9.2,4hsec;,f9.5,4hday.)')     &
@@ -195,6 +161,9 @@ program INMSOM
     num_step_max=int8(run_duration*nstep_per_day)
 
     if (rank .eq. 0) then
+        print *,  '=================================================================='
+        print *,  '------------ Eplicit shallow water scheme, BLOCKMPI --------------'
+        print *,  '=================================================================='
         write(*,*)'=================================================================='
         write(*,*)'------- Starting shallow water model time integration ------------'
         write(*,*)'=================================================================='
@@ -243,12 +212,8 @@ program INMSOM
 
                 nrec_loc=num_step/loc_data_wr_period_step
 
-                ! Azov sea
-                call parallel_point_output(path2ocp, num_step, 38.990d0, 47.270d0, 'Taganrog')
-                call parallel_point_output(path2ocp, num_step, 38.590d0, 46.700d0, 'Eesk')
-                !call parallel_point_output(path2ocp, num_step, 32.0d0, 43.0d0, 'Test')
-                !call parallel_point_output(path2ocp, num_step, 40.0d0, 42.0d0, 'Test2')
-
+                call parallel_point_output(path2ocp, num_step)
+                
                 call model_time_print(num_step,         &
                     m_sec_of_min,     &    !second counter in minute,output
                     m_min_of_hour,    &    !minute counter in hour  ,output

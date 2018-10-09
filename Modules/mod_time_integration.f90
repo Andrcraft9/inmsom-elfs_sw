@@ -7,8 +7,9 @@ integer start_type,        &  !Type of starting run (0 - from TS only, 1 - from 
         nstep_barotrop        !Number of internal time steps for barotropic task
 
 integer(8) num_step,        &  !Number of time step during the run
-           num_step_max,    &  !The maximum number of time step for the run
-           init_year           !Initial year number for the run
+           num_step_max        !The maximum number of time step for the run
+           
+integer :: init_year           !Initial year number for the run
 
 real(4) run_duration,         &  !Duration of the run in days
         loc_data_tstep,       &  !Time step for writing  local data
@@ -84,37 +85,6 @@ character(256) filepar,          &          !parameter file name
             path2ocssdata,       &          !path to surface data on ocean grid
             path2atmssdata,      &          !path to surface data on atm   grid
             blank                
-character(128)  ss_ocfiles(8),   &          !files with sea surface data on oceanic grid
-          ss_ocfiles_fname(8),   &          !files with sea surface data on oceanic grid (fullnames)               
-               ss_atmfiles(14),  &          !files with sea surface data on atmospheric grid
-         ss_atmfiles_fname(14),  &          !files with sea surface data on atmospheric grid (fullnames)  
-                atmask                       !file with atmospheric sea-land mask (1-land,0-ocean)
-! Files with data on oceanic grid:
-! ss_ocfiles(1) !file with SST 
-! ss_ocfiles(2) !file with SSS 
-! ss_ocfiles(3) !file with river runoff 
-! ss_ocfiles(4) !file with TLBC
-! ss_ocfiles(5) !file with SLBC
-!----------for the future needs
-! ss_ocfiles(6) !file with ULBC
-! ss_ocfiles(7) !file with VLBC
-! ss_ocfiles(8) !file with SSHLBC
-
-! Files with data on atmospheric grid:
-! ss_atmfiles(1) !file with      zonal wind stress (1 and 2 condition)
-! ss_atmfiles(2) !file with meridional wind stress (1 and 2 condition)
-! ss_atmfiles(3) !file with          heat balance (2 condition) 
-! ss_atmfiles(4) !file with shortwave rad balance (2 condition)
-! ss_atmfiles(5) !file with    freshwater balance (2 condition)
-! ss_atmfiles(6) !file with       air temperature (3 condition)
-! ss_atmfiles(7) !file with          air humidity (3 condition)
-! ss_atmfiles(8) !file with wind      zonal speed (3 condition)
-! ss_atmfiles(9) !file with wind meridional speed (3 condition)
-! ss_atmfiles(10) !file with SLP (3 condition)
-! ss_atmfiles(11) !file with downwelling longwave radiation (3 condition)
-! ss_atmfiles(12) !file with downwelling shortwave radiation (3 condition)
-! ss_atmfiles(13) !file with wind liquid precipitation (rain)
-! ss_atmfiles(14) !file with wind solid precipitation (snow)
 
 integer year_loc,       &     !variables for writing local data
          mon_loc,       &
