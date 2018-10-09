@@ -155,7 +155,6 @@ call ocean_model_parameters(time_step)
 ! Initializing SW init conditions
 call sw_only_inicond(1, path2ocp)
 !call sw_test2
-!call zero_sw_init
 
 if (ksw_atmforc == 1) then
   if (rank .eq. 0) then
@@ -174,7 +173,6 @@ endif
 
 ! Check points
 call parallel_check_point()
-!call print_basin_grid()
 
 !-------------------------------------------------------------------------------!
 if (rank .eq. 0) then
