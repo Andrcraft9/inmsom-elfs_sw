@@ -12,6 +12,13 @@ real(4), allocatable:: lu(:,:),        &  !mask of t-grid
                        llu(:,:),       &  !mask of u-grid (1 on boundary)
                        llv(:,:)           !mask of v-grid (1 on boundary)
 
+!grid for local output
+real(4), allocatable:: lu_local(:,:),        &  !mask of t-grid
+                       lcu_local(:,:),       &  !mask of u-grid (0 on boundary)
+                       lcv_local(:,:),       &  !mask of v-grid (0 on boundary)
+                       llu_local(:,:),       &  !mask of u-grid (1 on boundary)
+                       llv_local(:,:)           !mask of v-grid (1 on boundary)
+
 integer, allocatable:: lbasins(:,:)       !integer mask
 
 real(8), allocatable:: hhh(:,:),      &  !ocean depth on luh (h-points)

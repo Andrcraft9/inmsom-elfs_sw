@@ -44,6 +44,13 @@ subroutine model_grid_allocate
             llu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of u-grid (0 on boundary)
            llv(bnd_x1:bnd_x2,bnd_y1:bnd_y2) )                !mask of v-grid (0 on boundary)
     allocate   (lbasins(nx,ny))       !integer masks of regional basins
+
+    allocate(lu_local(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of t-grid
+            lcu_local(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of u-grid (0 on boundary)
+            lcv_local(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of v-grid (0 on boundary)
+            llu_local(bnd_x1:bnd_x2,bnd_y1:bnd_y2),             &  !mask of u-grid (0 on boundary)
+            llv_local(bnd_x1:bnd_x2,bnd_y1:bnd_y2) )               !mask of v-grid (0 on boundary)
+
     allocate   (  hhh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &  !ocean depth on luh (h-points)
                  hhhp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &  !ocean depth on luh (h-points) at previous step
                  hhhn(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &  !ocean depth on luh (h-points) at pre-previous step
@@ -78,7 +85,11 @@ subroutine model_grid_allocate
              geo_lat_h(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &    !geographical latitudes  of H-points
           rotvec_coeff(bnd_x1:bnd_x2,bnd_y1:bnd_y2, 4) )
 
-    lu=0.0; lu1=0.0; luu=0.0; luh=0.0; lcu=0.0; lcv=0.0; llu=0.0; llv=0.0; lbasins=0
+    lu=0.0; lu1=0.0; luu=0.0; luh=0.0; lcu=0.0; lcv=0.0; llu=0.0; llv=0.0 
+    lbasins=0
+    
+    lu_local=0.0; lcu_local=0.0; lcv_local=0.0; llu_local=0.0; llv_local=0.0;
+    
     hhh=0.0d0; hhhp=0.0d0; hhhn=0.0d0;
     hhq_rest=0.0d0
 
@@ -107,6 +118,8 @@ subroutine model_grid_deallocate
     deallocate(yv,xu,yt,xt,dyb,dxb,dyh,dxh,dy,dx,dyt,dxt,dz,hzt,zw,z,rlh_c,rlh_s)
     deallocate(hhvn,hhvp,hhv,hhun,hhup,hhu,hhqn,hhqp,hhq,hhhn,hhhp,hhh)
     deallocate(hhq_rest)
+
+    deallocate(llv_local,llu_local,lcv_local,lcu_local,lu_local)
 
     deallocate(lbasins)
     deallocate(llv,llu,lcv,lcu,luh,luu,lu1,lu)

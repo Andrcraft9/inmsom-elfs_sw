@@ -1,6 +1,6 @@
     0   :Atmospheric forcing (0 - no, 1 - yes)
-    0   :Bottom friction (0 - no, 1 - yes)
-    0   :Lateral 2nd order mix parametrization (0 - no, 1 - yes)
+    1   :Bottom friction (0 - no, 1 - yes)
+    1   :Lateral 2nd order mix parametrization (0 - no, 1 - yes)
     0   :Lateral 4nd order momentum mix parametrization (0 - no, 1 - yes)
     3   :Type of surface boundary conditions (1 - surface T&S and wind stress are set; 2 - T&S fluxes and wind stress are set; 3 - T&S fluxes and wind stress are computed)
     0   :normalize global mean salt balance (0 - no, 1 - normalize water flux, 2 - normalize salinity flux)
@@ -10,5 +10,6 @@
   1.0d+03    :lateral  vicosity(2nd order)[m**2/s]
   0.001d0    :lateral  vicosity(4th order)[undim]
   0.025      :Bottom friction coeff (Manning's roughness)
-mask4km.txt         :file with temperature mask(0-ocean,1-land)(a32)
-topo.dat            :file with bottom topography[m](a32)
+mask4km.txt        :file with temperature mask(0-ocean,1-land)(a32)
+topo.dat           :file with bottom topography[m](a32)
+NONE               :file with temperature mask for LOCAL area(0-ocean,1-land)(a32)

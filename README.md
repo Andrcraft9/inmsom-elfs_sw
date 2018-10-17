@@ -17,11 +17,14 @@ make inmsom
 
 5. Config phys_proc.par and ocean_run.par
 
-6. Run: 
+6. Run, for example: 
 ```
 
+export OMP_NUM_THREADS=1
 mpirun -n 4 inmsom
 ```
+
+7. See results with using GrADS
 
 Note:
 By default, model starts from some initial sea level (slf.dat in CP0 folder) with zero velocities. 

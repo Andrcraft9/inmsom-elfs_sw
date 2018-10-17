@@ -13,7 +13,8 @@ implicit none
 
 character(256)    t_mask_file,       &  !name of file with temperature point sea-land mask
        bottom_topography_file,       &  !name of file with bottom topography
-       help_string
+            t_mask_file_local,       &  !name of file with temperature point sea-land mask (LOCAL area)
+            help_string
 real(4) array4(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 integer  m, n, k, ierr
 real(8) tau
@@ -45,6 +46,10 @@ real(8) :: hx2, hy2
      read (90,'(a)') help_string  ! file with bottom topography'
      call get_first_lexeme(help_string ,bottom_topography_file  )
 
+     help_string =' '
+     read (90,'(a)') help_string   ! file with t-mask'
+     call get_first_lexeme(help_string ,t_mask_file_local   )
+
      close(90)
  endif
 
@@ -64,6 +69,7 @@ real(8) :: hx2, hy2
  
  call mpi_bcast(t_mask_file, 256, mpi_character, 0, cart_comm, ierr)
  call mpi_bcast(bottom_topography_file, 256, mpi_character, 0, cart_comm, ierr)
+ call mpi_bcast(t_mask_file_local, 256, mpi_character, 0, cart_comm, ierr)
 
  if (rank .eq. 0) then
      write(*,'(i7,a)') ksw_atmforc,  ' - Atmospheric forcing'
@@ -80,6 +86,7 @@ real(8) :: hx2, hy2
      write(*,'(e12.4,a)') nbfc,          ' - Bottom friction coeff (Mannings roughness)'
      write(*,'(a,a)')  ' file with T-point sea-land mask: ', t_mask_file(1:len_trim (t_mask_file))
      write(*,'(a,a)')  '     file with bottom topography: ', bottom_topography_file(1:len_trim (bottom_topography_file))
+     write(*,'(a,a)')  ' file with T-point sea-land mask for LOCAL area: ', t_mask_file_local(1:len_trim (t_mask_file_local))
  endif
 
 ! igrzts_surf  = min(IABS(ksw_ssbc),2) ! type of condition for T and S on sea surface
@@ -87,6 +94,9 @@ real(8) :: hx2, hy2
 
    ! area mask initialization
    call gridcon(t_mask_file)
+   if (t_mask_file_local /= 'NONE') then
+        call gridcon_local(t_mask_file_local)
+   endif
    !if (rank .eq. 0) print *, "--------------------END OF GRIDCON----------------------"
 
    ! define grid geographical coordinates, steps and coriolis parameters
@@ -95,8 +105,8 @@ real(8) :: hx2, hy2
 
    if (bottom_topography_file .eq. 'NONE') then
        if (rank .eq. 0) print *, 'NONE topography !'
-       hhq_rest = 3000.0d0
-       if (rank .eq. 0) print *, "!!! HHQ_REST = 3000 m, topo file was ingored !!!"
+       hhq_rest = 500.0d0
+       if (rank .eq. 0) print *, "!!! HHQ_REST = 500m, topo file was ingored !!!"
    else
        array4=0.0
        call prdstd(' ',bottom_topography_file,1,array4,lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)

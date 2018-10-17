@@ -16,7 +16,7 @@ module mpi_parallel_tools
                bnd_y2           !top    array boundary in y-direction
 
     integer :: rank, procs
-    integer :: cart_comm
+    integer :: cart_comm, local_output_comm
     integer, dimension(2) :: p_size, p_coord
     logical, dimension(2) :: period
 
@@ -30,11 +30,15 @@ module mpi_parallel_tools
 
     subroutine parallel_init()
         use main_basin_pars
+        
         implicit none
+        
+        include 'locout.fi'
 
         integer :: ierr, i
         integer :: locn
         integer :: count_threads, num_thread
+        integer :: colr
 
         call mpi_init(ierr)
 
@@ -94,6 +98,14 @@ module mpi_parallel_tools
 
         allocate(comput_domain(procs))
         comput_domain = 1
+
+        ! LOCAL OUTPUT COMM
+        if (rank == 0) print *, "Create output communicator for LOCAL area output only ..."
+        colr = 1
+        if (nx_end  < m1loc_local .or. nx_start > m2loc_local) colr = mpi_undefined
+        if (ny_end  < n1loc_local .or. ny_start > n2loc_local) colr = mpi_undefined
+        call mpi_comm_split(cart_comm, colr, rank, local_output_comm, ierr)
+        print *, rank, colr
 
     end subroutine
 
