@@ -96,6 +96,12 @@ real(8) :: hx2, hy2
    call gridcon(t_mask_file)
    if (t_mask_file_local /= 'NONE') then
         call gridcon_local(t_mask_file_local)
+   else
+        lu_local = lu
+        lcu_local = lcu
+        lcv_local = lcv
+        llu_local = llu
+        llv_local = llv
    endif
    !if (rank .eq. 0) print *, "--------------------END OF GRIDCON----------------------"
 
