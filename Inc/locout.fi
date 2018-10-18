@@ -26,9 +26,10 @@ integer, parameter:: uv_output=1,  &
 integer, parameter:: grid_shift=1                     !0 - output velocity at model grid, 1 - interpolation to T-grid
 
 ! Sea level output in points
-integer, parameter:: nloc_points = 2
-real*8 :: lon_loc_points(nloc_points), lat_loc_points(nloc_points)
-character*80 :: name_points(nloc_points)
-data name_points/    'Test1',   'Test2'  /
-data lon_loc_points/  32.0d0,   40.0d0   /
-data lat_loc_points/  43.0d0,   42.0d0   /
+integer, parameter:: nloc_points = 34
+real*8 :: lon_loc_points(34), lat_loc_points(34)
+character*80 :: name_points(34)
+data name_points/  'DART51426', 'DART52402', 'DART52406', 'DART55012', 'DART55042', 'DART52403', 'DART52402', 'DART52401', 'DART51407', 'M01', 'M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09', 'M10', 'M11', 'M12', 'M13', 'M14', 'M15', 'M16', 'M17', 'M18', 'M19', 'M20', 'M21', 'M22', 'M23', 'M24', 'M25'  /
+data lon_loc_points/  -168.385, 153.909, 164.029, 158.453, 161.841, 145.61, 154.039, 155.754, -156.54, 160.0, 160.0, 160.0, 160.0, 160.0, 170.0, 170.0, 170.0, 170.0, 170.0, 180.0, 180.0, 180.0, 180.0, 180.0, -170.0, -170.0, -170.0, -170.0, -170.0, -160.0, -160.0, -160.0, -160.0, -160.0  /
+data lat_loc_points/  -23.11, 11.929, -5.329, -15.664, -44.898, 4.06, 11.869, 19.261, 19.552, -40.0, -30.0, -20.0, -10.0, 0.0, -40.0, -30.0, -20.0, -10.0, 0.0, -40.0, -30.0, -20.0, -10.0, 0.0, -40.0, -30.0, -20.0, -10.0, 0.0, -40.0, -30.0, -20.0, -10.0, 0.0  /
+
