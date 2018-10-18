@@ -1,5 +1,6 @@
 ### Shallow water model, 2018. Version with explicit leap-frog scheme.
 ### High-Communication No-Extra Computation parallel algorithm.
+### Fiji problem
 
 ### Run guide:
 
