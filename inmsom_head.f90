@@ -207,8 +207,8 @@ num_step_max=int8(run_duration*nstep_per_day)
 
 if (key_write_local>0) then
   if (rank == 0) print *, "Output initial values..."
-  call parallel_point_output(path2ocp,  1_8)
-  call parallel_energy_output(path2ocp, 1_8)
+  call parallel_point_output(path2ocp,  0_8)
+  call parallel_energy_output(path2ocp, 0_8)
 
   call parallel_local_output(path2ocp,  &
                                     1,  &
