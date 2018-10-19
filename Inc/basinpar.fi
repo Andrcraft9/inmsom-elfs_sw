@@ -3,15 +3,15 @@
 !--------------------------------------------------------------------------------
 ! User parameters of area
 real(8), parameter:: time_smooth=0.05d0
-integer, parameter:: nx=289,   &     !number of total points in x-direction in base arrays
-                     ny=163,   &     !number of total points in y-direction in base arrays
-          periodicity_x=0,     &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
+integer, parameter:: nx=10804,   &     !number of total points in x-direction in base arrays
+                     ny=5404,    &     !number of total points in y-direction in base arrays
+          periodicity_x=1,     &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
           periodicity_y=0            !Periodicity on y-direction (0 - non-periodic, 1 - periodic)
 
-real(8), parameter:: rlon = 27.525d0,   &     !first calcutable t-point (m=mmm) on latitude  (in degrees) !-178.75d0
-                     rlat = 40.940d0,   &     !first calcutable t-point (n=nnn) on longitude (in degrees) !-89.00d0
-                     dxst = 0.05d0,     &     !longitude step (in degrees) in case of regular grid
-                     dyst = 0.04d0            !latitude  step (in degrees) in case of regular grid
+real(8), parameter:: rlon =   0.016666d0,  &     !first calcutable t-point (m=mmm) on latitude  (in degrees) !-178.75d0
+                     rlat = -89.983333d0,   &     !first calcutable t-point (n=nnn) on longitude (in degrees) !-89.00d0
+                     dxst = 0.03333333d0,     &     !longitude step (in degrees) in case of regular grid
+                     dyst = 0.03333333d0            !latitude  step (in degrees) in case of regular grid
 
 integer, parameter:: xgr_type=0,   &
                      ygr_type=0          !grid types: 0 - regular, 1 - levels
