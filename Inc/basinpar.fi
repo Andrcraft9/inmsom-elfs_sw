@@ -8,8 +8,8 @@ integer, parameter:: nx=10804,   &     !number of total points in x-direction in
           periodicity_x=1,     &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
           periodicity_y=0            !Periodicity on y-direction (0 - non-periodic, 1 - periodic)
 
-real(8), parameter:: rlon =   0.016666d0,  &     !first calcutable t-point (m=mmm) on latitude  (in degrees) !-178.75d0
-                     rlat = -89.983333d0,   &     !first calcutable t-point (n=nnn) on longitude (in degrees) !-89.00d0
+real(8), parameter:: rlon =   0.016666666d0,  &     !first calcutable t-point (m=mmm) on latitude  (in degrees) !-178.75d0
+                     rlat = -89.983333d0,     &     !first calcutable t-point (n=nnn) on longitude (in degrees) !-89.00d0
                      dxst = 0.03333333d0,     &     !longitude step (in degrees) in case of regular grid
                      dyst = 0.03333333d0            !latitude  step (in degrees) in case of regular grid
 
