@@ -35,7 +35,7 @@ subroutine parallel_check_point()
 end subroutine
 
 
-subroutine parallel_point_output(path2data, nstep)
+subroutine parallel_point_output(path2data, point_time)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
@@ -48,7 +48,7 @@ subroutine parallel_point_output(path2data, nstep)
 
     character fname*256
     character*(*) path2data
-    integer*8 :: nstep
+    real*8 :: point_time
     integer :: m, n, r, ierr, k
     real*8 :: lon, lat
 
@@ -65,7 +65,7 @@ subroutine parallel_point_output(path2data, nstep)
             if (rank .eq. r) then
                 call fulfname(fname, path2data, name_points(k), ierr)
                 open(40, file=fname, status='unknown', position='append')
-                write(40, *) nstep, ssh(m, n)
+                write(40, *) point_time, ssh(m, n)
                 close(40)
             endif
         enddo
@@ -74,7 +74,7 @@ subroutine parallel_point_output(path2data, nstep)
     return
 end subroutine parallel_point_output
 
-subroutine parallel_energy_output(path2data, nstep)
+subroutine parallel_energy_output(path2data, point_time)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
@@ -87,7 +87,7 @@ subroutine parallel_energy_output(path2data, nstep)
 
     character fname*256
     character*(*) path2data
-    integer*8 :: nstep
+    real*8 :: point_time
     integer :: m, n, ierr
     real*8 :: kinetic_e, potential_e
     real*8 :: buf_k, buf_p
@@ -116,7 +116,7 @@ subroutine parallel_energy_output(path2data, nstep)
         if (rank .eq. 0) then
             call fulfname(fname, path2data, 'kinetic_potential_energy', ierr)
             open(40, file=fname, status='unknown', position='append')
-            write(40, *) nstep, kinetic_e, potential_e
+            write(40, *) point_time, kinetic_e, potential_e
             close(40)
         endif
     endif
@@ -145,7 +145,7 @@ subroutine parallel_energy_output(path2data, nstep)
         if (rank .eq. 0) then
             call fulfname(fname, path2data, 'kinetic_potential_energy_local', ierr)
             open(40, file=fname, status='unknown', position='append')
-            write(40, *) nstep, kinetic_e, potential_e
+            write(40, *) point_time, kinetic_e, potential_e
             close(40)
         endif
     endif

@@ -59,7 +59,7 @@ read(comments( 3),*) run_duration        !Duration of the run in days
 read(comments( 4),*) num_step            !Number of time step during the run
 read(comments( 5),*) init_year           !Initial year number for the run
 read(comments( 6),*) loc_data_wr_period  !Period for writing local instantaneous data (minutes)
-read(comments( 7),*) glob_data_wr_period !Period for writing global time average data (minutes)
+read(comments( 7),*) points_data_wr_period !Period for writing points data (minutes)
 
 call get_first_lexeme(comments(8), path2ocp    )  !path to checkpoints(results)
 ! Files with data on oceanic grid:
@@ -96,13 +96,11 @@ else
  key_write_local=0
 endif
 
-if(glob_data_wr_period>0.0001) then
- key_write_global=1
+if(points_data_wr_period>0.0001) then
+ key_write_points=1
 else
- key_write_global=0
+ key_write_points=0
 endif
-
-time_write_global=0
 
 ! computing some time parameters
 time_step_m = time_step/60.00d0
@@ -121,28 +119,10 @@ year_loc=init_year
  hour_loc=mod(int(loc_data_wr_period/60.0),24)
   min_loc=mod(int(loc_data_wr_period),60)
 
-! for global output
-if(abs(glob_data_wr_period)>1440.5) then
- monthly_output=1
- glob_data_tstep = 86400.0*30.0
-
-year_glob=init_year
- mon_glob=1
- day_glob=15
-hour_glob=0
- min_glob=0
-else
- monthly_output=0
- glob_data_wr_period = max(min(abs(glob_data_wr_period),1440.0),sngl(time_step_m))
- glob_data_wr_period_step = nint(glob_data_wr_period/time_step_m)   !period in steps to write to write global data
- glob_data_tstep = glob_data_wr_period * 60.0                        !Time step in seconds for writing global data
-
- year_glob=init_year
-  mon_glob=1
-  day_glob=1
- hour_glob=mod(int(glob_data_wr_period/2.0/60.0),24)
-  min_glob=mod(int(glob_data_wr_period/2.0),60)
-endif
+! for points output
+points_data_wr_period = max(min(points_data_wr_period, 1440.0), sngl(time_step_m)) !The maximum local output period is 1 day, minimum is time step
+points_data_wr_period_step = nint(points_data_wr_period / time_step_m)   !period in steps to write to write local data
+points_data_tstep = points_data_wr_period * 60.0                      !Time step in seconds for writing local data
 
 ! Allocating main arrays
 call model_grid_allocate
@@ -206,10 +186,7 @@ call model_time_def(   num_step,            &     !step counter,            inpu
 num_step_max=int8(run_duration*nstep_per_day)
 
 if (key_write_local>0) then
-  if (rank == 0) print *, "Output initial values..."
-  call parallel_point_output(path2ocp,  0_8)
-  call parallel_energy_output(path2ocp, 0_8)
-
+  if (rank == 0) print *, "Output initial local data..."
   call parallel_local_output(path2ocp,  &
                                     1,  &
                              year_loc,  &
@@ -231,6 +208,12 @@ if (key_write_local>0) then
                         m_month,          &    !model elapsed month counter starting from zero
                         m_year )               !year counter            ,output
 
+endif
+
+if (key_write_points > 0 ) then
+  if (rank == 0) print *, "Output initial points data..."
+  call parallel_point_output(path2ocp,  0.0d0)
+  call parallel_energy_output(path2ocp, 0.0d0)
 endif
 
 if (rank .eq. 0) then
@@ -288,13 +271,10 @@ do while(num_step<num_step_max)
 !Write local data
 
 if( key_write_local>0) then
-
  if(mod(num_step,loc_data_wr_period_step)==0) then
 
   nrec_loc=num_step/loc_data_wr_period_step
 
-  call parallel_point_output(path2ocp, num_step)
-  call parallel_energy_output(path2ocp, num_step)
   !call start_timer(t_local)
   call  parallel_local_output(path2ocp,  &
                           nrec_loc + 1,  &
@@ -320,7 +300,15 @@ if( key_write_local>0) then
                         m_year )               !year counter            ,output
 
  endif
+endif
 
+if (key_write_points > 0) then
+  if (mod(num_step, points_data_wr_period_step)==0) then
+ 
+    call parallel_point_output(path2ocp, num_step*time_step)
+    call parallel_energy_output(path2ocp, num_step*time_step)
+                     
+  endif
 endif
 
 enddo

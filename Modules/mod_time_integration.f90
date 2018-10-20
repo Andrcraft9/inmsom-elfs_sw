@@ -11,21 +11,19 @@ integer    init_year           !Initial year number for the run
  
 real(4) run_duration,         &  !Duration of the run in days
         loc_data_tstep,       &  !Time step for writing  local data
-       glob_data_tstep,       &  !Time step for writing global data
+     points_data_tstep,       &  !Time step for writing points data
         loc_data_wr_period,   &  !Period for writing local instantaneous data (in minutes; If >1440, then assumed 1440)
                                  !If <=0 then no local output is done
-        glob_data_wr_period      !Period for writing global time-mean data and checkpoints (in hours; If >1440, then assumed 1 month)
-                                 !If <0 then only checkpoints are written
-integer   loc_data_wr_period_step,       &   !period in steps to write to write local data
-          glob_data_wr_period_step,      &   !period in steps to write to write global data
-          loc_data_nstep,                &   !Number of record to write local data
-          glob_data_nstep,               &   !Number of record to write global data
-          monthly_output,                &   !Key for mohthly mean output (0 - no, 1 - yes)
+        points_data_wr_period    !Period for writing points data (in minutes; If >1440, then assumed 1440)
+                                 !If <=0 then no local output is done
+integer   loc_data_wr_period_step,        &   !period in steps to write to write local data
+          points_data_wr_period_step,     &   !period in steps to write to write global data
+          loc_data_nstep,                 &   !Number of record to write local data
+          points_data_nstep,              &   !Number of record to write global data
           nofcom                             !number of lines in "ocean_run.par" (calculated)
 
 integer key_write_local,      &      !Key for write local  data(1 - yes, 0 - no)
-        key_write_global,     &      !Key for write global data(1 - yes, 0 - no)
-       time_write_global
+        key_write_points             !Key for write points data(1 - yes, 0 - no)
 
 real(8) time_step,            &  !Model time step (in seconds)
         time_step_m,          &  !Model time step (in minutes)
@@ -121,13 +119,6 @@ integer year_loc,       &     !variables for writing local data
         hour_loc,       &
          min_loc,       &
         nrec_loc
-
-integer year_glob,      &     !variables for writing global data
-         mon_glob,      &
-         day_glob,      &
-        hour_glob,      &
-         min_glob,      &
-        nrec_glob
 
 endmodule time_integration
 !------------------------------end module of time integration--------------------------
