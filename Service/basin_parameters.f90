@@ -943,7 +943,7 @@ endif
 
       alpha_scale=2./dsqrt(a**2+b**2)
 
-      write(*,*) 'alpha-scale is ', alpha_scale
+      !write(*,*) 'alpha-scale is ', alpha_scale
 
 !$omp parallel do private(m,n,s,t,num1,num2,numa,numb,denom1,  &
 !$omp      a,b,cos_lon,sin_lon,cos_lat,sin_lat, &
