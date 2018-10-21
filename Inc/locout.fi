@@ -7,10 +7,10 @@ integer, parameter:: m1loc=mmm,     &                 !left  point number for lo
                      ny_loc=n2loc-n1loc+1             !local array dimension on Y
 
 ! Local area for output
-integer, parameter:: m1loc_local=50,      &                   !left  point number for local output
-                     m2loc_local=250,     &                   !right point number for local output
-                     n1loc_local=100,     &                   !lower point number for local output
-                     n2loc_local=nn ,     &                   !upper point number for local output
+integer, parameter:: m1loc_local=4500-2,     &                   !left  point number for local output
+                     m2loc_local=6300+2,     &                   !right point number for local output
+                     n1loc_local=1200-2,     &                   !lower point number for local output
+                     n2loc_local=3000+2,     &                   !upper point number for local output
                      nx_loc_local=m2loc_local - m1loc_local + 1,      &     !local array dimension on X
                      ny_loc_local=n2loc_local - n1loc_local + 1             !local array dimension on Y
 
