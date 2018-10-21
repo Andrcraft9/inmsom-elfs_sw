@@ -105,7 +105,7 @@ module mpi_parallel_tools
         if (nx_end  < m1loc_local .or. nx_start > m2loc_local) colr = mpi_undefined
         if (ny_end  < n1loc_local .or. ny_start > n2loc_local) colr = mpi_undefined
         call mpi_comm_split(cart_comm, colr, rank, local_output_comm, ierr)
-        print *, rank, colr
+        !print *, rank, colr
 
     end subroutine
 
