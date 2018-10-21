@@ -1,5 +1,6 @@
-1    : Block decomposition: 0 - unifrom, no load balancing; 1 - load balancing with using Hilbert curve; 2 - decomposition from file
-4    : blocks per one proc in x-direction
-4    : blocks per one proc in y-direction
-1    : debug parameter
-0    : mode: 0 - default run, 1 - stop after decomposition
+0       : Block decomposition: 0 - unifrom, no load balancing; 1 - load balancing with using Hilbert curve; 2 - decomposition from file
+dd4     : File with decomposition (optional). Set bnx, bny, pnx, pny like in this file otherwise program stops with error
+4       : blocks per one proc in x-direction
+4       : blocks per one proc in y-direction
+2       : debug parameter
+1       : mode: 0 - default run, 1 - stop after decomposition

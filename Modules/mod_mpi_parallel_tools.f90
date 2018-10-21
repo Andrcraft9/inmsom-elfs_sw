@@ -7,6 +7,7 @@ module mpi_parallel_tools
     include "omp_lib.h"
 
     integer :: mod_decomposition
+    character(128) :: file_decomposition
     integer :: bppnx, bppny
     integer :: parallel_dbg
     integer :: parallel_mod
@@ -88,30 +89,34 @@ contains
     end subroutine
 
     subroutine parallel_init()
+        use rwpar_routes
         implicit none
 
         integer :: count_threads, num_thread
         integer :: ierr, rank_cart
+        integer :: nofcom
+        character(128) :: comments(128)
 
         call mpi_init(ierr)
         call mpi_comm_rank(mpi_comm_world, rank, ierr)
         if (rank .eq. 0) then
             print *, 'Read parallel.par...'
+            call readpar('parallel.par', comments, nofcom)
+            read(comments(1),*) mod_decomposition
+            call get_first_lexeme(comments(2), file_decomposition)
+            read(comments(3),*) bppnx
+            read(comments(4),*) bppny
+            read(comments(5),*) parallel_dbg
+            read(comments(6),*) parallel_mod
 
-            open(90, file='parallel.par', status='old')
-            read(90, *) mod_decomposition
             print *, 'mod_decomposition=', mod_decomposition
-            read(90, *) bppnx
+            print *, 'decomposition file:', file_decomposition
             print *, 'bppnx=', bppnx
-            read(90, *) bppny
             print *, 'bppny=', bppny
-            read(90, *) parallel_dbg
             print *, 'parallel_dbg=', parallel_dbg
-            read(90, *) parallel_mod
             print *, 'parallel_mod=', parallel_mod
-
-            close(90)
         endif
+
         call mpi_bcast(mod_decomposition, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppnx, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppny, 1, mpi_integer, 0, mpi_comm_world, ierr)
@@ -330,18 +335,25 @@ contains
         elseif (mod_decomposition == 1) then
             if (rank == 0) print *, "Load-Balancing blocks decomposition with using Hilbert curve!..."
             call parallel_hilbert_curve_decomposition(bglob_proc, bglob_weight, bnx, bny)
+        elseif (mod_decomposition == 1) then
+            if (rank == 0) print *, "Decomposition from file!..."
+            call parallel_file_decomposition(bglob_proc, bglob_weight, bnx, bny)
         endif
 
         ! Debug Output
         if (parallel_dbg >= 2) then
             if (rank == 0) then
+                print *,  'bnx, bny: ', bnx, bny
+                print *,  'pnx, pny: ', p_size(1), p_size(2)
                 print *,  'm,   n,   bglob_proc(m, n),   bglob_weight(m,n)'
                 do m = 1, bnx
                     do n = 1, bny
                         print *, m, n, bglob_proc(m, n), bglob_weight(m, n)
                     enddo 
                 enddo
+                call flush()
             endif
+            call mpi_barrier(cart_comm, ierr)
         endif
 
         ! Compute blocks per proc
@@ -512,6 +524,43 @@ contains
 
         if (parallel_dbg >= 3) then
             call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from load-balanced hilbert curve decomposition')
+        endif
+
+    end subroutine
+
+    subroutine parallel_file_decomposition(bgproc, bgweight, bnx, bny)
+        implicit none
+
+        integer :: bnx, bny
+        integer :: bgproc(bnx, bny)
+        real*8 :: bgweight(bnx, bny)
+        integer :: file_bnx, file_bny, file_pnx, file_pny
+        integer :: k, m, n, bgp, ierr
+        real*8 :: bgw
+       
+        open(101, file=file_decomposition)
+        read(101,*) file_bnx, file_bny, file_pnx, file_pny
+        if (file_bnx /= bnx .or. file_bny /= bny) then
+            if (rank == 0) print *, 'incorrect bnx or bny in decomposition file!'
+            call mpi_abort(cart_comm, 1, ierr)
+            stop    
+        endif
+        if (file_pnx /= p_size(1) .or. file_pny /= p_size(2)) then
+            if (rank == 0) print *, 'incorrect pnx or pny in decomposition file!'
+            call mpi_abort(cart_comm, 1, ierr)
+            stop    
+        endif
+        do k = 1, bnx*bny
+            read(101,*) m, n, bgp, bgw
+            bgproc(m, n) = bgp
+            bgweight(m, n) = bgw
+        enddo
+        close(101)
+        call mpi_bcast(bgproc, bnx*bny, mpi_integer, 0, cart_comm, ierr)
+        call mpi_bcast(bgweight, bnx*bny, mpi_real8, 0, cart_comm, ierr)
+
+        if (parallel_dbg >= 3) then
+            call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from file decomposition')
         endif
 
     end subroutine

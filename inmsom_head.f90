@@ -55,62 +55,42 @@ program INMSOM
     read(comments( 4),*) num_step            !Number of time step during the run
     read(comments( 5),*) init_year           !Initial year number for the run
     read(comments( 6),*) loc_data_wr_period  !Period for writing local instantaneous data (minutes)
-    read(comments( 7),*) glob_data_wr_period !Period for writing global time average data (minutes)
+    read(comments( 7),*) points_data_wr_period !Period for writing points data (minutes)
     call get_first_lexeme(comments(8), path2ocp    )  !path to checkpoints(results)
-    
+
     if(loc_data_wr_period>0.0001) then
         key_write_local=1
     else
         key_write_local=0
     endif
 
-    if(glob_data_wr_period>0.0001) then
-        key_write_global=1
+    if(points_data_wr_period>0.0001) then
+        key_write_points=1
     else
-        key_write_global=0
+        key_write_points=0
     endif
-
-    time_write_global=0
 
     ! computing some time parameters
     time_step_m = time_step/60.00d0
     time_step_h = time_step/3600.00d0
     time_step_d = time_step/86400.00d0
-    nstep_per_day=nint(86400.0d0/time_step)       !NUMBER OF STEP PER DAY
+    nstep_per_day = nint(86400.0d0/time_step)       !NUMBER OF STEP PER DAY
 
     ! for local output
     loc_data_wr_period = max(min(loc_data_wr_period,1440.0),sngl(time_step_m)) !The maximum local output period is 1 day, minimum is time step
     loc_data_wr_period_step = nint(loc_data_wr_period/time_step_m)   !period in steps to write to write local data
     loc_data_tstep = loc_data_wr_period * 60.0                      !Time step in seconds for writing local data
 
-    year_loc=init_year
-    mon_loc=1
-    day_loc=int(loc_data_wr_period/1440.0)+1
-    hour_loc=mod(int(loc_data_wr_period/60.0),24)
-    min_loc=mod(int(loc_data_wr_period),60)
+    year_loc = init_year
+    mon_loc = 1
+    day_loc = int(loc_data_wr_period/1440.0)+1
+    hour_loc = mod(int(loc_data_wr_period/60.0),24)
+    min_loc = mod(int(loc_data_wr_period),60)
 
-    ! for global output
-    if(abs(glob_data_wr_period)>1440.5) then
-        monthly_output=1
-        glob_data_tstep = 86400.0*30.0
-
-        year_glob=init_year
-        mon_glob=1
-        day_glob=15
-        hour_glob=0
-        min_glob=0
-    else
-        monthly_output=0
-        glob_data_wr_period = max(min(abs(glob_data_wr_period),1440.0),sngl(time_step_m))
-        glob_data_wr_period_step = nint(glob_data_wr_period/time_step_m)   !period in steps to write to write global data
-        glob_data_tstep = glob_data_wr_period * 60.0                        !Time step in seconds for writing global data
-
-        year_glob=init_year
-        mon_glob=1
-        day_glob=1
-        hour_glob=mod(int(glob_data_wr_period/2.0/60.0),24)
-        min_glob=mod(int(glob_data_wr_period/2.0),60)
-    endif
+    ! for points output
+    points_data_wr_period = max(min(points_data_wr_period, 1440.0), sngl(time_step_m)) !The maximum local output period is 1 day, minimum is time step
+    points_data_wr_period_step = nint(points_data_wr_period / time_step_m)   !period in steps to write to write local data
+    points_data_tstep = points_data_wr_period * 60.0                      !Time step in seconds for writing local data
 
     ! Initializing ocean model parameters
     call ocean_model_parameters(time_step)
@@ -169,6 +149,16 @@ program INMSOM
         write(*,*)'=================================================================='
     endif
 
+    if (key_write_local>0) then
+        !if (rank == 0) print *, "Output initial local data..."  
+    endif
+      
+    if (key_write_points > 0 ) then
+        if (rank == 0) print *, "Output initial points data..."
+        call parallel_point_output(path2ocp,  0.0d0)
+        call parallel_energy_output(path2ocp, 0.0d0)
+    endif
+
     call init_times
     call start_timer(t_global)
     do while(num_step<num_step_max)
@@ -183,50 +173,48 @@ program INMSOM
         !moving to the next time step
         num_step=num_step+1
         key_time_print=0
-        call model_time_def(   num_step,           &     !step counter,            input
-            time_step,           &    !time step in seconds,    input
-            ndays_in_4yr,        &    !integer day distribution in 4-years (49 months)
-            seconds_of_day,      &    !current seconds in day  ,output
-            m_sec_of_min,        &    !second counter in minute,output
-            m_min_of_hour,       &    !minute counter in hour  ,output
-            m_hour_of_day,       &    !hour counter in day     ,output
-            m_day_of_month,      &    !day counter in month    ,output
-            m_day_of_year,       &    !day counter in year     ,output
-            m_day_of_4yr,        &    !day counter in 4-years  ,output
-            m_month_of_year,     &    !mon counter in year     ,output
-            m_month_of_4yr,      &    !mon counter in 4-years  ,output
-            m_year_of_4yr,       &    !year counter in 4yrs    ,output
-            m_day,               &    !model elapsed day counter starting from zero
-            m_month,             &    !model elapsed month counter starting from zero
-            m_year,              &    !year counter            ,output
-            m_4yr,               &    !counter of 4-yr groups  ,output
-            m_time_changed,      &    !change indicator of time,output
-            key_time_print,      &    !key of printing time:0-not,1-print
-            init_year)                !initial real-time year
+        call model_time_def(num_step,            &    !step counter,            input
+                            time_step,           &    !time step in seconds,    input
+                            ndays_in_4yr,        &    !integer day distribution in 4-years (49 months)
+                            seconds_of_day,      &    !current seconds in day  ,output
+                            m_sec_of_min,        &    !second counter in minute,output
+                            m_min_of_hour,       &    !minute counter in hour  ,output
+                            m_hour_of_day,       &    !hour counter in day     ,output
+                            m_day_of_month,      &    !day counter in month    ,output
+                            m_day_of_year,       &    !day counter in year     ,output
+                            m_day_of_4yr,        &    !day counter in 4-years  ,output
+                            m_month_of_year,     &    !mon counter in year     ,output
+                            m_month_of_4yr,      &    !mon counter in 4-years  ,output
+                            m_year_of_4yr,       &    !year counter in 4yrs    ,output
+                            m_day,               &    !model elapsed day counter starting from zero
+                            m_month,             &    !model elapsed month counter starting from zero
+                            m_year,              &    !year counter            ,output
+                            m_4yr,               &    !counter of 4-yr groups  ,output
+                            m_time_changed,      &    !change indicator of time,output
+                            key_time_print,      &    !key of printing time:0-not,1-print
+                            init_year)                !initial real-time year
 
         !Write local data
-
-        if( key_write_local>0) then
-
-            if(mod(num_step,loc_data_wr_period_step)==0) then
-
-                nrec_loc=num_step/loc_data_wr_period_step
-
-                call parallel_point_output(path2ocp, num_step)
-                
+        if (key_write_local>0) then
+            !nrec_loc=num_step/loc_data_wr_period_step
+        endif
+        !Write points data
+        if (key_write_points>0) then
+            if (mod(num_step, points_data_wr_period_step) == 0) then
+                call parallel_point_output(path2ocp, num_step*time_step)
+                call parallel_energy_output(path2ocp, num_step*time_step)
                 call model_time_print(num_step,         &
-                    m_sec_of_min,     &    !second counter in minute,output
-                    m_min_of_hour,    &    !minute counter in hour  ,output
-                    m_hour_of_day,    &    !hour counter in day     ,output
-                    m_day_of_month,   &    !day counter in month    ,output
-                    m_day_of_year,    &    !day counter in year     ,output
-                    m_day_of_4yr,     &    !day counter in 4-years  ,output
-                    m_month_of_year,  &    !mon counter in year     ,output
-                    m_month,          &    !model elapsed month counter starting from zero
-                    m_year )               !year counter            ,output
+                                      m_sec_of_min,     &    !second counter in minute,output
+                                      m_min_of_hour,    &    !minute counter in hour  ,output
+                                      m_hour_of_day,    &    !hour counter in day     ,output
+                                      m_day_of_month,   &    !day counter in month    ,output
+                                      m_day_of_year,    &    !day counter in year     ,output
+                                      m_day_of_4yr,     &    !day counter in 4-years  ,output
+                                      m_month_of_year,  &    !mon counter in year     ,output
+                                      m_month,          &    !model elapsed month counter starting from zero
+                                      m_year )               !year counter            ,output
 
             endif
-
         endif
 
     enddo

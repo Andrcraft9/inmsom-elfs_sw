@@ -104,7 +104,7 @@ subroutine parallel_check_point()
 end subroutine
 
 
-subroutine parallel_point_output(path2data, nstep)
+subroutine parallel_point_output(path2data, point_time)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
@@ -116,7 +116,7 @@ subroutine parallel_point_output(path2data, nstep)
 
     character fname*256
     character*(*) path2data
-    integer*8 :: nstep
+    real*8 :: point_time
     integer :: k, m, n, ierr
     integer :: rb(2)
     real*8 :: lon, lat
@@ -134,7 +134,7 @@ subroutine parallel_point_output(path2data, nstep)
             if (rank .eq. rb(1)) then
                 call fulfname(fname, path2data, name_points(k), ierr)
                 open(40, file=fname, status='unknown', position='append')
-                write(40, *) nstep, ssh(rb(2))%vals(m, n)
+                write(40, *) point_time, ssh(rb(2))%vals(m, n)
                 close(40)
             endif
         enddo
@@ -143,5 +143,56 @@ subroutine parallel_point_output(path2data, nstep)
     return
 end subroutine parallel_point_output
 
+subroutine parallel_energy_output(path2data, point_time)
+    use main_basin_pars
+    use mpi_parallel_tools
+    use basin_grid
+    use ocean_variables
+    use iodata_routes
+
+    implicit none
+    include 'locout.fi'
+
+    character fname*256
+    character*(*) path2data
+    real*8 :: point_time
+    integer :: k, m, n, ierr
+    real*8 :: kinetic_e, potential_e
+    real*8 :: buf_k, buf_p
+
+    if (energy_output > 0) then
+        ! TotalEnergy = 0.5 rho dx dy Sum[h_u u**2 + h_v v**2 + g ssh**2]
+        kinetic_e = 0.0d0; potential_e = 0.0d0
+        do k = 1, bcount
+            call set_block_boundary(k)
+            do n=ny_start,ny_end
+                do m=nx_start,nx_end
+                    if (lcu(k)%vals(m,n)>0.5) then
+                        kinetic_e = kinetic_e + 0.5d0*RefDen*dxt(k)%vals(m,n)*dyh(k)%vals(m,n)*hhu(k)%vals(m,n)*(ubrtr(k)%vals(m,n)**2)
+                    endif
+                    if (lcv(k)%vals(m,n)>0.5) then
+                        kinetic_e = kinetic_e + 0.5d0*RefDen*dxh(k)%vals(m,n)*dyt(k)%vals(m,n)*hhv(k)%vals(m,n)*(vbrtr(k)%vals(m,n)**2)
+                    endif
+
+                    if (lu(k)%vals(m,n)>0.5) then
+                        potential_e = potential_e + 0.5d0*RefDen*dx(k)%vals(m,n)*dy(k)%vals(m,n)*FreeFallAcc*(ssh(k)%vals(m,n)**2)
+                    endif
+                enddo
+            enddo
+        enddo
+        buf_k = kinetic_e; buf_p = potential_e
+        call mpi_allreduce(buf_k, kinetic_e, 1, mpi_real8, mpi_sum, cart_comm, ierr)
+        call mpi_allreduce(buf_p, potential_e, 1, mpi_real8, mpi_sum, cart_comm, ierr)
+
+        if (rank .eq. 0) then
+            call fulfname(fname, path2data, 'kinetic_potential_energy', ierr)
+            open(40, file=fname, status='unknown', position='append')
+            write(40, *) point_time, kinetic_e, potential_e
+            close(40)
+        endif
+    endif
+    
+    return
+end subroutine
 
 endmodule output_routes
