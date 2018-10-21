@@ -135,6 +135,7 @@ subroutine uv_trans( u, v, vort,    &
 use main_basin_pars
 use mpi_parallel_tools
 use basin_grid
+use ocalg_routes
 implicit none
 
  integer nlev
@@ -318,6 +319,7 @@ use main_basin_pars
 use mpi_parallel_tools
 use basin_grid
 use mixing_routes
+use ocalg_routes
 implicit none
 integer nlev
 real(8) muh_p, muh_m

@@ -9,11 +9,11 @@ SRCCONTROL =	\
 	Control/output.f90   
 
 SRCSERVICE =	    \
+	Service/oc_algorithms.f90         \
 	Service/atm2oc_interpol.f90       \
 	Service/basin_parameters.f90      \
 	Service/grid_construction.f90     \
 	Service/input_output_data.f90     \
-	Service/oc_algorithms.f90         \
 	Service/read_write_parameters.f90 \
 	Service/rw_ctl_file.f90           \
 	Service/bc_time_interpol.f90      \

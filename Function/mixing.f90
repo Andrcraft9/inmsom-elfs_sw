@@ -7,6 +7,7 @@ subroutine stress_components(u,v,str_t,str_s,nlev)
  use main_basin_pars
  use mpi_parallel_tools
  use basin_grid
+ use ocalg_routes
  implicit none
 
  integer nlev

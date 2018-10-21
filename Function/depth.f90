@@ -11,6 +11,7 @@ subroutine hh_init(hq, hqp, hqn,    &
  use main_basin_pars
  use mpi_parallel_tools
  use basin_grid
+ use ocalg_routes
  implicit none
 
  real(8) hq(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hqp(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hqn(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &
@@ -114,6 +115,7 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
  use main_basin_pars
  use mpi_parallel_tools
  use basin_grid
+ use ocalg_routes
  implicit none
 
  real(8) hqn(bnd_x1:bnd_x2, bnd_y1:bnd_y2), hun(bnd_x1:bnd_x2, bnd_y1:bnd_y2),    &

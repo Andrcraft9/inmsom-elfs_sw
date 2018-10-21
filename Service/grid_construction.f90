@@ -10,6 +10,7 @@ use main_basin_pars
 use mpi_parallel_tools
 use basin_grid
 use rec_length
+use ocalg_routes
 implicit none
 ! subroutin for construction pass boundary, velosity and bottom masks
 ! using temperature mask in diogin standart
@@ -149,6 +150,7 @@ subroutine gridcon_local(ftemask)
   use mpi_parallel_tools
   use basin_grid
   use rec_length
+  use ocalg_routes
   implicit none
   ! subroutin for construction pass boundary, velosity and bottom masks
   ! using temperature mask in diogin standart
