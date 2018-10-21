@@ -275,7 +275,7 @@ if( key_write_local>0) then
 
   nrec_loc=num_step/loc_data_wr_period_step
 
-  !call start_timer(t_local)
+  call start_timer(t_local)
   call  parallel_local_output(path2ocp,  &
                           nrec_loc + 1,  &
                               year_loc,  &
@@ -285,8 +285,8 @@ if( key_write_local>0) then
                                min_loc,  &
                         loc_data_tstep,  &
                                yr_type  )
-  !call end_timer(t_local)
-  !time_output = time_output + t_local
+  call end_timer(t_local)
+  time_output = time_output + t_local
                     
   call model_time_print(num_step,         &
                         m_sec_of_min,     &    !second counter in minute,output
