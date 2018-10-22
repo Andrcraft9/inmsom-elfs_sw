@@ -1,5 +1,8 @@
 include Makefile.inc
 
+SRCFIRSTSERVICE =	     \
+	Service/read_write_parameters.f90
+
 SRCCONTROL =	\
 	Control/dyncall.f90      \
 	Control/init_arrays.f90  \
@@ -10,7 +13,6 @@ SRCSERVICE =	    \
     Service/grid_construction.f90     \
 	Service/basin_parameters.f90      \
 	Service/input_output_data.f90     \
-	Service/read_write_parameters.f90 \
 	Service/rw_ctl_file.f90           \
 	Service/time_tools.f90
 
@@ -33,6 +35,6 @@ all: inmsom clean
 
 inmsom:
 #order is important
-	$(FC) -o inmsom $(FCFLAGS) $(SRCMODULES) $(SRCSERVICE) $(SRCFUNCTION) $(SRCCONTROL) inmsom_head.f90	
+	$(FC) -o inmsom $(FCFLAGS) $(SRCFIRSTSERVICE) $(SRCMODULES) $(SRCSERVICE) $(SRCFUNCTION) $(SRCCONTROL) inmsom_head.f90	
 clean:
 	$(RM) *.o *.mod

@@ -335,9 +335,13 @@ contains
         elseif (mod_decomposition == 1) then
             if (rank == 0) print *, "Load-Balancing blocks decomposition with using Hilbert curve!..."
             call parallel_hilbert_curve_decomposition(bglob_proc, bglob_weight, bnx, bny)
-        elseif (mod_decomposition == 1) then
+        elseif (mod_decomposition == 2) then
             if (rank == 0) print *, "Decomposition from file!..."
             call parallel_file_decomposition(bglob_proc, bglob_weight, bnx, bny)
+        else
+            if (rank == 0) print *, "Unknown mode!"
+            call mpi_abort(cart_comm, 1, ierr)
+            stop   
         endif
 
         ! Debug Output
@@ -538,24 +542,27 @@ contains
         integer :: k, m, n, bgp, ierr
         real*8 :: bgw
        
-        open(101, file=file_decomposition)
-        read(101,*) file_bnx, file_bny, file_pnx, file_pny
-        if (file_bnx /= bnx .or. file_bny /= bny) then
-            if (rank == 0) print *, 'incorrect bnx or bny in decomposition file!'
-            call mpi_abort(cart_comm, 1, ierr)
-            stop    
+        if (rank == 0) then 
+            open(90, file=file_decomposition, status='old')
+            read(90,*) file_bnx, file_bny, file_pnx, file_pny
+
+            if (file_bnx /= bnx .or. file_bny /= bny) then
+                if (rank == 0) print *, 'incorrect bnx or bny in decomposition file!'
+                call mpi_abort(cart_comm, 1, ierr)
+                stop    
+            endif
+            if (file_pnx /= p_size(1) .or. file_pny /= p_size(2)) then
+                if (rank == 0) print *, 'incorrect pnx or pny in decomposition file!'
+                call mpi_abort(cart_comm, 1, ierr)
+                stop    
+            endif
+            do k = 1, bnx*bny
+                read(90,*) m, n, bgp, bgw
+                bgproc(m, n) = bgp
+                bgweight(m, n) = bgw
+            enddo
+            close(90)
         endif
-        if (file_pnx /= p_size(1) .or. file_pny /= p_size(2)) then
-            if (rank == 0) print *, 'incorrect pnx or pny in decomposition file!'
-            call mpi_abort(cart_comm, 1, ierr)
-            stop    
-        endif
-        do k = 1, bnx*bny
-            read(101,*) m, n, bgp, bgw
-            bgproc(m, n) = bgp
-            bgweight(m, n) = bgw
-        enddo
-        close(101)
         call mpi_bcast(bgproc, bnx*bny, mpi_integer, 0, cart_comm, ierr)
         call mpi_bcast(bgweight, bnx*bny, mpi_real8, 0, cart_comm, ierr)
 

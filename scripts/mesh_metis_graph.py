@@ -83,7 +83,10 @@ if ( __name__ == '__main__' ):
         for i in xrange:
             for j in yrange:
                 node = j + (i - 1)*by
-                print(i, j, part[node-1])
+                if data[i, j] == 0:
+                    print(i, j, -1, data[i, j])
+                else:
+                    print(i, j, part[node-1], data[i, j])
     else:
         # Print mesh as graph (METIS format)
         mesh2graph(data, bx, by)
