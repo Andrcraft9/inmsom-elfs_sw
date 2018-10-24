@@ -186,6 +186,10 @@ module output_routes
     if (rank .eq. 0) write(*,*) 'Writing local output, record number ', nrec
     
     if(nrec==1) then
+     if (rank == 0) then 
+         print *, "first x-value: ",  xt(m1loc), "last x-value",  xt(m2loc)
+         print *, "first y-value: ",  yt(n1loc), "last y-value",  yt(n2loc)
+     endif
     !writing HHQ
      ierr=0
      array4_2d=sngl(hhq_rest)
