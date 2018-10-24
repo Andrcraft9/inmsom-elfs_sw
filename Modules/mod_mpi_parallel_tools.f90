@@ -512,15 +512,25 @@ contains
             call hilbert_d2xy(hilbert_index, k-1, hilbert_coord_x, hilbert_coord_y)
             hilbert_coord_x = hilbert_coord_x + 1; hilbert_coord_y = hilbert_coord_y + 1
             weight = weight + bgweight(hilbert_coord_x, hilbert_coord_y)
-            if (weight >= mean_weight) then
-                weight = 0.0d0
-                i =  i + 1
-                if (i > procs) then
-                    i = procs
-                    print *, rank, 'Warning! Last procs overloaded...'
+            !if (weight >= mean_weight) then
+            !    weight = 0.0d0
+            !    i =  i + 1
+            !    if (i > procs) then
+            !        i = procs
+            !        print *, rank, 'Warning! Last procs overloaded...'
+            !    endif
+            !endif
+            if (weight + (weight - bgweight(hilbert_coord_x, hilbert_coord_y)) > 2.0*mean_weight) then
+                i = i + 1
+                weight = bgweight(hilbert_coord_x, hilbert_coord_y)
+                if (i > procs-1) then
+                    i = procs-1
+                    if (rank == 0 .and. parallel_dbg < 2) print *, 'Warning! Last procs ...'
                 endif
             endif
+
             bgproc(hilbert_coord_x, hilbert_coord_y) = i
+            
             if (bgweight(hilbert_coord_x, hilbert_coord_y) == 0.0d0) then
                 bgproc(hilbert_coord_x, hilbert_coord_y) = -1
             endif

@@ -96,7 +96,7 @@ program INMSOM
     call ocean_model_parameters(time_step)
     !if (rank .eq. 0) print *, "--------------------END OF OCEAN MODEL PARAMETERS----------------------"
 
-    if (parallel_mod == 1) then
+    if (parallel_mod > 0) then
         if (rank == 0) print *, 'mode: stop program after decomposition'
         call parallel_finalize()
         stop 
