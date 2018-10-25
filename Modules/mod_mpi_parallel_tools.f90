@@ -255,6 +255,8 @@ contains
 
         integer :: m, n, i, j, k, locn
         integer :: land_blocks
+        integer :: bshared
+        real*8 :: bcomm_metric, max_bcomm_metric
         integer :: ierr
 
         ! Set Cart grid of blocks
@@ -382,9 +384,9 @@ contains
 
         ! Print information about blocks
         if (parallel_dbg >= 1) then
-            if (rank == 0) print *, 'Total blocks:', total_blocks, 'Load imbalance: ', max_bweight / (sum(bglob_weight) / real(procs))
+            if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs))
             call mpi_barrier(cart_comm, ierr)
-            print *, rank, 'Blocks per proc:', bcount, 'Load-Balancing per proc:', bweight !/ ((nx-4)*(ny-4))
+            print *, rank, 'Blocks per proc:', bcount, 'Weight per proc:', bweight !/ ((nx-4)*(ny-4))
             call mpi_barrier(cart_comm, ierr)
         endif
 
@@ -422,6 +424,23 @@ contains
         enddo
 
         call allocate_mpi_buffers()
+
+        ! Addition metric (communication metric)
+        if (parallel_dbg >= 1) then
+            bshared = 0
+            do k = 1, bcount
+                m =  bindx(k, 1)
+                n =  bindx(k, 2)
+                if ((bglob_proc(m - 1, n) /= rank) .or. (bglob_proc(m + 1, n) /= rank)) then
+                    bshared = bshared + 1
+                elseif ((bglob_proc(m, n - 1) /= rank) .or. (bglob_proc(m, n + 1) /= rank)) then
+                    bshared = bshared + 1
+                endif
+            enddo
+            bcomm_metric = dble(bcount) / dble(bshared)
+            call mpi_allreduce(bcomm_metric, max_bcomm_metric, 1, mpi_real8, mpi_max, cart_comm, ierr)
+            if (rank == 0) print *, 'Partition quality:', max_bcomm_metric
+        endif
 
         deallocate(bglob_weight)
         deallocate(glob_bnx_start, glob_bnx_end, glob_bny_start, glob_bny_end)

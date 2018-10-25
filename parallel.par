@@ -1,5 +1,5 @@
-1       : Block decomposition: 0 - unifrom, no load balancing; 1 - load balancing with using Hilbert curve; 2 - decomposition from file
-dd_bs4km/64b/bs4km_metis64b_4p.txt     : File with decomposition (optional). Set bnx, bny, pnx, pny like in this file otherwise program stops with error
+2       : Block decomposition: 0 - unifrom, no load balancing; 1 - load balancing with using Hilbert curve; 2 - decomposition from file
+dd_bs4km/1024b_16p_metis.txt     : File with decomposition (optional). Set bnx, bny, pnx, pny like in this file otherwise program stops with error
 8       : blocks per one proc in x-direction
 8       : blocks per one proc in y-direction
 1       : debug parameter
