@@ -11,6 +11,7 @@ module mpi_parallel_tools
     integer :: bppnx, bppny
     integer :: parallel_dbg
     integer :: parallel_mod
+    character(128) :: file_output
 
     integer :: nx_start, nx_end, ny_start, ny_end
     integer :: bnd_x1, bnd_x2, bnd_y1, bnd_y2
@@ -108,6 +109,7 @@ contains
             read(comments(4),*) bppny
             read(comments(5),*) parallel_dbg
             read(comments(6),*) parallel_mod
+            call get_first_lexeme(comments(7), file_output)
 
             print *, 'mod_decomposition=', mod_decomposition
             print *, 'decomposition file:', file_decomposition
@@ -115,13 +117,16 @@ contains
             print *, 'bppny=', bppny
             print *, 'parallel_dbg=', parallel_dbg
             print *, 'parallel_mod=', parallel_mod
+            print *, 'output file:', file_output
         endif
 
+        call mpi_bcast(file_decomposition, 128, mpi_character, 0, mpi_comm_world, ierr)
         call mpi_bcast(mod_decomposition, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppnx, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(bppny, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(parallel_dbg, 1, mpi_integer, 0, mpi_comm_world, ierr)
         call mpi_bcast(parallel_mod, 1, mpi_integer, 0, mpi_comm_world, ierr)
+        call mpi_bcast(file_output, 128, mpi_character, 0, mpi_comm_world, ierr)
 
         !if (rank .eq. 0) then
         !    if (.not. MPI_SUBARRAYS_SUPPORTED) then
@@ -257,6 +262,7 @@ contains
         integer :: land_blocks
         integer :: bshared
         real*8 :: bcomm_metric, max_bcomm_metric
+        integer, dimension(2) :: kblock
         integer :: ierr
 
         ! Set Cart grid of blocks
@@ -265,6 +271,7 @@ contains
 
         if (rank == 0) print *, "PARALLEL BLOCKS DISTRIBUTION WITH MOD:", mod_decomposition
         if (rank == 0) print *, 'bnx, bny and Total blocks:', bnx, bny, bnx*bny
+        if (rank == 0) print *, 'pnx, pny and procs:', p_size(1), p_size(2), procs
         call mpi_barrier(cart_comm, ierr)
 
         ! Check bnx and bny
@@ -347,17 +354,17 @@ contains
         endif
 
         ! Debug Output
-        if (parallel_dbg >= 2) then
+        if (parallel_dbg >= 1) then
             if (rank == 0) then
-                print *,  'bnx, bny: ', bnx, bny
-                print *,  'pnx, pny: ', p_size(1), p_size(2)
-                print *,  'm,   n,   bglob_proc(m, n),   bglob_weight(m,n)'
+                open(90, file = file_output)
+                write(90, *)  bnx, bny, p_size(1), p_size(2)
                 do m = 1, bnx
                     do n = 1, bny
-                        print *, m, n, bglob_proc(m, n), bglob_weight(m, n)
+                        write(90, *) m, n, bglob_proc(m, n), bglob_weight(m, n)
                     enddo 
                 enddo
                 call flush()
+                close(90)
             endif
             call mpi_barrier(cart_comm, ierr)
         endif
@@ -376,16 +383,16 @@ contains
         call mpi_allreduce(bweight, max_bweight, 1, mpi_real8, mpi_max, cart_comm, ierr)
 
         ierr = 0
-        if (bcount < 0) then
+        if (bcount <= 0) then
             print *, rank, 'Proc with only land-blocks... Error!'
             ierr = 1
         endif
         call parallel_check_err(ierr)
 
         ! Print information about blocks
-        if (parallel_dbg >= 1) then
-            if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs))
-            call mpi_barrier(cart_comm, ierr)
+        if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs))
+        call mpi_barrier(cart_comm, ierr)
+        if (parallel_dbg >= 2) then
             print *, rank, 'Blocks per proc:', bcount, 'Weight per proc:', bweight !/ ((nx-4)*(ny-4))
             call mpi_barrier(cart_comm, ierr)
         endif
@@ -426,20 +433,46 @@ contains
         call allocate_mpi_buffers()
 
         ! Addition metric (communication metric)
-        if (parallel_dbg >= 1) then
-            bshared = 0
-            do k = 1, bcount
-                m =  bindx(k, 1)
-                n =  bindx(k, 2)
-                if ((bglob_proc(m - 1, n) /= rank) .or. (bglob_proc(m + 1, n) /= rank)) then
-                    bshared = bshared + 1
-                elseif ((bglob_proc(m, n - 1) /= rank) .or. (bglob_proc(m, n + 1) /= rank)) then
-                    bshared = bshared + 1
-                endif
-            enddo
-            bcomm_metric = dble(bcount) / dble(bshared)
-            call mpi_allreduce(bcomm_metric, max_bcomm_metric, 1, mpi_real8, mpi_max, cart_comm, ierr)
-            if (rank == 0) print *, 'Partition quality:', max_bcomm_metric
+        bshared = 0
+        do k = 1, bcount
+            m =  bindx(k, 1)
+            n =  bindx(k, 2)
+            
+            kblock(1) = m - 1; kblock(2) = n
+            call check_block_status(kblock, i)
+            if (i /= rank) then
+                bshared = bshared + 1
+                cycle
+            endif
+            
+            kblock(1) = m + 1; kblock(2) = n
+            call check_block_status(kblock, i)
+            if (i /= rank) then
+                bshared = bshared + 1
+                cycle
+            endif
+            
+            kblock(1) = m; kblock(2) = n - 1
+            call check_block_status(kblock, i)
+            if (i /= rank) then
+                bshared = bshared + 1
+                cycle
+            endif
+            
+            kblock(1) = m; kblock(2) = n + 1
+            call check_block_status(kblock, i)
+            if (i /= rank) then
+                bshared = bshared + 1
+                cycle
+            endif
+        enddo
+        bcomm_metric = dble(bshared) / dble(bcount) 
+        call mpi_allreduce(bcomm_metric, max_bcomm_metric, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        if (rank == 0) print *, 'Partition quality:', max_bcomm_metric
+        call mpi_barrier(cart_comm, ierr)
+        if (parallel_dbg >= 2) then
+            print *, rank, 'bcomm_metric', bcomm_metric
+            call mpi_barrier(cart_comm, ierr)
         endif
 
         deallocate(bglob_weight)

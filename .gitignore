@@ -1,6 +1,7 @@
 # Special
 inmsom
 gpmetis
+mask*.txt
 
 # Python
 *.pyc
