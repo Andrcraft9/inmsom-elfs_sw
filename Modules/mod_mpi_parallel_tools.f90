@@ -363,7 +363,7 @@ contains
                         write(90, *) m, n, bglob_proc(m, n), bglob_weight(m, n)
                     enddo 
                 enddo
-                call flush()
+                !call flush()
                 close(90)
             endif
             call mpi_barrier(cart_comm, ierr)
