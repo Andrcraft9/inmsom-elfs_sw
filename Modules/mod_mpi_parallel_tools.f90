@@ -336,6 +336,12 @@ contains
         enddo
         if (rank == 0) print *, "Total land blocks:", land_blocks
 
+        if (bnx*bny - land_blocks < procs) then
+            if (rank == 0) print *, 'procs > computational-blocks... Error!'
+            ierr = 1
+        endif
+        call parallel_check_err(ierr)
+
         ! Compute bglob_proc
         allocate(bglob_proc(bnx, bny))
         if (mod_decomposition == 0) then
@@ -572,13 +578,19 @@ contains
             !        print *, rank, 'Warning! Last procs overloaded...'
             !    endif
             !endif
-            if (weight + (weight - bgweight(hilbert_coord_x, hilbert_coord_y)) > 2.0*mean_weight) then
+            if (bnx*bny - k >= procs - i - 1) then
+                !if (weight >= mean_weight) then
+                if (weight + (weight - bgweight(hilbert_coord_x, hilbert_coord_y)) > 2.0*mean_weight) then
+                    i = i + 1
+                    weight = bgweight(hilbert_coord_x, hilbert_coord_y)
+                    if (i > procs-1) then
+                        i = procs-1
+                        if (rank == 0 .and. parallel_dbg < 2) print *, 'Warning! Last procs ...'
+                    endif
+                endif
+            else
                 i = i + 1
                 weight = bgweight(hilbert_coord_x, hilbert_coord_y)
-                if (i > procs-1) then
-                    i = procs-1
-                    if (rank == 0 .and. parallel_dbg < 2) print *, 'Warning! Last procs ...'
-                endif
             endif
 
             bgproc(hilbert_coord_x, hilbert_coord_y) = i
