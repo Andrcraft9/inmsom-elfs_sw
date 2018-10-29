@@ -349,7 +349,7 @@ contains
             call parallel_uniform_decomposition(bglob_proc, bglob_weight, bnx, bny)
         elseif (mod_decomposition == 1) then
             if (rank == 0) print *, "Load-Balancing blocks decomposition with using Hilbert curve!..."
-            call parallel_hilbert_curve_decomposition(bglob_proc, bglob_weight, bnx, bny)
+            call parallel_hilbert_curve_decomposition(bglob_proc, bglob_weight, bnx, bny, land_blocks)
         elseif (mod_decomposition == 2) then
             if (rank == 0) print *, "Decomposition from file!..."
             call parallel_file_decomposition(bglob_proc, bglob_weight, bnx, bny)
@@ -532,25 +532,27 @@ contains
 
     end subroutine
 
-    subroutine parallel_hilbert_curve_decomposition(bgproc, bgweight, bnx, bny)
+    subroutine parallel_hilbert_curve_decomposition(bgproc, bgweight, bnx, bny, land_blocks)
         implicit none
 
         integer :: bnx, bny
+        integer :: land_blocks
         integer :: bgproc(bnx, bny)
         real*8 :: bgweight(bnx, bny)
 
         integer :: k, i, ierr
         integer :: hilbert_index, hilbert_coord_x, hilbert_coord_y
-        real*8 :: weight, tot_weight, mean_weight
+        integer :: ks, sea_blocks
+        real*8 :: weight, tot_weight, mean_weight, last_weight
 
         hilbert_index = int(log(real(bnx))/ log(2.0))
         ierr = 0
         if (bnx /= bny) then
-            print *, 'bnx not equal to bny! Can`t build Hilbert curve for this geometry!'
+            if (rank == 0) print *, 'bnx not equal to bny! Can`t build Hilbert curve for this geometry!'
             ierr = 1
         endif
         if (2**hilbert_index /= bnx) then
-            print *, '2**M not eqal to bnx! Can`t build Hilbert curve for this geometry!'
+            if (rank == 0) print *, '2**M not eqal to bnx! Can`t build Hilbert curve for this geometry!'
             ierr = 1
         endif
         call parallel_check_err(ierr)
@@ -559,45 +561,49 @@ contains
 
         tot_weight = sum(bgweight)
         mean_weight = tot_weight / procs
+        sea_blocks = bnx*bny - land_blocks
 
         if (parallel_dbg >= 1) then
             if (rank == 0 ) print *, 'Total blocks weigth:', tot_weight, "Mean blocks weigth:", mean_weight
         endif
 
         weight = 0.0d0
-        i = 0
+        last_weight = 0.0d0
+        i = 0; ks = 0
         do k = 1, bnx*bny
             call hilbert_d2xy(hilbert_index, k-1, hilbert_coord_x, hilbert_coord_y)
             hilbert_coord_x = hilbert_coord_x + 1; hilbert_coord_y = hilbert_coord_y + 1
+            
+            ! Skip land blocks
+            if (bgweight(hilbert_coord_x, hilbert_coord_y) == 0.0d0) then
+                bgproc(hilbert_coord_x, hilbert_coord_y) = -1
+                cycle
+            else
+                ks = ks + 1
+            endif
+
             weight = weight + bgweight(hilbert_coord_x, hilbert_coord_y)
-            !if (weight >= mean_weight) then
-            !    weight = 0.0d0
-            !    i =  i + 1
-            !    if (i > procs) then
-            !        i = procs
-            !        print *, rank, 'Warning! Last procs overloaded...'
-            !    endif
-            !endif
-            if (bnx*bny - k >= procs - i - 1) then
-                !if (weight >= mean_weight) then
+            
+            !if (sea_blocks - ks >= procs - i - 1) then
                 if (weight + (weight - bgweight(hilbert_coord_x, hilbert_coord_y)) > 2.0*mean_weight) then
+                    ! Recompute mean value
+                    mean_weight = (tot_weight - last_weight) / (procs - i - 1)
+                    ! Go to next proc
                     i = i + 1
                     weight = bgweight(hilbert_coord_x, hilbert_coord_y)
                     if (i > procs-1) then
                         i = procs-1
-                        if (rank == 0 .and. parallel_dbg < 2) print *, 'Warning! Last procs ...'
+                        !if (rank == 0 .and. parallel_dbg < 2) print *, 'Warning! Last procs ...'
+                        if (rank == 0) print *, k, 'Warning! Last procs ...'
                     endif
                 endif
-            else
-                i = i + 1
-                weight = bgweight(hilbert_coord_x, hilbert_coord_y)
-            endif
+            !else
+            !    i = i + 1
+            !    weight = bgweight(hilbert_coord_x, hilbert_coord_y)
+            !endif
 
             bgproc(hilbert_coord_x, hilbert_coord_y) = i
-            
-            if (bgweight(hilbert_coord_x, hilbert_coord_y) == 0.0d0) then
-                bgproc(hilbert_coord_x, hilbert_coord_y) = -1
-            endif
+            last_weight = last_weight + bgweight(hilbert_coord_x, hilbert_coord_y)
         enddo
 
         if (parallel_dbg >= 3) then
