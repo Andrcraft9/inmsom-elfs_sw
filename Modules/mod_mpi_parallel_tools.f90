@@ -344,7 +344,7 @@ contains
             if (rank == 0) print *, 'procs > computational-blocks... Error!'
             ierr = 1
         endif
-        call parallel_check_err(ierr)
+        !call parallel_check_err(ierr)
 
         ! Compute bglob_proc
         allocate(bglob_proc(bnx, bny))
