@@ -265,6 +265,10 @@ contains
         integer, dimension(2) :: kblock
         integer :: ierr
 
+        integer :: itot, ishared
+        integer, dimension(2) :: rankblock
+        real*8 :: icomm_metric, max_icomm_metric
+
         ! Set Cart grid of blocks
         bnx = bppnx * p_size(1)
         bny = bppny * p_size(2)
@@ -393,7 +397,7 @@ contains
             print *, rank, 'Proc with only land-blocks... Error!'
             ierr = 1
         endif
-        call parallel_check_err(ierr)
+        !call parallel_check_err(ierr)
 
         ! Print information about blocks
         if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs))
@@ -476,11 +480,46 @@ contains
         call mpi_allreduce(bcomm_metric, max_bcomm_metric, 1, mpi_real8, mpi_max, cart_comm, ierr)
         if (rank == 0) print *, 'Partition quality:', max_bcomm_metric
         call mpi_barrier(cart_comm, ierr)
+
+        ! Block undependent quality
+        itot = 0; ishared = 0
+        do k = 1, bcount
+
+            m =  bindx(k, 1)
+            n =  bindx(k, 2)
+            kblock(1) = m - 1; kblock(2) = n
+            call check_block_status(kblock, i)
+            if (i >= 0 .and. i /= rank) ishared = ishared + bny_end(k) - bny_start(k) + 1
+            
+            kblock(1) = m + 1; kblock(2) = n
+            call check_block_status(kblock, i)
+            if (i >= 0 .and. i /= rank) ishared = ishared + bny_end(k) - bny_start(k) + 1
+            
+            kblock(1) = m; kblock(2) = n - 1
+            call check_block_status(kblock, i)
+            if (i >= 0 .and. i /= rank) ishared = ishared + bnx_end(k) - bnx_start(k) + 1
+            
+            kblock(1) = m; kblock(2) = n + 1
+            call check_block_status(kblock, i)
+            if (i >= 0 .and. i /= rank) ishared = ishared + bnx_end(k) - bnx_start(k) + 1
+            
+            do n = bny_start(k), bny_end(k)
+                do m = bnx_start(k), bnx_end(k) 
+                    itot = itot + 1
+                enddo
+            enddo
+        enddo
+        icomm_metric = dble(ishared) / dble(itot)
+        call mpi_allreduce(icomm_metric, max_icomm_metric, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        if (rank == 0) print *, 'Partition block undependent quality:', max_icomm_metric
+        call mpi_barrier(cart_comm, ierr)
+
         if (parallel_dbg >= 2) then
             print *, rank, 'bcomm_metric', bcomm_metric
+            print *, rank, 'icomm_metric, itot, ishared', icomm_metric, itot, ishared
             call mpi_barrier(cart_comm, ierr)
         endif
-
+    
         deallocate(bglob_weight)
         deallocate(glob_bnx_start, glob_bnx_end, glob_bny_start, glob_bny_end)
         deallocate(glob_bbnd_x1, glob_bbnd_x2, glob_bbnd_y1, glob_bbnd_y2)
