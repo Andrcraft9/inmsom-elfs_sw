@@ -577,7 +577,7 @@ subroutine prdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ierr
           goto 103
       end if
 
-      disp = (nxe-nxb+1)*(nye-nyb+1)*lmpirecl*(nfild-1)*(nze-nzb+1)
+      disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
       offset3 = (/nx_start - nxb, ny_start - nyb, 0/)
       offset2 = (/nx_start - nxb, ny_start - nyb/)
       locsizes3 = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
@@ -727,7 +727,7 @@ end subroutine prdstd
 !        goto 103
 !    end if
 !
-!    disp = (nxe-nxb+1)*(nye-nyb+1)*lmpirecl*(nfild-1)*(nze-nzb+1)
+!    disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
 !    offset3 = (/nx_start - nxb, ny_start - nyb, 0/)
 !    offset2 = (/nx_start - nxb, ny_start - nyb/)
 !    locsizes3 = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
@@ -892,7 +892,7 @@ subroutine prdstd_simple(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,n
           goto 103
       end if
 
-      disp = (nxe-nxb+1)*(nye-nyb+1)*lmpirecl*(nfild-1)*(nze-nzb+1)
+      disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
       !locsizes = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
       !totsize = locsizes(1)*locsizes(2)*locsizes(3)
 
@@ -921,7 +921,7 @@ subroutine prdstd_simple(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,n
 
       call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
 
-      call mpi_file_read(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
+      call mpi_file_read_all(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
                              totsize,mpi_real,mpi_status_ignore,ierr)
 
       if (ierr .ne. mpi_success) goto 102
@@ -1032,7 +1032,7 @@ subroutine pwdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,comm
             goto 103
       end if
       
-      disp = (nxe-nxb+1)*(nye-nyb+1)*lmpirecl*(nfild-1)*(nze-nzb+1)
+      disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
       !locsizes = (/nxe_out - nxb_out + 1, nye_out - nyb_out + 1, nze - nzb + 1/)
       !totsize = locsizes(1)*locsizes(2)*locsizes(3)
 
@@ -1068,7 +1068,7 @@ subroutine pwdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,comm
       end do
       !$omp end parallel do
       
-      call mpi_file_write(hfile, fild(nxb_out:nxe_out, nyb_out:nye_out, nzb:nze),  &
+      call mpi_file_write_all(hfile, fild(nxb_out:nxe_out, nyb_out:nye_out, nzb:nze),  &
                               totsize, mpi_real, mpi_status_ignore, ierr)
       if (ierr.ne.mpi_success) goto 102
       
@@ -1149,7 +1149,7 @@ subroutine prdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
           goto 103
       end if
 
-      disp = (nxe-nxb+1)*(nye-nyb+1)*2*lmpirecl*(nfild-1)*(nze-nzb+1)
+      disp = (nxe-nxb+1)*(nye-nyb+1)*2*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
       !locsizes = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
       !totsize = locsizes(1)*locsizes(2)*locsizes(3)
 
@@ -1178,7 +1178,7 @@ subroutine prdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
 
       call mpi_file_set_view(hfile, disp, mpi_real8, tsubarr, "native", mpi_info_null, ierr)
 
-      call mpi_file_read(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
+      call mpi_file_read_all(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
                              totsize, mpi_real8, mpi_status_ignore, ierr)
 
       if (ierr .ne. mpi_success) goto 102
@@ -1271,7 +1271,7 @@ subroutine pwdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
             goto 103
       end if
       
-      disp = (nxe-nxb+1)*(nye-nyb+1)*2*lmpirecl*(nfild-1)*(nze-nzb+1)
+      disp = (nxe-nxb+1)*(nye-nyb+1)*2*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
       !locsizes = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
       !totsize = locsizes(1)*locsizes(2)*locsizes(3)
 
@@ -1307,7 +1307,7 @@ subroutine pwdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
       end do
       !$omp end parallel do
       
-      call mpi_file_write(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
+      call mpi_file_write_all(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
                               totsize, mpi_real8, mpi_status_ignore, ierr)
       if (ierr.ne.mpi_success) goto 102
       
