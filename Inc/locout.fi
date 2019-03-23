@@ -17,7 +17,7 @@ integer, parameter:: m1loc_local=50,      &                   !left  point numbe
 ! Flags for output
 integer, parameter:: uv_output=1,  &
                     ssh_output=1,  &
-                 energy_output=1,  &
+                 energy_output=0,  &
                  points_output=0,  &
                uv_local_output=0,  &
               ssh_local_output=0,  &
