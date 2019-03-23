@@ -533,9 +533,247 @@ endsubroutine wdstd8
 
 !-------------------------------------------------------------------------------!
 !-------------------------------------------------------------------------------!
-!----------------------------- MPI subroutines ---------------------------------!
+!---------------------- Simple MPI subroutines ---------------------------------!
 !-------------------------------------------------------------------------------!
 !-------------------------------------------------------------------------------!
-! ...
+subroutine prdstd2D(path, fname, nfild, fild, lu, nx, ny, nxb, nxe, nyb, nye, ierr)
+    use mpi_parallel_tools
+    implicit none
+
+    include 'reclen.fi'
+
+    character*(*) :: path, fname
+    integer :: nx, ny
+    integer :: nfild, nrecf, i, j, k, kfull, ierr
+    type(block2D_real4), dimension(:), pointer :: fild
+    type(block2D_real8), dimension(:), pointer :: lu
+    character(4096) :: namofile
+    integer :: nxe, nxb, nye, nyb
+    integer :: hfile
+    integer(kind=mpi_offset_kind) :: disp
+    integer :: tsubarr, totsize
+    integer :: sizes2(2), locsizes2(2), offset2(2)
+
+    !  definition full file name
+    call fulfname(namofile,path,fname,ierr)
+    if (ierr.ne.0) go to 100
+    !  check of correctness of grid coordinates of treat array part
+    if (nxe.gt.nx .or. nxb.lt.1 .or. nxb.gt.nxe) then
+        ierr=1
+        goto 103
+    end if
+    if (nye.gt.ny .or. nyb.lt.1 .or. nyb.gt.nye) then
+        ierr=2
+        goto 103
+    end if
+
+    disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)
+    !locsizes = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
+    !totsize = locsizes(1)*locsizes(2)*locsizes(3)
+
+    call mpi_file_open(cart_comm, namofile, mpi_mode_rdonly, mpi_info_null, hfile, ierr)
+    if (ierr .ne. mpi_success) goto 101    
+
+    do kfull = 1, bcount_max
+        if (kfull <= bcount) then
+            k = kfull
+            call set_block_boundary(k)
+        else 
+            k = 1
+            call set_block_boundary(1)
+        endif
+
+        offset2 = (/nx_start - nxb, ny_start - nyb/)
+        locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
+        sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
+
+        totsize = locsizes2(1)*locsizes2(2)
+        
+        !print *, sizes2, locsizes2, offset2
+        call mpi_type_create_subarray(2, sizes2, locsizes2, offset2,        &
+                                    mpi_order_fortran, mpi_real, tsubarr, ierr)
+        
+        call mpi_type_commit(tsubarr, ierr)
+
+        call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
+
+        call mpi_file_read_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end),  &
+                               totsize, mpi_real, mpi_status_ignore, ierr)
+        if (ierr .ne. mpi_success) goto 102
+
+        call mpi_type_free(tsubarr, ierr)
+    enddo 
+    call mpi_file_close(hfile, ierr)
+
+    !  filling undefinite points by zero instead undef
+    do k = 1, bcount
+        call set_block_boundary(k)
+        do j = ny_start-2, ny_end+2
+            do i = nx_start-2, nx_end+2
+                if (abs(lu(k)%vals(i,j)) < 0.5) then
+                    fild(k)%vals(i, j) = 0.0
+                end if
+            enddo
+        enddo
+    enddo
+
+    return
+
+100   write(*,'(a,i5)') 'on rank ',rank
+    write(*,'(2x,a)')'error in full name of file for reading: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    call mpi_abort(cart_comm,5,ierr)
+    stop
+101   write(*,'(a,i5)') 'on rank ',rank
+    write(*,'(2x,a)')'error in open file for reading: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    call mpi_abort(cart_comm,5,ierr)
+    stop
+102   write(*,'(a,i5)') 'on rank ',rank
+    write(*,'(2x,a)')'error in reading from file: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    write(*,'(18h error in reading ,i3,6h level)') k
+    call mpi_abort(cart_comm,5,ierr)
+    stop
+103   write(*,'(a,i5)') 'on rank ',rank
+    write(*,'(2x,a)')'error in reading from file: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    write(*,'(2x,a,i3,a)')'error in grid diapason of ', ierr,' - coordinate'
+    call mpi_abort(cart_comm,5,ierr)
+    stop
+end subroutine prdstd2D
+
+subroutine pwdstd2D(path, fname, nfild, fild, lu, nx, ny, nxb, nxe, nyb, nye, ierr)
+    use mpi_parallel_tools
+    implicit none
+
+    include 'reclen.fi'
+
+    !  nx,ny,nz - general dimesion of fild
+    !  nxb,nxe,nyb,nye,nzb,nze - grid coordinates of treat array subdomain
+    !      where index b denotes begin, and e - end
+    !     this subroutine fills (write) array fild to unformatted deirect
+    !     file of diogin standard
+    !     path           - path to file (i.g. 'f:\arab')
+    !     fname          - name of file (i.g.: 'taux.std')
+    !     nfild          - number of field in file (on t)
+    !     fild(nx,ny,nz) - field array
+    !     lu(nx,ny)    - ocean mask
+    !---------------------------------------------------------------------
+    character*(*) :: path, fname
+    integer :: hfile
+    integer(kind=mpi_offset_kind) :: disp
+    integer :: nfild, nrecf, nx, ny, i, j, k, kfull, ierr
+    type(block2D_real4), dimension(:), pointer :: fild
+    type(block2D_real8), dimension(:), pointer :: lu
+    character*4096 :: namofile
+    integer  :: nxe, nxb, nye, nyb
+    integer :: tsubarr, totsize
+    integer :: sizes2(2), locsizes2(2), offset2(2)
+    
+    !  definition full file name
+    call fulfname(namofile,path,fname,ierr)
+    !      write(*,*) "writing to ", trim(namofile)
+    if (ierr.ne.0) go to 100
+    ! check of correctness of grid coordinates of treat array part
+    if (nxe.gt.nx .or. nxb.lt.1 .or. nxb.gt.nxe) then
+          ierr=1
+          goto 103
+    end if
+    if (nye.gt.ny .or. nyb.lt.1 .or. nyb.gt.nye) then
+          ierr=2
+          goto 103
+    end if
+    
+    disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)
+    !locsizes = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
+    !totsize = locsizes(1)*locsizes(2)*locsizes(3)
+
+    if (rank == 0) then
+        open(40,file=namofile,status='unknown',access='direct', form='unformatted',recl=(nxe-nxb+1)*(nye-nyb+1)*lrecl,err=101)
+        ! initial number of record
+        nrecf = nfild  
+        ! writing on the file
+        write(40,rec=nrecf,err=102)(( undef, i=nxb,nxe), j=nyb,nye )
+        close(40)
+    endif
+
+    call mpi_file_open(cart_comm, namofile, ior(mpi_mode_wronly,mpi_mode_create), mpi_info_null, hfile, ierr)
+    if (ierr .ne. mpi_success) goto 101
+
+    do kfull = 1, bcount_max
+        if (kfull <= bcount) then
+            k = kfull
+            call set_block_boundary(k)
+        else 
+            k = 1
+            call set_block_boundary(1)
+        endif
+
+        !if (k /= 1) then
+        !    exit
+        !endif 
+
+        offset2 = (/nx_start - nxb, ny_start - nyb/)
+        locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
+        sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
+        totsize = locsizes2(1)*locsizes2(2)
+
+        call mpi_type_create_subarray(2, sizes2, locsizes2, offset2,               &
+                                      mpi_order_fortran, mpi_real, tsubarr, ierr)
+    
+        call mpi_type_commit(tsubarr, ierr)
+
+        call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
+        
+        do j = ny_start, ny_end
+            do i = nx_start, nx_end
+                    if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
+                        fild(k)%vals(i, j) = undef
+                    end if
+            enddo
+        enddo
+        
+        call mpi_file_write_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end),  &
+                                totsize, mpi_real, mpi_status_ignore, ierr)
+        if (ierr.ne.mpi_success) goto 102
+        
+        call mpi_type_free(tsubarr, ierr)
+    enddo
+
+    call mpi_file_close(hfile, ierr)
+
+    do k = 1, bcount
+        call set_block_boundary(k)
+        do j = ny_start, ny_end
+            do i = nx_start, nx_end
+                    if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
+                        fild(k)%vals(i, j) = 0.0
+                    end if
+            enddo
+        enddo
+    enddo
+
+    return
+    
+100   write(*,'(2x,a)')'error in full name of file for writing: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    call mpi_abort(cart_comm,-1,ierr)
+    stop
+101   write(*,'(2x,a)')'error in open file for writing: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    call mpi_abort(cart_comm,-1,ierr)
+    stop
+102   write(*,'(2x,a)')'error in writing on file: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    write(*,'(18h error in writing ,i3,6h level)') k
+    call mpi_abort(cart_comm,-1,ierr)
+    stop
+103   write(*,'(2x,a)')'error in writing to file: '
+    write(*,'(2x,a)') namofile(1:len_trim(namofile))
+    write(*,'(2x,a,i3,a)')'error in grid diapason of ', ierr,' - coordinate'
+    call mpi_abort(cart_comm,-1,ierr)
+    stop
+end subroutine pwdstd2D
 
 endmodule iodata_routes

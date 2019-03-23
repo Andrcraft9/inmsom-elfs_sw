@@ -16,11 +16,15 @@ module mpi_parallel_tools
     integer :: nx_start, nx_end, ny_start, ny_end
     integer :: bnd_x1, bnd_x2, bnd_y1, bnd_y2
 
-    type :: block2D
+    type :: block2D_real8
         real*8, dimension(:, :), pointer :: vals
     end type
 
-    type :: block1D
+    type :: block2D_real4
+        real*4, dimension(:, :), pointer :: vals
+    end type
+
+    type :: block1D_real8
         real*8, dimension(:), pointer :: vals
     end type
 
@@ -38,7 +42,10 @@ module mpi_parallel_tools
     ! If bglob_proc(m, n) == -1 => (m, n) block is land-block!
     integer, allocatable :: bglob_proc(:, :)
 
+    ! Amount of local blocks
     integer :: bcount
+    ! Min/Max of local blocks
+    integer :: bcount_max, bcount_min
     ! Total blocks for computational
     integer :: total_blocks
     ! Map: local block number to block coords
@@ -58,10 +65,10 @@ module mpi_parallel_tools
 
     ! MPI buffers
     integer, allocatable :: reqsts(:), statuses(:, :)
-    type(block1D), dimension(:), pointer :: sync_buf8_send_nyp, sync_buf8_recv_nyp
-    type(block1D), dimension(:), pointer :: sync_buf8_send_nxp, sync_buf8_recv_nxp
-    type(block1D), dimension(:), pointer :: sync_buf8_send_nym, sync_buf8_recv_nym
-    type(block1D), dimension(:), pointer :: sync_buf8_send_nxm, sync_buf8_recv_nxm
+    type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nyp, sync_buf8_recv_nyp
+    type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nxp, sync_buf8_recv_nxp
+    type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nym, sync_buf8_recv_nym
+    type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nxm, sync_buf8_recv_nxm
     real*8, allocatable :: sync_edge_buf8_recv_nxp_nyp(:)
     real*8, allocatable :: sync_edge_buf8_recv_nxp_nym(:)
     real*8, allocatable :: sync_edge_buf8_recv_nxm_nyp(:)
@@ -391,6 +398,8 @@ contains
         enddo
         call mpi_allreduce(bcount, total_blocks, 1, mpi_integer, mpi_sum, cart_comm, ierr)
         call mpi_allreduce(bweight, max_bweight, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(bcount, bcount_max, 1, mpi_integer, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(bcount, bcount_min, 1, mpi_integer, mpi_min, cart_comm, ierr)
 
         ierr = 0
         if (bcount <= 0) then
@@ -400,7 +409,8 @@ contains
         !call parallel_check_err(ierr)
 
         ! Print information about blocks
-        if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs))
+        if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs)), &
+                                 'max blocks per proc:', bcount_max, 'min blocks per proc:', bcount_min
         call mpi_barrier(cart_comm, ierr)
         if (parallel_dbg >= 2) then
             print *, rank, 'Blocks per proc:', bcount, 'Weight per proc:', bweight !/ ((nx-4)*(ny-4))
@@ -742,10 +752,10 @@ contains
 
     end subroutine
 
-    subroutine allocate_block2D(blks, val)
+    subroutine allocate_block2D_real8(blks, val)
         implicit none
 
-        type(block2D), dimension(:), pointer :: blks
+        type(block2D_real8), dimension(:), pointer :: blks
         real*8 :: val
         integer :: k
 
@@ -756,10 +766,36 @@ contains
         enddo
     end subroutine
 
-    subroutine deallocate_blocks2D(blks)
+    subroutine deallocate_block2D_real8(blks)
         implicit none
 
-        type(block2D), dimension(:), pointer :: blks
+        type(block2D_real8), dimension(:), pointer :: blks
+        integer :: k
+
+        do k = 1, bcount
+            deallocate(blks(k)%vals)
+        enddo
+        deallocate(blks)
+    end subroutine
+
+    subroutine allocate_block2D_real4(blks, val)
+        implicit none
+
+        type(block2D_real4), dimension(:), pointer :: blks
+        real*4 :: val
+        integer :: k
+
+        allocate(blks(bcount))
+        do k = 1, bcount
+            allocate(blks(k)%vals(bbnd_x1(k):bbnd_x2(k), bbnd_y1(k):bbnd_y2(k)))
+            blks(k)%vals = val
+        enddo
+    end subroutine
+
+    subroutine deallocate_block2D_real4(blks)
+        implicit none
+
+        type(block2D_real4), dimension(:), pointer :: blks
         integer :: k
 
         do k = 1, bcount
@@ -893,10 +929,10 @@ contains
 
     end subroutine
 
-    subroutine syncborder_block2D(blks)
+    subroutine syncborder_block2D_real8(blks)
         implicit none
 
-        type(block2D), dimension(:), pointer :: blks
+        type(block2D_real8), dimension(:), pointer :: blks
         integer :: k, lock, bm, bn, reqst
         integer, dimension(2) :: src_block, dist_block
         integer :: src_p, dist_p

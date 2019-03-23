@@ -1,8 +1,8 @@
             0  : 0 - start from minimum conditions, 1 - start from the full checkpoint
          5.0d0 : Model time step in seconds
-          0.5  : Duration of the run (in days)
+          0.1  : Duration of the run (in days)
             0  : Time step number (0 matches to 01 January 00:00:00)
          2007  : Initial year (i4.4)
-           30  : Periodicity for writing local  instantaneous data (in minutes). If >1440.0, then output is once per day. If <=0 then no local output is done
+           10  : Periodicity for writing local  instantaneous data (in minutes). If >1440.0, then output is once per day. If <=0 then no local output is done
        1440.0  : Periodicity for writing global time averaged data (in minutes). If >1440.0, then output is once per month. If <0 then only checkpoints are written
        CP0/    : Path to the checkpoints and results

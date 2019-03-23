@@ -72,30 +72,30 @@ contains
         real(8) tau
         integer ksw4, k, m, n
 
-        type(block2D), dimension(:), pointer :: ubrtr,      &
-                                                ubrtrp,     &
-                                                ubrtrn,     &
-                                                 vbrtr,     &
-                                                vbrtrp,     &
-                                                vbrtrn,     &
-                                                   ssh,     &
-                                                  sshp,     &
-                                                  sshn,     &
-                                                   wflux,     &
-                                                    RHSx,     &
-                                                    RHSy,     &
-                                                      mu,     &
-                                                     mu4,     &
-                                                    vort,     &
-                                                 str_t2d,     &
-                                                 str_s2d,     &
-                                                    rdis,     &
-                                                RHSx_adv,     &
-                                                RHSy_adv,     &
-                                                RHSx_dif,     &
-                                                RHSy_dif,     &
-                                                RHSx_bfc,     &
-                                                RHSy_bfc
+        type(block2D_real8), dimension(:), pointer :: ubrtr,      &
+                                                      ubrtrp,     &
+                                                      ubrtrn,     &
+                                                       vbrtr,     &
+                                                      vbrtrp,     &
+                                                      vbrtrn,     &
+                                                         ssh,     &
+                                                        sshp,     &
+                                                        sshn,     &
+                                                         wflux,     &
+                                                          RHSx,     &
+                                                          RHSy,     &
+                                                            mu,     &
+                                                           mu4,     &
+                                                          vort,     &
+                                                       str_t2d,     &
+                                                       str_s2d,     &
+                                                          rdis,     &
+                                                      RHSx_adv,     &
+                                                      RHSy_adv,     &
+                                                      RHSx_dif,     &
+                                                      RHSy_dif,     &
+                                                      RHSx_bfc,     &
+                                                      RHSy_bfc
 
         real*8 bp, bp0, grx, gry, slx, sly, slxn, slyn
 
@@ -111,7 +111,7 @@ contains
                              dxh(k)%vals, dyh(k)%vals, dx(k)%vals, dy(k)%vals, lu(k)%vals)
         enddo
         !$omp end parallel do
-        call syncborder_block2D(sshn)
+        call syncborder_block2D_real8(sshn)
 
         if (full_free_surface>0) then
             do k = 1, bcount
@@ -121,9 +121,9 @@ contains
                                dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
                                lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
             enddo
-            call syncborder_block2D(hhun)
-            call syncborder_block2D(hhvn)
-            call syncborder_block2D(hhhn)
+            call syncborder_block2D_real8(hhun)
+            call syncborder_block2D_real8(hhvn)
+            call syncborder_block2D_real8(hhhn)
         endif
 
         ! Computing advective and lateral-viscous terms for 2d-velocity
@@ -136,7 +136,7 @@ contains
                              luu(k)%vals)
             enddo
             !$omp end parallel do
-            call syncborder_block2D(vort)
+            call syncborder_block2D_real8(vort)
 
             !$omp parallel do
             do k = 1, bcount
@@ -161,8 +161,8 @@ contains
 
             enddo
             !$omp end parallel do
-            call syncborder_block2D(str_t2d)
-            call syncborder_block2D(str_s2d)
+            call syncborder_block2D_real8(str_t2d)
+            call syncborder_block2D_real8(str_s2d)
 
             !$omp parallel do
             do k = 1, bcount
@@ -201,8 +201,8 @@ contains
                                  rdis(k)%vals, lcu(k)%vals, lcv(k)%vals)
         enddo
         !$omp end parallel do
-        call syncborder_block2D(ubrtrn)
-        call syncborder_block2D(vbrtrn)
+        call syncborder_block2D_real8(ubrtrn)
+        call syncborder_block2D_real8(vbrtrn)
 
         ! Shifting time indices
         !$omp parallel do
@@ -243,15 +243,15 @@ contains
                               lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
              enddo
              !$omp end parallel do
-             call syncborder_block2D(hhu)
-             call syncborder_block2D(hhup)
-             call syncborder_block2D(hhun)
-             call syncborder_block2D(hhv)
-             call syncborder_block2D(hhvp)
-             call syncborder_block2D(hhvn)
-             call syncborder_block2D(hhh)
-             call syncborder_block2D(hhhp)
-             call syncborder_block2D(hhhn)
+             call syncborder_block2D_real8(hhu)
+             call syncborder_block2D_real8(hhup)
+             call syncborder_block2D_real8(hhun)
+             call syncborder_block2D_real8(hhv)
+             call syncborder_block2D_real8(hhvp)
+             call syncborder_block2D_real8(hhvn)
+             call syncborder_block2D_real8(hhh)
+             call syncborder_block2D_real8(hhhp)
+             call syncborder_block2D_real8(hhhn)
         endif
 
     endsubroutine expl_shallow_water

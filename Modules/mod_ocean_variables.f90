@@ -24,36 +24,36 @@ module ocean_variables
     use mpi_parallel_tools
     implicit none
     !barotropic dynamics arrays
-    type(block2D), dimension(:), pointer ::   ssh,     &  !sea surface height (SSH) at current  time step [m] (internal mode)
-                                            ubrtr,     &  !barotropic velocity      zonal[m/s] at current time step (internal mode)
-                                            vbrtr,     &  !barotropic velocity meridional[m/s] at current time step (internal mode)
-                                            RHSx2d,    &  !x-component of external force(barotropic)
-                                            RHSy2d        !y-component of external force(barotropic)
+    type(block2D_real8), dimension(:), pointer ::   ssh,     &  !sea surface height (SSH) at current  time step [m] (internal mode)
+                                                  ubrtr,     &  !barotropic velocity      zonal[m/s] at current time step (internal mode)
+                                                  vbrtr,     &  !barotropic velocity meridional[m/s] at current time step (internal mode)
+                                                  RHSx2d,    &  !x-component of external force(barotropic)
+                                                  RHSy2d        !y-component of external force(barotropic)
 
-    type(block2D), dimension(:), pointer ::  sshn,    &
-                                             sshp,    &  !sea surface height (SSH) at previous time step [m] (external mode)
-                                            ubrtrn,   &
-                                            ubrtrp,   &  !barotropic velocity      zonal[m/s] at previous time step (external mode)
-                                            vbrtrn,   &
-                                            vbrtrp       !barotropic velocity meridional[m/s] at previous time step (external mode)
+    type(block2D_real8), dimension(:), pointer ::  sshn,    &
+                                                   sshp,    &  !sea surface height (SSH) at previous time step [m] (external mode)
+                                                  ubrtrn,   &
+                                                  ubrtrp,   &  !barotropic velocity      zonal[m/s] at previous time step (external mode)
+                                                  vbrtrn,   &
+                                                  vbrtrp       !barotropic velocity meridional[m/s] at previous time step (external mode)
 
     ! sea surface boundary condition
-    type(block2D), dimension(:), pointer :: wf_tot !total water flux
+    type(block2D_real8), dimension(:), pointer :: wf_tot !total water flux
 
-    type(block2D), dimension(:), pointer :: BottomFriction,  &  !Bottom friction rate (m/s)
-                                            r_diss              !Rayleigh friction scale (1/s)
+    type(block2D_real8), dimension(:), pointer :: BottomFriction,  &  !Bottom friction rate (m/s)
+                                                  r_diss              !Rayleigh friction scale (1/s)
 
-    type(block2D), dimension(:), pointer :: amuv2d,               &    !depth mean lateral viscosity
-                                            amuv42d,              &    !depth mean lateral viscosity
-                                            r_vort2d,             &    !relative vorticity of depth mean velocity
-                                            stress_t2d,           &    !Horizontal tension tensor component (barotropic)
-                                            stress_s2d,           &    !Horizontal shearing tensor component(barotropic)
-                                            RHSx2d_tran_disp,     &    !dispersion x-component of external force(barotropic)
-                                            RHSy2d_tran_disp,     &    !dispersion y-component of external force(barotropic)
-                                            RHSx2d_diff_disp,     &    !dispersion x-component of external force(barotropic)
-                                            RHSy2d_diff_disp,     &    !dispersion y-component of external force(barotropic)
-                                            RHSx2d_bfc,           &
-                                            RHSy2d_bfc
+    type(block2D_real8), dimension(:), pointer :: amuv2d,               &    !depth mean lateral viscosity
+                                                  amuv42d,              &    !depth mean lateral viscosity
+                                                  r_vort2d,             &    !relative vorticity of depth mean velocity
+                                                  stress_t2d,           &    !Horizontal tension tensor component (barotropic)
+                                                  stress_s2d,           &    !Horizontal shearing tensor component(barotropic)
+                                                  RHSx2d_tran_disp,     &    !dispersion x-component of external force(barotropic)
+                                                  RHSy2d_tran_disp,     &    !dispersion y-component of external force(barotropic)
+                                                  RHSx2d_diff_disp,     &    !dispersion x-component of external force(barotropic)
+                                                  RHSy2d_diff_disp,     &    !dispersion y-component of external force(barotropic)
+                                                  RHSx2d_bfc,           &
+                                                  RHSy2d_bfc
 
 endmodule ocean_variables
 !-------------end module for description common ogcm variables and task control parameters---------

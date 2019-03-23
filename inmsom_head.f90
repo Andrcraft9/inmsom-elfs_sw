@@ -103,7 +103,7 @@ program INMSOM
     endif
     
     ! Initializing SW init conditions
-    call sw_only_inicond(0, path2ocp)
+    call sw_only_inicond(1, path2ocp)
     !call zero_sw_init
 
     !------------------------- Check points ----------------------------------------!
@@ -150,7 +150,27 @@ program INMSOM
     endif
 
     if (key_write_local>0) then
-        !if (rank == 0) print *, "Output initial local data..."  
+        if (rank == 0) print *, "Output initial local data..."
+        call parallel_local_output(path2ocp,  &
+                                          1,  &
+                                   year_loc,  &
+                                    mon_loc,  &
+                                    day_loc,  &
+                                   hour_loc,  &
+                                    min_loc,  &
+                             loc_data_tstep,  &
+                                    yr_type  )
+      
+        call model_time_print(num_step,         &
+                              m_sec_of_min,     &    !second counter in minute,output
+                              m_min_of_hour,    &    !minute counter in hour  ,output
+                              m_hour_of_day,    &    !hour counter in day     ,output
+                              m_day_of_month,   &    !day counter in month    ,output
+                              m_day_of_year,    &    !day counter in year     ,output
+                              m_day_of_4yr,     &    !day counter in 4-years  ,output
+                              m_month_of_year,  &    !mon counter in year     ,output
+                              m_month,          &    !model elapsed month counter starting from zero
+                              m_year )               !year counter            ,output
     endif
       
     if (key_write_points > 0 ) then
@@ -196,8 +216,36 @@ program INMSOM
 
         !Write local data
         if (key_write_local>0) then
-            !nrec_loc=num_step/loc_data_wr_period_step
+            if (mod(num_step,loc_data_wr_period_step)==0) then
+                nrec_loc=num_step/loc_data_wr_period_step
+              
+                call start_timer(t_local)
+                call  parallel_local_output(path2ocp,  &
+                                        nrec_loc + 1,  &
+                                            year_loc,  &
+                                             mon_loc,  &
+                                             day_loc,  &
+                                            hour_loc,  &
+                                             min_loc,  &
+                                      loc_data_tstep,  &
+                                             yr_type  )
+                call end_timer(t_local)
+                time_output = time_output + t_local
+                                  
+                call model_time_print(num_step,         &
+                                      m_sec_of_min,     &    !second counter in minute,output
+                                      m_min_of_hour,    &    !minute counter in hour  ,output
+                                      m_hour_of_day,    &    !hour counter in day     ,output
+                                      m_day_of_month,   &    !day counter in month    ,output
+                                      m_day_of_year,    &    !day counter in year     ,output
+                                      m_day_of_4yr,     &    !day counter in 4-years  ,output
+                                      m_month_of_year,  &    !mon counter in year     ,output
+                                      m_month,          &    !model elapsed month counter starting from zero
+                                      m_year )               !year counter            ,output
+              
+               endif
         endif
+        
         !Write points data
         if (key_write_points>0) then
             if (mod(num_step, points_data_wr_period_step) == 0) then

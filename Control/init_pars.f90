@@ -5,6 +5,7 @@ subroutine ocean_model_parameters(tau)
     use ocean_variables
     use grid_parameters
     use rwpar_routes
+    use iodata_routes
     implicit none
     character(256) t_mask_file,       &  !name of file with temperature point sea-land mask
         bottom_topography_file,       &  !name of file with bottom topography
@@ -13,6 +14,7 @@ subroutine ocean_model_parameters(tau)
     integer m, n, k, ierr
     real(8) tau
     real(8) :: hx2, hy2
+    type(block2D_real4), dimension(:), pointer :: array4
 
     ! define parameters of task
     ! description of parameters see in file with mame filepar
@@ -84,13 +86,14 @@ subroutine ocean_model_parameters(tau)
             hhq_rest(k)%vals = 500.0d0
         enddo
     else
-        if (rank .eq. 0) print *, 'ERR: cant read topo with block! ...'
-        call parallel_finalize; stop
-        !array4=0.0
-        !call prdstd(' ',bottom_topography_file,1,array4,lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
-        !hhq_rest=dble(array4)
+        call allocate_block2D_real4(array4, 0.0)
+        call prdstd2D(' ', bottom_topography_file, 1, array4, lu, nx, ny, mmm, mm, nnn, nn, ierr)
+        do k = 1, bcount
+            hhq_rest(k)%vals = dble(array4(k)%vals)
+        enddo
+        call deallocate_block2D_real4(array4)
     endif
-    call syncborder_block2D(hhq_rest)
+    call syncborder_block2D_real8(hhq_rest)
 
     !--------------Rayleigh friction initialization
     !$omp parallel do
@@ -113,7 +116,7 @@ subroutine ocean_model_parameters(tau)
         enddo
     enddo
     !$omp end parallel do
-    call syncborder_block2D(r_diss)
+    call syncborder_block2D_real8(r_diss)
 
 endsubroutine ocean_model_parameters
 
@@ -170,15 +173,15 @@ subroutine zero_sw_init
                      dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
                      lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
     enddo
-    call syncborder_block2D(hhu)
-    call syncborder_block2D(hhup)
-    call syncborder_block2D(hhun)
-    call syncborder_block2D(hhv)
-    call syncborder_block2D(hhvp)
-    call syncborder_block2D(hhvn)
-    call syncborder_block2D(hhh)
-    call syncborder_block2D(hhhp)
-    call syncborder_block2D(hhhn)
+    call syncborder_block2D_real8(hhu)
+    call syncborder_block2D_real8(hhup)
+    call syncborder_block2D_real8(hhun)
+    call syncborder_block2D_real8(hhv)
+    call syncborder_block2D_real8(hhvp)
+    call syncborder_block2D_real8(hhvn)
+    call syncborder_block2D_real8(hhh)
+    call syncborder_block2D_real8(hhhp)
+    call syncborder_block2D_real8(hhhn)
 
 end subroutine
 
@@ -188,9 +191,11 @@ subroutine sw_only_inicond(flag_init, path2ocp)
     use basin_grid
     use ocean_variables
     use depth
+    use iodata_routes
     implicit none
     integer :: flag_init
     character*(*) path2ocp
+    type(block2D_real4), dimension(:), pointer :: array4
 
     integer :: k, ierr
     !real(4) array4(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
@@ -202,11 +207,14 @@ subroutine sw_only_inicond(flag_init, path2ocp)
 
     ! Read init sea level
     if (flag_init > 0) then
-        !if (rank.eq.0) print *, "Read init sea level"
-        !array4 = 0.0
-        !call prdstd(path2ocp, 'slf.dat', 1, array4, lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
-        !ssh = dble(array4)
-        !call syncborder_real8(ssh, 1)
+        if (rank .eq. 0) print *, "Read init sea level"
+        call allocate_block2D_real4(array4, 0.0)
+        call prdstd2D(path2ocp, 'slf.dat', 1, array4, lu, nx, ny, mmm, mm, nnn, nn, ierr)
+        do k = 1, bcount
+            ssh(k)%vals = dble(array4(k)%vals)
+        enddo
+        call deallocate_block2D_real4(array4)
+        call syncborder_block2D_real8(ssh)
     else
         if (rank.eq.0) print *, "Init sea level is zero"
         do k = 1, bcount
@@ -231,14 +239,14 @@ subroutine sw_only_inicond(flag_init, path2ocp)
                      dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
                      lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
     enddo
-    call syncborder_block2D(hhu)
-    call syncborder_block2D(hhup)
-    call syncborder_block2D(hhun)
-    call syncborder_block2D(hhv)
-    call syncborder_block2D(hhvp)
-    call syncborder_block2D(hhvn)
-    call syncborder_block2D(hhh)
-    call syncborder_block2D(hhhp)
-    call syncborder_block2D(hhhn)
+    call syncborder_block2D_real8(hhu)
+    call syncborder_block2D_real8(hhup)
+    call syncborder_block2D_real8(hhun)
+    call syncborder_block2D_real8(hhv)
+    call syncborder_block2D_real8(hhvp)
+    call syncborder_block2D_real8(hhvn)
+    call syncborder_block2D_real8(hhh)
+    call syncborder_block2D_real8(hhhp)
+    call syncborder_block2D_real8(hhhn)
 
 endsubroutine sw_only_inicond
