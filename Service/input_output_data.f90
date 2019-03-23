@@ -709,11 +709,7 @@ subroutine pwdstd2D(path, fname, nfild, fild, lu, nx, ny, nxb, nxe, nyb, nye, ie
             k = 1
             call set_block_boundary(1)
         endif
-
-        !if (k /= 1) then
-        !    exit
-        !endif 
-
+        
         offset2 = (/nx_start - nxb, ny_start - nyb/)
         locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
         sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
