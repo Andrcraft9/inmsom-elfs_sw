@@ -6,6 +6,18 @@ module mpi_parallel_tools
     !include 'mpif.h'
     include "omp_lib.h"
 
+    integer :: nx_start,    &   !first significant point in x-direction
+               nx_end,      &   !last  significant point in x-direction
+               ny_start,    &   !first significant point in y-direction
+               ny_end           !last  significant point in y-direction
+
+    integer :: bnd_x1,      &   !left   array boundary in x-direction
+               bnd_x2,      &   !right  array boundary in x-direction
+               bnd_y1,      &   !bottom array boundary in y-direction
+               bnd_y2           !top    array boundary in y-direction
+
+    integer :: nzmax 
+
     integer :: mod_decomposition
     character(128) :: file_decomposition
     integer :: bppnx, bppny
@@ -13,19 +25,25 @@ module mpi_parallel_tools
     integer :: parallel_mod
     character(128) :: file_output
 
-    integer :: nx_start, nx_end, ny_start, ny_end
-    integer :: bnd_x1, bnd_x2, bnd_y1, bnd_y2
+    type :: block3D_real8
+        real*8, dimension(:, :, :), pointer :: vals
+    end type
+    type :: block3D_real4
+        real*4, dimension(:, :, :), pointer :: vals
+    end type
 
     type :: block2D_real8
         real*8, dimension(:, :), pointer :: vals
     end type
-
     type :: block2D_real4
         real*4, dimension(:, :), pointer :: vals
     end type
 
     type :: block1D_real8
         real*8, dimension(:), pointer :: vals
+    end type
+    type :: block1D_real4
+        real*4, dimension(:), pointer :: vals
     end type
 
     integer, allocatable :: lbasins(:, :)
@@ -63,8 +81,9 @@ module mpi_parallel_tools
     integer, dimension(2) :: p_size, p_coord
     logical, dimension(2) :: p_period
 
-    ! MPI buffers
+    ! MPI buffers for 2D sync
     integer, allocatable :: reqsts(:), statuses(:, :)
+    ! real8
     type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nyp, sync_buf8_recv_nyp
     type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nxp, sync_buf8_recv_nxp
     type(block1D_real8), dimension(:), pointer :: sync_buf8_send_nym, sync_buf8_recv_nym
@@ -73,13 +92,42 @@ module mpi_parallel_tools
     real*8, allocatable :: sync_edge_buf8_recv_nxp_nym(:)
     real*8, allocatable :: sync_edge_buf8_recv_nxm_nyp(:)
     real*8, allocatable :: sync_edge_buf8_recv_nxm_nym(:)
+    ! real4
+    type(block1D_real4), dimension(:), pointer :: sync_buf4_send_nyp, sync_buf4_recv_nyp
+    type(block1D_real4), dimension(:), pointer :: sync_buf4_send_nxp, sync_buf4_recv_nxp
+    type(block1D_real4), dimension(:), pointer :: sync_buf4_send_nym, sync_buf4_recv_nym
+    type(block1D_real4), dimension(:), pointer :: sync_buf4_send_nxm, sync_buf4_recv_nxm
+    real*4, allocatable :: sync_edge_buf4_recv_nxp_nyp(:)
+    real*4, allocatable :: sync_edge_buf4_recv_nxp_nym(:)
+    real*4, allocatable :: sync_edge_buf4_recv_nxm_nyp(:)
+    real*4, allocatable :: sync_edge_buf4_recv_nxm_nym(:)
+    ! MPI buffers for 3D sync
+    ! real8
+    type(block2D_real8), dimension(:), pointer :: sync_buf8_send_nyp_3D, sync_buf8_recv_nyp_3D
+    type(block2D_real8), dimension(:), pointer :: sync_buf8_send_nxp_3D, sync_buf8_recv_nxp_3D
+    type(block2D_real8), dimension(:), pointer :: sync_buf8_send_nym_3D, sync_buf8_recv_nym_3D
+    type(block2D_real8), dimension(:), pointer :: sync_buf8_send_nxm_3D, sync_buf8_recv_nxm_3D
+    type(block1D_real8), dimension(:), pointer :: sync_edge_buf8_recv_nxp_nyp_3D
+    type(block1D_real8), dimension(:), pointer :: sync_edge_buf8_recv_nxp_nym_3D
+    type(block1D_real8), dimension(:), pointer :: sync_edge_buf8_recv_nxm_nyp_3D
+    type(block1D_real8), dimension(:), pointer :: sync_edge_buf8_recv_nxm_nym_3D
+    ! real4
+    type(block2D_real4), dimension(:), pointer :: sync_buf4_send_nyp_3D, sync_buf4_recv_nyp_3D
+    type(block2D_real4), dimension(:), pointer :: sync_buf4_send_nxp_3D, sync_buf4_recv_nxp_3D
+    type(block2D_real4), dimension(:), pointer :: sync_buf4_send_nym_3D, sync_buf4_recv_nym_3D
+    type(block2D_real4), dimension(:), pointer :: sync_buf4_send_nxm_3D, sync_buf4_recv_nxm_3D
+    type(block1D_real4), dimension(:), pointer :: sync_edge_buf4_recv_nxp_nyp_3D
+    type(block1D_real4), dimension(:), pointer :: sync_edge_buf4_recv_nxp_nym_3D
+    type(block1D_real4), dimension(:), pointer :: sync_edge_buf4_recv_nxm_nyp_3D
+    type(block1D_real4), dimension(:), pointer :: sync_edge_buf4_recv_nxm_nym_3D
 
     ! Timers
-    real*8 :: time_barotrop
-    real*8 :: time_model_step, time_output
-    real*8 :: time_sync
+    real*8 :: time_model_step,  &
+                time_tt_ss,       &
+                time_barotrop,    &
+                time_output, time_sync
 
-contains
+    contains
 
     subroutine parallel_check_err(err)
         implicit none
@@ -88,7 +136,7 @@ contains
         integer :: ierr
 
         call mpi_allreduce(err, totalerr, 1, mpi_integer,  &
-                           mpi_sum, cart_comm, ierr)
+                            mpi_sum, cart_comm, ierr)
         if (totalerr >= 1) then
             if (rank .eq. 0) print *, 'Error! ABORT PROGRAM!'
             call parallel_finalize
@@ -162,6 +210,175 @@ contains
         call mpi_barrier(cart_comm, ierr)
     end subroutine
 
+    subroutine allocate_mpi_buffers
+        implicit none
+
+        integer :: k, nx_dir_size, ny_dir_size
+
+        ! MPI buffers for 2D data
+        ! real8
+        allocate(sync_buf8_send_nyp(bcount), sync_buf8_recv_nyp(bcount))
+        allocate(sync_buf8_send_nxp(bcount), sync_buf8_recv_nxp(bcount))
+        allocate(sync_buf8_send_nym(bcount), sync_buf8_recv_nym(bcount))
+        allocate(sync_buf8_send_nxm(bcount), sync_buf8_recv_nxm(bcount))
+        do k = 1, bcount
+            ny_dir_size = bnx_end(k) - bnx_start(k) + 1
+            nx_dir_size = bny_end(k) - bny_start(k) + 1
+            allocate(sync_buf8_send_nyp(k)%vals(ny_dir_size), sync_buf8_recv_nyp(k)%vals(ny_dir_size))
+            allocate(sync_buf8_send_nxp(k)%vals(nx_dir_size), sync_buf8_recv_nxp(k)%vals(nx_dir_size))
+            allocate(sync_buf8_send_nym(k)%vals(ny_dir_size), sync_buf8_recv_nym(k)%vals(ny_dir_size))
+            allocate(sync_buf8_send_nxm(k)%vals(nx_dir_size), sync_buf8_recv_nxm(k)%vals(nx_dir_size))
+        enddo
+        allocate(sync_edge_buf8_recv_nxp_nyp(bcount))
+        allocate(sync_edge_buf8_recv_nxp_nym(bcount))
+        allocate(sync_edge_buf8_recv_nxm_nyp(bcount))
+        allocate(sync_edge_buf8_recv_nxm_nym(bcount))
+        ! real4
+        allocate(sync_buf4_send_nyp(bcount), sync_buf4_recv_nyp(bcount))
+        allocate(sync_buf4_send_nxp(bcount), sync_buf4_recv_nxp(bcount))
+        allocate(sync_buf4_send_nym(bcount), sync_buf4_recv_nym(bcount))
+        allocate(sync_buf4_send_nxm(bcount), sync_buf4_recv_nxm(bcount))
+        do k = 1, bcount
+            ny_dir_size = bnx_end(k) - bnx_start(k) + 1
+            nx_dir_size = bny_end(k) - bny_start(k) + 1
+            allocate(sync_buf4_send_nyp(k)%vals(ny_dir_size), sync_buf4_recv_nyp(k)%vals(ny_dir_size))
+            allocate(sync_buf4_send_nxp(k)%vals(nx_dir_size), sync_buf4_recv_nxp(k)%vals(nx_dir_size))
+            allocate(sync_buf4_send_nym(k)%vals(ny_dir_size), sync_buf4_recv_nym(k)%vals(ny_dir_size))
+            allocate(sync_buf4_send_nxm(k)%vals(nx_dir_size), sync_buf4_recv_nxm(k)%vals(nx_dir_size))
+        enddo
+        allocate(sync_edge_buf4_recv_nxp_nyp(bcount))
+        allocate(sync_edge_buf4_recv_nxp_nym(bcount))
+        allocate(sync_edge_buf4_recv_nxm_nyp(bcount))
+        allocate(sync_edge_buf4_recv_nxm_nym(bcount))
+
+        ! MPI buffers for 3D data
+        ! real8
+        allocate(sync_buf8_send_nyp_3D(bcount), sync_buf8_recv_nyp_3D(bcount))
+        allocate(sync_buf8_send_nxp_3D(bcount), sync_buf8_recv_nxp_3D(bcount))
+        allocate(sync_buf8_send_nym_3D(bcount), sync_buf8_recv_nym_3D(bcount))
+        allocate(sync_buf8_send_nxm_3D(bcount), sync_buf8_recv_nxm_3D(bcount))
+        allocate(sync_edge_buf8_recv_nxp_nyp_3D(bcount))
+        allocate(sync_edge_buf8_recv_nxp_nym_3D(bcount))
+        allocate(sync_edge_buf8_recv_nxm_nyp_3D(bcount))
+        allocate(sync_edge_buf8_recv_nxm_nym_3D(bcount))
+        do k = 1, bcount
+            ny_dir_size = bnx_end(k) - bnx_start(k) + 1
+            nx_dir_size = bny_end(k) - bny_start(k) + 1
+            allocate(sync_buf8_send_nyp_3D(k)%vals(ny_dir_size, nzmax), sync_buf8_recv_nyp_3D(k)%vals(ny_dir_size, nzmax))
+            allocate(sync_buf8_send_nxp_3D(k)%vals(nx_dir_size, nzmax), sync_buf8_recv_nxp_3D(k)%vals(nx_dir_size, nzmax))
+            allocate(sync_buf8_send_nym_3D(k)%vals(ny_dir_size, nzmax), sync_buf8_recv_nym_3D(k)%vals(ny_dir_size, nzmax))
+            allocate(sync_buf8_send_nxm_3D(k)%vals(nx_dir_size, nzmax), sync_buf8_recv_nxm_3D(k)%vals(nx_dir_size, nzmax))
+            allocate(sync_edge_buf8_recv_nxp_nyp_3D(k)%vals(nzmax))
+            allocate(sync_edge_buf8_recv_nxp_nym_3D(k)%vals(nzmax))
+            allocate(sync_edge_buf8_recv_nxm_nyp_3D(k)%vals(nzmax))
+            allocate(sync_edge_buf8_recv_nxm_nym_3D(k)%vals(nzmax))
+        enddo
+        ! real4
+        allocate(sync_buf4_send_nyp_3D(bcount), sync_buf4_recv_nyp_3D(bcount))
+        allocate(sync_buf4_send_nxp_3D(bcount), sync_buf4_recv_nxp_3D(bcount))
+        allocate(sync_buf4_send_nym_3D(bcount), sync_buf4_recv_nym_3D(bcount))
+        allocate(sync_buf4_send_nxm_3D(bcount), sync_buf4_recv_nxm_3D(bcount))
+        allocate(sync_edge_buf4_recv_nxp_nyp_3D(bcount))
+        allocate(sync_edge_buf4_recv_nxp_nym_3D(bcount))
+        allocate(sync_edge_buf4_recv_nxm_nyp_3D(bcount))
+        allocate(sync_edge_buf4_recv_nxm_nym_3D(bcount))
+        do k = 1, bcount
+            ny_dir_size = bnx_end(k) - bnx_start(k) + 1
+            nx_dir_size = bny_end(k) - bny_start(k) + 1
+            allocate(sync_buf4_send_nyp_3D(k)%vals(ny_dir_size, nzmax), sync_buf4_recv_nyp_3D(k)%vals(ny_dir_size, nzmax))
+            allocate(sync_buf4_send_nxp_3D(k)%vals(nx_dir_size, nzmax), sync_buf4_recv_nxp_3D(k)%vals(nx_dir_size, nzmax))
+            allocate(sync_buf4_send_nym_3D(k)%vals(ny_dir_size, nzmax), sync_buf4_recv_nym_3D(k)%vals(ny_dir_size, nzmax))
+            allocate(sync_buf4_send_nxm_3D(k)%vals(nx_dir_size, nzmax), sync_buf4_recv_nxm_3D(k)%vals(nx_dir_size, nzmax))
+            allocate(sync_edge_buf4_recv_nxp_nyp_3D(k)%vals(nzmax))
+            allocate(sync_edge_buf4_recv_nxp_nym_3D(k)%vals(nzmax))
+            allocate(sync_edge_buf4_recv_nxm_nyp_3D(k)%vals(nzmax))
+            allocate(sync_edge_buf4_recv_nxm_nym_3D(k)%vals(nzmax))
+        enddo
+        
+        allocate(reqsts(2*8*bcount), statuses(MPI_STATUS_SIZE, 2*8*bcount))
+    end subroutine
+
+    subroutine deallocate_mpi_buffers
+        implicit none
+        integer :: k
+
+        deallocate(reqsts)
+        deallocate(statuses)
+
+        ! MPI buffers for 2D data
+        ! real8
+        do k = 1, bcount
+            deallocate(sync_buf8_send_nyp(k)%vals, sync_buf8_recv_nyp(k)%vals)
+            deallocate(sync_buf8_send_nxp(k)%vals, sync_buf8_recv_nxp(k)%vals)
+            deallocate(sync_buf8_send_nym(k)%vals, sync_buf8_recv_nym(k)%vals)
+            deallocate(sync_buf8_send_nxm(k)%vals, sync_buf8_recv_nxm(k)%vals)
+        enddo
+        deallocate(sync_buf8_send_nyp, sync_buf8_recv_nyp)
+        deallocate(sync_buf8_send_nxp, sync_buf8_recv_nxp)
+        deallocate(sync_buf8_send_nym, sync_buf8_recv_nym)
+        deallocate(sync_buf8_send_nxm, sync_buf8_recv_nxm)
+        deallocate(sync_edge_buf8_recv_nxp_nyp)
+        deallocate(sync_edge_buf8_recv_nxp_nym)
+        deallocate(sync_edge_buf8_recv_nxm_nyp)
+        deallocate(sync_edge_buf8_recv_nxm_nym)
+        ! real4
+        do k = 1, bcount
+            deallocate(sync_buf4_send_nyp(k)%vals, sync_buf4_recv_nyp(k)%vals)
+            deallocate(sync_buf4_send_nxp(k)%vals, sync_buf4_recv_nxp(k)%vals)
+            deallocate(sync_buf4_send_nym(k)%vals, sync_buf4_recv_nym(k)%vals)
+            deallocate(sync_buf4_send_nxm(k)%vals, sync_buf4_recv_nxm(k)%vals)
+        enddo
+        deallocate(sync_buf4_send_nyp, sync_buf4_recv_nyp)
+        deallocate(sync_buf4_send_nxp, sync_buf4_recv_nxp)
+        deallocate(sync_buf4_send_nym, sync_buf4_recv_nym)
+        deallocate(sync_buf4_send_nxm, sync_buf4_recv_nxm)
+        deallocate(sync_edge_buf4_recv_nxp_nyp)
+        deallocate(sync_edge_buf4_recv_nxp_nym)
+        deallocate(sync_edge_buf4_recv_nxm_nyp)
+        deallocate(sync_edge_buf4_recv_nxm_nym)
+
+        ! MPI buffers for 3D data
+        ! real8
+        do k = 1, bcount
+            deallocate(sync_buf8_send_nyp_3D(k)%vals, sync_buf8_recv_nyp_3D(k)%vals)
+            deallocate(sync_buf8_send_nxp_3D(k)%vals, sync_buf8_recv_nxp_3D(k)%vals)
+            deallocate(sync_buf8_send_nym_3D(k)%vals, sync_buf8_recv_nym_3D(k)%vals)
+            deallocate(sync_buf8_send_nxm_3D(k)%vals, sync_buf8_recv_nxm_3D(k)%vals)
+            deallocate(sync_edge_buf8_recv_nxp_nyp_3D(k)%vals)
+            deallocate(sync_edge_buf8_recv_nxp_nym_3D(k)%vals)
+            deallocate(sync_edge_buf8_recv_nxm_nyp_3D(k)%vals)
+            deallocate(sync_edge_buf8_recv_nxm_nym_3D(k)%vals)
+        enddo
+        deallocate(sync_buf8_send_nyp_3D, sync_buf8_recv_nyp_3D)
+        deallocate(sync_buf8_send_nxp_3D, sync_buf8_recv_nxp_3D)
+        deallocate(sync_buf8_send_nym_3D, sync_buf8_recv_nym_3D)
+        deallocate(sync_buf8_send_nxm_3D, sync_buf8_recv_nxm_3D)
+        deallocate(sync_edge_buf8_recv_nxp_nyp_3D)
+        deallocate(sync_edge_buf8_recv_nxp_nym_3D)
+        deallocate(sync_edge_buf8_recv_nxm_nyp_3D)
+        deallocate(sync_edge_buf8_recv_nxm_nym_3D)
+        ! real4
+        do k = 1, bcount
+            deallocate(sync_buf4_send_nyp_3D(k)%vals, sync_buf4_recv_nyp_3D(k)%vals)
+            deallocate(sync_buf4_send_nxp_3D(k)%vals, sync_buf4_recv_nxp_3D(k)%vals)
+            deallocate(sync_buf4_send_nym_3D(k)%vals, sync_buf4_recv_nym_3D(k)%vals)
+            deallocate(sync_buf4_send_nxm_3D(k)%vals, sync_buf4_recv_nxm_3D(k)%vals)
+            deallocate(sync_edge_buf4_recv_nxp_nyp_3D(k)%vals)
+            deallocate(sync_edge_buf4_recv_nxp_nym_3D(k)%vals)
+            deallocate(sync_edge_buf4_recv_nxm_nyp_3D(k)%vals)
+            deallocate(sync_edge_buf4_recv_nxm_nym_3D(k)%vals)
+        enddo
+        deallocate(sync_buf4_send_nyp_3D, sync_buf4_recv_nyp_3D)
+        deallocate(sync_buf4_send_nxp_3D, sync_buf4_recv_nxp_3D)
+        deallocate(sync_buf4_send_nym_3D, sync_buf4_recv_nym_3D)
+        deallocate(sync_buf4_send_nxm_3D, sync_buf4_recv_nxm_3D)
+        deallocate(sync_edge_buf4_recv_nxp_nyp_3D)
+        deallocate(sync_edge_buf4_recv_nxp_nym_3D)
+        deallocate(sync_edge_buf4_recv_nxm_nyp_3D)
+        deallocate(sync_edge_buf4_recv_nxm_nym_3D)
+
+    end subroutine
+
     subroutine parallel_finalize
         implicit none
 
@@ -183,28 +400,7 @@ contains
 
         ! MPI buffers
         if (allocated(reqsts)) then
-            deallocate(reqsts)
-            deallocate(statuses)
-
-            !if (allocated(sync_buf8_send_nyp)) then
-            do k = 1, bcount
-                deallocate(sync_buf8_send_nyp(k)%vals, sync_buf8_recv_nyp(k)%vals)
-                deallocate(sync_buf8_send_nxp(k)%vals, sync_buf8_recv_nxp(k)%vals)
-                deallocate(sync_buf8_send_nym(k)%vals, sync_buf8_recv_nym(k)%vals)
-                deallocate(sync_buf8_send_nxm(k)%vals, sync_buf8_recv_nxm(k)%vals)
-            enddo
-            deallocate(sync_buf8_send_nyp, sync_buf8_recv_nyp)
-            deallocate(sync_buf8_send_nxp, sync_buf8_recv_nxp)
-            deallocate(sync_buf8_send_nym, sync_buf8_recv_nym)
-            deallocate(sync_buf8_send_nxm, sync_buf8_recv_nxm)
-
-            deallocate(sync_edge_buf8_recv_nxp_nyp)
-            deallocate(sync_edge_buf8_recv_nxp_nym)
-            deallocate(sync_edge_buf8_recv_nxm_nyp)
-            deallocate(sync_edge_buf8_recv_nxm_nym)
-            !endif
-            !if (allocated(sync_buf8_send_nyp)) deallocate(sync_buf8_send_nyp)
-            !if (allocated(sync_buf8_recv_nyp)) deallocate(sync_buf8_recv_nyp)
+            call deallocate_mpi_buffers()
         endif
 
         call mpi_finalize(ierr)
@@ -276,6 +472,9 @@ contains
         integer, dimension(2) :: rankblock
         real*8 :: icomm_metric, max_icomm_metric
 
+        ! Set maximum levels in z direction (for MPI buffers)
+        nzmax = nz
+
         ! Set Cart grid of blocks
         bnx = bppnx * p_size(1)
         bny = bppny * p_size(2)
@@ -299,9 +498,9 @@ contains
 
         allocate(bglob_weight(bnx, bny))
         allocate(glob_bnx_start(bnx, bny), glob_bnx_end(bnx, bny),     &
-                 glob_bny_start(bnx, bny), glob_bny_end(bnx, bny))
+                    glob_bny_start(bnx, bny), glob_bny_end(bnx, bny))
         allocate(glob_bbnd_x1(bnx, bny), glob_bbnd_x2(bnx, bny),       &
-                 glob_bbnd_y1(bnx, bny), glob_bbnd_y2(bnx, bny))
+                    glob_bbnd_y1(bnx, bny), glob_bbnd_y2(bnx, bny))
 
         glob_bnx_start = 0; glob_bnx_end = 0; glob_bny_start = 0; glob_bny_end = 0
         glob_bbnd_x1 = 0; glob_bbnd_x2 = 0; glob_bbnd_y1 = 0; glob_bbnd_y2 = 0
@@ -410,7 +609,7 @@ contains
 
         ! Print information about blocks
         if (rank == 0) print *, 'Total blocks:', total_blocks, 'LB: ', max_bweight / (sum(bglob_weight) / real(procs)), &
-                                 'max blocks per proc:', bcount_max, 'min blocks per proc:', bcount_min
+                                    'max blocks per proc:', bcount_max, 'min blocks per proc:', bcount_min
         call mpi_barrier(cart_comm, ierr)
         if (parallel_dbg >= 2) then
             print *, rank, 'Blocks per proc:', bcount, 'Weight per proc:', bweight !/ ((nx-4)*(ny-4))
@@ -420,9 +619,9 @@ contains
         ! Allocate blocks arrays per proc
         allocate(bindx(bcount, 2))
         allocate(bnx_start(bcount), bnx_end(bcount),     &
-                 bny_start(bcount), bny_end(bcount))
+                    bny_start(bcount), bny_end(bcount))
         allocate(bbnd_x1(bcount), bbnd_x2(bcount),       &
-                 bbnd_y1(bcount), bbnd_y2(bcount))
+                    bbnd_y1(bcount), bbnd_y2(bcount))
         bindx = 0
         bnx_start = 0; bnx_end = 0; bny_start = 0; bny_end = 0
         bbnd_x1 = 0; bbnd_x2 = 0; bbnd_y1 = 0; bbnd_y2 = 0
@@ -670,7 +869,7 @@ contains
         integer :: file_bnx, file_bny, file_pnx, file_pny
         integer :: k, m, n, bgp, ierr
         real*8 :: bgw
-       
+        
         if (rank == 0) then 
             open(90, file=file_decomposition, status='old')
             read(90,*) file_bnx, file_bny, file_pnx, file_pny
@@ -699,32 +898,6 @@ contains
             call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from file decomposition')
         endif
 
-    end subroutine
-
-    subroutine allocate_mpi_buffers
-        implicit none
-
-        integer :: k, nx_dir_size, ny_dir_size
-
-        allocate(sync_buf8_send_nyp(bcount), sync_buf8_recv_nyp(bcount))
-        allocate(sync_buf8_send_nxp(bcount), sync_buf8_recv_nxp(bcount))
-        allocate(sync_buf8_send_nym(bcount), sync_buf8_recv_nym(bcount))
-        allocate(sync_buf8_send_nxm(bcount), sync_buf8_recv_nxm(bcount))
-        do k = 1, bcount
-            ny_dir_size = bnx_end(k) - bnx_start(k) + 1
-            nx_dir_size = bny_end(k) - bny_start(k) + 1
-            allocate(sync_buf8_send_nyp(k)%vals(ny_dir_size), sync_buf8_recv_nyp(k)%vals(ny_dir_size))
-            allocate(sync_buf8_send_nxp(k)%vals(nx_dir_size), sync_buf8_recv_nxp(k)%vals(nx_dir_size))
-            allocate(sync_buf8_send_nym(k)%vals(ny_dir_size), sync_buf8_recv_nym(k)%vals(ny_dir_size))
-            allocate(sync_buf8_send_nxm(k)%vals(nx_dir_size), sync_buf8_recv_nxm(k)%vals(nx_dir_size))
-        enddo
-
-        allocate(sync_edge_buf8_recv_nxp_nyp(bcount))
-        allocate(sync_edge_buf8_recv_nxp_nym(bcount))
-        allocate(sync_edge_buf8_recv_nxm_nyp(bcount))
-        allocate(sync_edge_buf8_recv_nxm_nym(bcount))
-
-        allocate(reqsts(2*8*bcount), statuses(MPI_STATUS_SIZE, 2*8*bcount))
     end subroutine
 
     subroutine parallel_int_output(arr, x1, x2, y1, y2, msg)
@@ -842,7 +1015,7 @@ contains
 
         time = mpi_wtime() - time
         call mpi_allreduce(time, outtime, 1, mpi_real8,      &
-                           mpi_max, cart_comm, ierr)
+                            mpi_max, cart_comm, ierr)
         time = outtime
         return
     end subroutine
@@ -883,7 +1056,7 @@ contains
 
     end subroutine
 
-    integer function check_cart_coord(coord, grid_size)
+        integer function check_cart_coord(coord, grid_size)
         implicit none
         integer, dimension(2), intent(in) :: coord, grid_size
 
@@ -915,10 +1088,10 @@ contains
         enddo
 
         call mpi_allreduce(flag_r, r, 1, mpi_integer,      &
-                           mpi_max, cart_comm, ierr)
+                            mpi_max, cart_comm, ierr)
 
         call mpi_allreduce(flag_b, b, 1, mpi_integer,      &
-                           mpi_max, cart_comm, ierr)
+                            mpi_max, cart_comm, ierr)
 
         out(1) = r
         out(2) = b
@@ -939,24 +1112,18 @@ contains
         endif
 
         call mpi_allreduce(flag_r, r, 1, mpi_integer,      &
-                           mpi_max, cart_comm, ierr)
+                            mpi_max, cart_comm, ierr)
 
         get_rank_by_point = r
         return
     end function
 
-!    subroutine irecv_real8(k, src_block, blks, tag, dx1, dx2, dy1, dy2, reqst, stat)
-!        implicit none
-!        integer :: p_src, k, tag
-!        integer, dimension(2) :: src_block
-!        type(block2D), dimension(:), pointer :: blks
-!        integer :: dx1, dx2, dy1, dy2
-!        integer :: reqst, stat
-!        integer :: ierr, flg_recv
-!        integer, dimension(2) :: bgrid
-                !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
-!                                             mpi_real8, p_src, tag, cart_comm, reqst, ierr)
 
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
+!                            Sync 2D data                                         !
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
     subroutine irecv_real8(k, src_block, src_proc, buff, buff_size, tag, reqst)
         implicit none
         integer, dimension(2) :: src_block
@@ -970,12 +1137,10 @@ contains
         !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
         !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
         call mpi_irecv(buff, buff_size, mpi_real8, src_proc, tag, cart_comm, reqst, ierr)
-
     end subroutine
 
     subroutine isend_real8(k, dist_block, dist_proc, buff, buff_size, tag, reqst)
         implicit none
-
         integer, dimension(2) :: dist_block
         integer :: k, dist_proc, tag
         integer :: buff_size
@@ -987,7 +1152,6 @@ contains
         !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
         !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
         call mpi_isend(buff, buff_size, mpi_real8, dist_proc, tag, cart_comm, reqst, ierr)
-
     end subroutine
 
     subroutine syncborder_block2D_real8(blks)
@@ -995,26 +1159,269 @@ contains
 #define _IRECV_ irecv_real8
 #define _ISEND_ isend_real8
         
-#define _SYNC_BUF_SEND_NYP_ sync_buf8_send_nyp 
-#define _SYNC_BUF_SEND_NXP_ sync_buf8_send_nxp 
-#define _SYNC_BUF_SEND_NYM_ sync_buf8_send_nym 
-        
+#define _SYNC_BUF_SEND_NYP_ sync_buf8_send_nyp
+#define _SYNC_BUF_SEND_NXP_ sync_buf8_send_nxp
+#define _SYNC_BUF_SEND_NYM_ sync_buf8_send_nym
 #define _SYNC_BUF_SEND_NXM_ sync_buf8_send_nxm
-#define _SYNC_BUF_RECV_NYP_ sync_buf8_recv_nyp 
-#define _SYNC_BUF_RECV_NXP_ sync_buf8_recv_nxp 
-#define _SYNC_BUF_RECV_NYM_ sync_buf8_recv_nym 
+
+#define _SYNC_BUF_RECV_NYP_ sync_buf8_recv_nyp
+#define _SYNC_BUF_RECV_NXP_ sync_buf8_recv_nxp
+#define _SYNC_BUF_RECV_NYM_ sync_buf8_recv_nym
 #define _SYNC_BUF_RECV_NXM_ sync_buf8_recv_nxm
 
 #define _SYNC_EDGE_BUF_RECV_NXP_NYP_ sync_edge_buf8_recv_nxp_nyp
 #define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf8_recv_nxp_nym
 #define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf8_recv_nxm_nyp
 #define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf8_recv_nxm_nym
+        
         implicit none
-
         type(block2D_real8), dimension(:), pointer :: blks
 
-#include "sync_subs.fi"
+#include "syncborder_block2D_gen.fi"
+
+#undef _MPI_TYPE_
+#undef _IRECV_
+#undef _ISEND_
+#undef _SYNC_BUF_SEND_NYP_
+#undef _SYNC_BUF_SEND_NXP_
+#undef _SYNC_BUF_SEND_NYM_
+#undef _SYNC_BUF_SEND_NXM_
+#undef _SYNC_BUF_RECV_NYP_
+#undef _SYNC_BUF_RECV_NXP_
+#undef _SYNC_BUF_RECV_NYM_
+#undef _SYNC_BUF_RECV_NXM_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYM_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYM_
+
+    end subroutine
+
+    subroutine irecv_real4(k, src_block, src_proc, buff, buff_size, tag, reqst)
+        implicit none
+        integer, dimension(2) :: src_block
+        integer :: k, src_proc, tag
+        integer :: buff_size
+        real*4 :: buff(:)
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 4) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
+        !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
+        !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
+        call mpi_irecv(buff, buff_size, mpi_real4, src_proc, tag, cart_comm, reqst, ierr)
+    end subroutine
+
+    subroutine isend_real4(k, dist_block, dist_proc, buff, buff_size, tag, reqst)
+        implicit none
+        integer, dimension(2) :: dist_block
+        integer :: k, dist_proc, tag
+        integer :: buff_size
+        real*4 :: buff(:)
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 4) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
+        !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
+        !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
+        call mpi_isend(buff, buff_size, mpi_real4, dist_proc, tag, cart_comm, reqst, ierr)
+    end subroutine
+
+    subroutine syncborder_block2D_real4(blks)
+#define _MPI_TYPE_ mpi_real4
+#define _IRECV_ irecv_real4
+#define _ISEND_ isend_real4
+        
+#define _SYNC_BUF_SEND_NYP_ sync_buf4_send_nyp
+#define _SYNC_BUF_SEND_NXP_ sync_buf4_send_nxp
+#define _SYNC_BUF_SEND_NYM_ sync_buf4_send_nym
+#define _SYNC_BUF_SEND_NXM_ sync_buf4_send_nxm
+
+#define _SYNC_BUF_RECV_NYP_ sync_buf4_recv_nyp
+#define _SYNC_BUF_RECV_NXP_ sync_buf4_recv_nxp
+#define _SYNC_BUF_RECV_NYM_ sync_buf4_recv_nym
+#define _SYNC_BUF_RECV_NXM_ sync_buf4_recv_nxm
+
+#define _SYNC_EDGE_BUF_RECV_NXP_NYP_ sync_edge_buf4_recv_nxp_nyp
+#define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf4_recv_nxp_nym
+#define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf4_recv_nxm_nyp
+#define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf4_recv_nxm_nym
+        
+        implicit none
+        type(block2D_real4), dimension(:), pointer :: blks
+        
+#include "syncborder_block2D_gen.fi"
+
+#undef _MPI_TYPE_
+#undef _IRECV_
+#undef _ISEND_
+#undef _SYNC_BUF_SEND_NYP_
+#undef _SYNC_BUF_SEND_NXP_
+#undef _SYNC_BUF_SEND_NYM_
+#undef _SYNC_BUF_SEND_NXM_
+#undef _SYNC_BUF_RECV_NYP_
+#undef _SYNC_BUF_RECV_NXP_
+#undef _SYNC_BUF_RECV_NYM_
+#undef _SYNC_BUF_RECV_NXM_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYM_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYM_
+
+    end subroutine
+
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
+!                            Sync 3D data                                         !
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
+    subroutine irecv3D_real8(k, src_block, src_proc, buff, buff_size, tag, reqst)
+        implicit none
+        integer, dimension(2) :: src_block
+        integer :: k, src_proc, tag
+        integer :: buff_size
+        real*8 :: buff(:, :)
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 4) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
+        !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
+        !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
+        call mpi_irecv(buff, buff_size, mpi_real8, src_proc, tag, cart_comm, reqst, ierr)
+    end subroutine
+
+    subroutine isend3D_real8(k, dist_block, dist_proc, buff, buff_size, tag, reqst)
+        implicit none
+        integer, dimension(2) :: dist_block
+        integer :: k, dist_proc, tag
+        integer :: buff_size
+        real*8 :: buff(:, :)
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 4) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
+        !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
+        !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
+        call mpi_isend(buff, buff_size, mpi_real8, dist_proc, tag, cart_comm, reqst, ierr)
+    end subroutine
+
+    subroutine syncborder_block3D_real8(blks, nz)
+#define _MPI_TYPE_ mpi_real8
+#define _IRECV_ irecv3D_real8
+#define _ISEND_ isend3D_real8
+        
+#define _SYNC_BUF_SEND_NYP_ sync_buf8_send_nyp_3D
+#define _SYNC_BUF_SEND_NXP_ sync_buf8_send_nxp_3D
+#define _SYNC_BUF_SEND_NYM_ sync_buf8_send_nym_3D
+#define _SYNC_BUF_SEND_NXM_ sync_buf8_send_nxm_3D
+
+#define _SYNC_BUF_RECV_NYP_ sync_buf8_recv_nyp_3D
+#define _SYNC_BUF_RECV_NXP_ sync_buf8_recv_nxp_3D
+#define _SYNC_BUF_RECV_NYM_ sync_buf8_recv_nym_3D
+#define _SYNC_BUF_RECV_NXM_ sync_buf8_recv_nxm_3D
+
+#define _SYNC_EDGE_BUF_RECV_NXP_NYP_ sync_edge_buf8_recv_nxp_nyp_3D
+#define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf8_recv_nxp_nym_3D
+#define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf8_recv_nxm_nyp_3D
+#define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf8_recv_nxm_nym_3D
+        
+        implicit none
+        type(block3D_real8), dimension(:), pointer :: blks
+        integer :: nz
+
+#include "syncborder_block3D_gen.fi"
+
+#undef _MPI_TYPE_
+#undef _IRECV_
+#undef _ISEND_
+#undef _SYNC_BUF_SEND_NYP_
+#undef _SYNC_BUF_SEND_NXP_
+#undef _SYNC_BUF_SEND_NYM_
+#undef _SYNC_BUF_SEND_NXM_
+#undef _SYNC_BUF_RECV_NYP_
+#undef _SYNC_BUF_RECV_NXP_
+#undef _SYNC_BUF_RECV_NYM_
+#undef _SYNC_BUF_RECV_NXM_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYM_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYM_
+
+    end subroutine
+
+    subroutine irecv3D_real4(k, src_block, src_proc, buff, buff_size, tag, reqst)
+        implicit none
+        integer, dimension(2) :: src_block
+        integer :: k, src_proc, tag
+        integer :: buff_size
+        real*4 :: buff(:, :)
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 4) print *, rank, 'IRECV. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_proc, 'tag', tag
+        !call mpi_irecv(blks(k)%vals(dx1:dx2, dy1:dy2), (dx2 - dx1 + 1)*(dy2 - dy1 + 1), &
+        !               mpi_real8, p_src, tag, cart_comm, reqst, ierr)
+        call mpi_irecv(buff, buff_size, mpi_real4, src_proc, tag, cart_comm, reqst, ierr)
+    end subroutine
+
+    subroutine isend3D_real4(k, dist_block, dist_proc, buff, buff_size, tag, reqst)
+        implicit none
+        integer, dimension(2) :: dist_block
+        integer :: k, dist_proc, tag
+        integer :: buff_size
+        real*4 :: buff(:, :)
+        integer :: reqst
+        integer :: ierr
+
+        if (parallel_dbg >= 4) print *, rank, 'ISEND. block: ', bindx(k, 1), bindx(k, 2), 'dst_block:', dist_block(1), dist_block(2), 'dst_p:', dist_proc, 'tag', tag
+        !call mpi_isend(blks(k)%vals(sx1:sx2, sy1:sy2), (sx2 - sx1 + 1)*(sy2 - sy1 + 1), &
+        !               mpi_real8, p_dist, tag, cart_comm, reqst, ierr)
+        call mpi_isend(buff, buff_size, mpi_real4, dist_proc, tag, cart_comm, reqst, ierr)
+    end subroutine
+
+    subroutine syncborder_block3D_real4(blks, nz)
+#define _MPI_TYPE_ mpi_real4
+#define _IRECV_ irecv3D_real4
+#define _ISEND_ isend3D_real4
+        
+#define _SYNC_BUF_SEND_NYP_ sync_buf4_send_nyp_3D
+#define _SYNC_BUF_SEND_NXP_ sync_buf4_send_nxp_3D
+#define _SYNC_BUF_SEND_NYM_ sync_buf4_send_nym_3D
+#define _SYNC_BUF_SEND_NXM_ sync_buf4_send_nxm_3D
+
+#define _SYNC_BUF_RECV_NYP_ sync_buf4_recv_nyp_3D
+#define _SYNC_BUF_RECV_NXP_ sync_buf4_recv_nxp_3D
+#define _SYNC_BUF_RECV_NYM_ sync_buf4_recv_nym_3D
+#define _SYNC_BUF_RECV_NXM_ sync_buf4_recv_nxm_3D
+
+#define _SYNC_EDGE_BUF_RECV_NXP_NYP_ sync_edge_buf4_recv_nxp_nyp_3D
+#define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf4_recv_nxp_nym_3D
+#define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf4_recv_nxm_nyp_3D
+#define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf4_recv_nxm_nym_3D
+        
+        implicit none
+        type(block3D_real4), dimension(:), pointer :: blks
+        integer :: nz
+        
+#include "syncborder_block3D_gen.fi"
+
+#undef _MPI_TYPE_
+#undef _IRECV_
+#undef _ISEND_
+#undef _SYNC_BUF_SEND_NYP_
+#undef _SYNC_BUF_SEND_NXP_
+#undef _SYNC_BUF_SEND_NYM_
+#undef _SYNC_BUF_SEND_NXM_
+#undef _SYNC_BUF_RECV_NYP_
+#undef _SYNC_BUF_RECV_NXP_
+#undef _SYNC_BUF_RECV_NYM_
+#undef _SYNC_BUF_RECV_NXM_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXP_NYM_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYP_
+#undef _SYNC_EDGE_BUF_RECV_NXM_NYM_
 
     end subroutine
 
 endmodule mpi_parallel_tools
+    
