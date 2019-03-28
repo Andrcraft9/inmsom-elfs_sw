@@ -123,15 +123,13 @@ module mpi_parallel_tools
 
     ! Timers
     real*8 :: time_model_step,  &
-                time_tt_ss,       &
-                time_barotrop,    &
-                time_output, time_sync
+              time_barotrop,    &
+              time_output, time_sync
 
     contains
 
     subroutine parallel_check_err(err)
         implicit none
-
         integer :: err, totalerr
         integer :: ierr
 
@@ -147,7 +145,6 @@ module mpi_parallel_tools
     subroutine parallel_init()
         use rwpar_routes
         implicit none
-
         integer :: count_threads, num_thread
         integer :: ierr, rank_cart
         integer :: nofcom
@@ -212,7 +209,6 @@ module mpi_parallel_tools
 
     subroutine allocate_mpi_buffers
         implicit none
-
         integer :: k, nx_dir_size, ny_dir_size
 
         ! MPI buffers for 2D data
@@ -381,7 +377,6 @@ module mpi_parallel_tools
 
     subroutine parallel_finalize
         implicit none
-
         integer :: k, ierr
 
         if (allocated(bnx_start)) deallocate(bnx_start)
@@ -408,22 +403,17 @@ module mpi_parallel_tools
 
     subroutine set_block_boundary(k)
         implicit none
-
         integer :: k
-
         nx_start = bnx_start(k); nx_end = bnx_end(k)
         ny_start = bny_start(k); ny_end = bny_end(k)
-
         bnd_x1 = bbnd_x1(k); bnd_x2 = bbnd_x2(k)
         bnd_y1 = bbnd_y1(k); bnd_y2 = bbnd_y2(k)
-
     end subroutine
 
     subroutine parallel_read_mask(ftemask)
         use main_basin_pars
         use rec_length
         implicit none
-
         character*(*) ftemask
         character frmt*16,comment*80
         integer :: m, n, ierr
@@ -449,6 +439,11 @@ module mpi_parallel_tools
         stop 1
     end subroutine
 
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
+!                            Partitioning                                         !
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
     subroutine parallel_blocks_distribution()
         use main_basin_pars
         implicit none
@@ -732,16 +727,13 @@ module mpi_parallel_tools
         deallocate(bglob_weight)
         deallocate(glob_bnx_start, glob_bnx_end, glob_bny_start, glob_bny_end)
         deallocate(glob_bbnd_x1, glob_bbnd_x2, glob_bbnd_y1, glob_bbnd_y2)
-
     end subroutine
 
     subroutine parallel_uniform_decomposition(bgproc, bgweight, bnx, bny)
         implicit none
-
         integer :: bnx, bny
         integer :: bgproc(bnx, bny)
         real*8 :: bgweight(bnx, bny)
-
         integer :: m, n, ierr
         integer :: loc_bnx, loc_bny
         integer :: xblock_start, yblock_start
@@ -777,17 +769,14 @@ module mpi_parallel_tools
         endif
 
         deallocate(buf_int)
-
     end subroutine
 
     subroutine parallel_hilbert_curve_decomposition(bgproc, bgweight, bnx, bny, land_blocks)
         implicit none
-
         integer :: bnx, bny
         integer :: land_blocks
         integer :: bgproc(bnx, bny)
         real*8 :: bgweight(bnx, bny)
-
         integer :: k, i, ierr
         integer :: hilbert_index, hilbert_coord_x, hilbert_coord_y
         integer :: ks, sea_blocks
@@ -857,12 +846,10 @@ module mpi_parallel_tools
         if (parallel_dbg >= 3) then
             call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from load-balanced hilbert curve decomposition')
         endif
-
     end subroutine
 
     subroutine parallel_file_decomposition(bgproc, bgweight, bnx, bny)
         implicit none
-
         integer :: bnx, bny
         integer :: bgproc(bnx, bny)
         real*8 :: bgweight(bnx, bny)
@@ -897,12 +884,10 @@ module mpi_parallel_tools
         if (parallel_dbg >= 3) then
             call parallel_int_output(bgproc, 1, bnx, 1, bny, 'bglob_proc from file decomposition')
         endif
-
     end subroutine
 
     subroutine parallel_int_output(arr, x1, x2, y1, y2, msg)
         implicit none
-
         integer :: x1, x2, y1, y2
         integer :: arr(x1:x2, y1:y2)
         character*(*) msg
@@ -922,29 +907,28 @@ module mpi_parallel_tools
             endif
             call mpi_barrier(cart_comm, ierr)
         enddo
-
     end subroutine
 
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
+!                            de/allocate block data                               !
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
     subroutine allocate_block2D_real8(blks, val)
         implicit none
-
         type(block2D_real8), dimension(:), pointer :: blks
         real*8 :: val
         integer :: k
-
         allocate(blks(bcount))
         do k = 1, bcount
             allocate(blks(k)%vals(bbnd_x1(k):bbnd_x2(k), bbnd_y1(k):bbnd_y2(k)))
             blks(k)%vals = val
         enddo
     end subroutine
-
     subroutine deallocate_block2D_real8(blks)
         implicit none
-
         type(block2D_real8), dimension(:), pointer :: blks
         integer :: k
-
         do k = 1, bcount
             deallocate(blks(k)%vals)
         enddo
@@ -953,30 +937,72 @@ module mpi_parallel_tools
 
     subroutine allocate_block2D_real4(blks, val)
         implicit none
-
         type(block2D_real4), dimension(:), pointer :: blks
         real*4 :: val
         integer :: k
-
         allocate(blks(bcount))
         do k = 1, bcount
             allocate(blks(k)%vals(bbnd_x1(k):bbnd_x2(k), bbnd_y1(k):bbnd_y2(k)))
             blks(k)%vals = val
         enddo
     end subroutine
-
     subroutine deallocate_block2D_real4(blks)
         implicit none
-
         type(block2D_real4), dimension(:), pointer :: blks
         integer :: k
-
         do k = 1, bcount
             deallocate(blks(k)%vals)
         enddo
         deallocate(blks)
     end subroutine
 
+    subroutine allocate_block3D_real8(blks, val, nz)
+        implicit none
+        type(block3D_real8), dimension(:), pointer :: blks
+        real*8 :: val
+        integer :: nz, k
+        allocate(blks(bcount))
+        do k = 1, bcount
+            allocate(blks(k)%vals(bbnd_x1(k):bbnd_x2(k), bbnd_y1(k):bbnd_y2(k), 1:nz))
+            blks(k)%vals = val
+        enddo
+    end subroutine
+    subroutine deallocate_block3D_real8(blks)
+        implicit none
+        type(block3D_real8), dimension(:), pointer :: blks
+        integer :: k
+        do k = 1, bcount
+            deallocate(blks(k)%vals)
+        enddo
+        deallocate(blks)
+    end subroutine
+
+    subroutine allocate_block3D_real4(blks, val, nz)
+        implicit none
+        type(block3D_real4), dimension(:), pointer :: blks
+        real*8 :: val
+        integer :: nz, k
+        allocate(blks(bcount))
+        do k = 1, bcount
+            allocate(blks(k)%vals(bbnd_x1(k):bbnd_x2(k), bbnd_y1(k):bbnd_y2(k), 1:nz))
+            blks(k)%vals = val
+        enddo
+    end subroutine
+    subroutine deallocate_block3D_real4(blks)
+        implicit none
+        type(block3D_real4), dimension(:), pointer :: blks
+        integer :: k
+        do k = 1, bcount
+            deallocate(blks(k)%vals)
+        enddo
+        deallocate(blks)
+    end subroutine
+
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
+!                            Parallel tools                                       !
+! ------------------------------------------------------------------------------- !
+! ------------------------------------------------------------------------------- !
     subroutine init_times
         implicit none
         time_model_step = 0.0d0
@@ -999,20 +1025,16 @@ module mpi_parallel_tools
 
     subroutine start_timer(time)
         implicit none
-
         real*8, intent(inout) :: time
-
         time = mpi_wtime()
         return
     end subroutine
 
     subroutine end_timer(time)
         implicit none
-
         real*8, intent(inout) :: time
         real*8 :: outtime
         integer :: ierr
-
         time = mpi_wtime() - time
         call mpi_allreduce(time, outtime, 1, mpi_real8,      &
                             mpi_max, cart_comm, ierr)
@@ -1022,10 +1044,8 @@ module mpi_parallel_tools
 
     integer function get_local_block_number(m, n)
         implicit none
-
         integer :: m, n
         integer :: k
-
         get_local_block_number = -1
         do k = 1, bcount
             if (m == bindx(k, 1) .and. n == bindx(k, 2)) then
@@ -1033,33 +1053,27 @@ module mpi_parallel_tools
                 exit
             endif
         enddo
-
         return
     end function
 
     subroutine check_block_status(b_coords, p)
         implicit none
-
         integer, dimension(2), intent(in) :: b_coords
         integer, intent(out) :: p
         integer, dimension(2) :: bgrid
-
         bgrid(1) = bnx; bgrid(2) = bny
         if (check_cart_coord(b_coords - 1, bgrid) /= 1) then
             ! Out of range, block does not exist
             p = -2
             return
         endif
-
         p = bglob_proc(b_coords(1), b_coords(2))
         return
-
     end subroutine
 
-        integer function check_cart_coord(coord, grid_size)
+    integer function check_cart_coord(coord, grid_size)
         implicit none
         integer, dimension(2), intent(in) :: coord, grid_size
-
         check_cart_coord = 0
         !write(*,*) coord,all(coord.ge.0),all((p_size-coord).ge.1)
         !print *, coord, p_size - coord, all((p_size-coord).ge.1)
@@ -1071,7 +1085,6 @@ module mpi_parallel_tools
 
     subroutine get_block_and_rank_by_point(m, n, out)
         implicit none
-
         integer :: m, n
         integer :: out(2)
         integer :: k, flag_r, r, flag_b, b, ierr
@@ -1095,12 +1108,10 @@ module mpi_parallel_tools
 
         out(1) = r
         out(2) = b
-
     end subroutine
 
     integer function get_rank_by_point(m, n)
         implicit none
-
         integer :: m, n
         integer :: flag_r, r, ierr
 
@@ -1424,4 +1435,3 @@ module mpi_parallel_tools
     end subroutine
 
 endmodule mpi_parallel_tools
-    
