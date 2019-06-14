@@ -180,6 +180,18 @@ module output_routes
     real(4) tstep
     integer m,n,k
     real(8) z0(1), z1(1)
+    real(8) xtm1(1), ytn1(1), xum1(1), yvn1(1)
+    real(8) xtm1loc(1), ytn1loc(1), xum1loc(1), yvn1loc(1)
+    
+    xtm1 = xt(m1loc)
+    ytn1 = yt(n1loc)
+    xum1 = xu(m1loc-1)
+    yvn1 = yv(n1loc-1)
+
+    xtm1loc = xt(m1loc_local)
+    ytn1loc = yt(n1loc_local)
+    xum1loc = xu(m1loc_local-1)
+    yvn1loc = yv(n1loc_local-1)
     
     z0 = 0.0d0; z1 = 1.0d0
     
@@ -187,16 +199,13 @@ module output_routes
     
     if(nrec==1) then
      if (rank == 0) then 
-         print *, "first x-value: ",  xt(m1loc), "last x-value",  xt(m2loc)
-         print *, "first y-value: ",  yt(n1loc), "last y-value",  yt(n2loc)
+         print *, "first x-value: ",  xtm1, "first y-value: ",  ytn1
      endif
-    !writing HHQ
+     !writing HHQ
      ierr=0
      array4_2d=sngl(hhq_rest)
-    ! array4_2dn(nx_start:nx_end, ny_start:ny_end) = sngl(hhq_rest(nx_start:nx_end, ny_start:ny_end))
-    ! call wdstd(path2data,'LOCAL/hhq.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,ierr)
+     !call wdstd(path2data,'LOCAL/hhq.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,ierr)
      call pwdstd(path2data,'LOCAL/hhq.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
-    
      call fulfname(fname,path2data,'LOCAL/hhq.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
@@ -206,10 +215,10 @@ module output_routes
                               1,   &     !z-dimension
                            nrec,   &     !t-dimension
                        xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                      xt(m1loc:m2loc),   &     !first x-value (if linear) or x-array (if levels)
+                           xtm1,   &     !first x-value (if linear) or x-array (if levels)
                           dxst,    &     !x-step (if linear)
                       ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                      yt(n1loc:n2loc),   &     !first y-value (if linear) or x-array (if levels)
+                           ytn1,   &     !first y-value (if linear) or x-array (if levels)
                           dyst,    &     !y-step (if linear)
                           0,       &     !z-grid type (0 - linear, 1 - levels)
                           z0,      &     !first z-value (if linear) or x-array (if levels)
@@ -241,10 +250,10 @@ module output_routes
                               1,   &     !z-dimension
                            nrec,   &     !t-dimension
                        xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                      xt(m1loc:m2loc),   &     !first x-value (if linear) or x-array (if levels)
+                           xtm1,   &     !first x-value (if linear) or x-array (if levels)
                           dxst,    &     !x-step (if linear)
                       ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                      yt(n1loc:n2loc),   &     !first y-value (if linear) or x-array (if levels)
+                           ytn1,   &     !first y-value (if linear) or x-array (if levels)
                           dyst,    &     !y-step (if linear)
                           0,       &     !z-grid type (0 - linear, 1 - levels)
                           z0,      &     !first z-value (if linear) or x-array (if levels)
@@ -276,10 +285,10 @@ module output_routes
                                          1,   &     !z-dimension
                                       nrec,   &     !t-dimension
                                   xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                               xu(m1loc-1:m2loc),   &     !first x-value (if linear) or x-array (if levels)
+                                      xum1,   &     !first x-value (if linear) or x-array (if levels)
                                      dxst,    &     !x-step (if linear)
                                  ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                                 yt(n1loc:n2loc),   &     !first y-value (if linear) or x-array (if levels)
+                                      ytn1,   &     !first y-value (if linear) or x-array (if levels)
                                      dyst,    &     !y-step (if linear)
                                      0,       &     !z-grid type (0 - linear, 1 - levels)
                                      z0,      &     !first z-value (if linear) or x-array (if levels)
@@ -317,10 +326,10 @@ module output_routes
                                        1,   &     !z-dimension
                                     nrec,   &     !t-dimension
                                 xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                              xt(m1loc:m2loc),    &     !first x-value (if linear) or x-array (if levels)
+                                   xtm1,    &     !first x-value (if linear) or x-array (if levels)
                                   dxst,     &     !x-step (if linear)
                               ygr_type,     &     !y-grid type (0 - linear, 1 - levels)
-                              yt(n1loc:n2loc),    &     !first y-value (if linear) or x-array (if levels)
+                                   ytn1,    &     !first y-value (if linear) or x-array (if levels)
                                   dyst,     &     !y-step (if linear)
                                       0,    &     !z-grid type (0 - linear, 1 - levels)
                                       z0,   &     !first z-value (if linear) or x-array (if levels)
@@ -350,10 +359,10 @@ module output_routes
                                          1,   &     !z-dimension
                                       nrec,   &     !t-dimension
                                   xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                                 xt(m1loc:m2loc),   &     !first x-value (if linear) or x-array (if levels)
+                                      xtm1,   &     !first x-value (if linear) or x-array (if levels)
                                      dxst,    &     !x-step (if linear)
                                  ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                               yv(n1loc-1:n2loc),   &     !first y-value (if linear) or x-array (if levels)
+                                      yvn1,   &     !first y-value (if linear) or x-array (if levels)
                                      dyst,    &     !y-step (if linear)
                                      0,       &     !z-grid type (0 - linear, 1 - levels)
                                      z0,      &     !first z-value (if linear) or x-array (if levels)
@@ -391,10 +400,10 @@ module output_routes
                                       1,     &     !z-dimension
                                     nrec,    &     !t-dimension
                                 xgr_type,    &     !x-grid type (0 - linear, 1 - levels)
-                                xt(m1loc:m2loc),   &     !first x-value (if linear) or x-array (if levels)
+                                     xtm1,   &     !first x-value (if linear) or x-array (if levels)
                                     dxst,    &     !x-step (if linear)
                                 ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                                yt(n1loc:n2loc),   &     !first y-value (if linear) or x-array (if levels)
+                                     ytn1,   &     !first y-value (if linear) or x-array (if levels)
                                     dyst,    &     !y-step (if linear)
                                         0,   &     !z-grid type (0 - linear, 1 - levels)
                                       z0,    &     !first z-value (if linear) or x-array (if levels)
@@ -430,10 +439,10 @@ module output_routes
                                   1,   &     !z-dimension
                                nrec,   &     !t-dimension
                            xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                          xt(m1loc_local:m2loc_local),   &     !first x-value (if linear) or x-array (if levels)
+                            xtm1loc,   &     !first x-value (if linear) or x-array (if levels)
                               dxst,    &     !x-step (if linear)
                           ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                          yt(n1loc_local:n2loc_local),   &     !first y-value (if linear) or x-array (if levels)
+                            ytn1loc,   &     !first y-value (if linear) or x-array (if levels)
                               dyst,    &     !y-step (if linear)
                               0,       &     !z-grid type (0 - linear, 1 - levels)
                               z0,      &     !first z-value (if linear) or x-array (if levels)
@@ -464,25 +473,25 @@ module output_routes
                                     nx_loc_local + 1,   &     !x-dimension
                                     ny_loc_local,   &     !y-dimension
                                             1,   &     !z-dimension
-                                        nrec,   &     !t-dimension
-                                    xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                                xu(m1loc_local-1:m2loc_local),   &     !first x-value (if linear) or x-array (if levels)
+                                         nrec,   &     !t-dimension
+                                     xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                      xum1loc,   &     !first x-value (if linear) or x-array (if levels)
                                         dxst,    &     !x-step (if linear)
                                     ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                                    yt(n1loc_local:n2loc_local),   &     !first y-value (if linear) or x-array (if levels)
+                                      ytn1loc,   &     !first y-value (if linear) or x-array (if levels)
                                         dyst,    &     !y-step (if linear)
                                         0,       &     !z-grid type (0 - linear, 1 - levels)
                                         z0,      &     !first z-value (if linear) or x-array (if levels)
                                         1.0d0,   &     !z-step (if linear)
-                                    calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
-                                        year,   &     !year   of the first field
+                                     calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                         year,   &     !year   of the first field
                                         month,   &     !month  of the first field
-                                        day,   &     !day    of the first field
-                                        hour,   &     !hour   of the first field
-                                    minute,   &     !minute of the first field
+                                          day,   &     !day    of the first field
+                                         hour,   &     !hour   of the first field
+                                       minute,   &     !minute of the first field
                                         tstep,   &     !time step (in seconds
-                        'zonal velocity, m/s',  &     !title of dataset
-                                        'u'   )      !variable name
+                         'zonal velocity, m/s',  &     !title of dataset
+                                          'u'   )      !variable name
             endif
         else 
             ! writing on T-grid
@@ -505,26 +514,26 @@ module output_routes
                                     undef,    &     !value for undefined points
                                     nx_loc_local,   &     !x-dimension
                                     ny_loc_local,   &     !y-dimension
-                                        1,   &     !z-dimension
-                                    nrec,   &     !t-dimension
-                                xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                                xt(m1loc_local:m2loc_local),    &     !first x-value (if linear) or x-array (if levels)
+                                         1,   &     !z-dimension
+                                      nrec,   &     !t-dimension
+                                  xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                  xtm1loc,    &     !first x-value (if linear) or x-array (if levels)
                                     dxst,     &     !x-step (if linear)
                                 ygr_type,     &     !y-grid type (0 - linear, 1 - levels)
-                                yt(n1loc_local:n2loc_local),    &     !first y-value (if linear) or x-array (if levels)
+                                  ytn1loc,    &     !first y-value (if linear) or x-array (if levels)
                                     dyst,     &     !y-step (if linear)
                                         0,    &     !z-grid type (0 - linear, 1 - levels)
                                         z0,   &     !first z-value (if linear) or x-array (if levels)
                                     1.0d0,    &     !z-step (if linear)
-                                calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
-                                    year,   &     !year   of the first field
+                                  calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                      year,   &     !year   of the first field
                                     month,    &     !month  of the first field
-                                    day,    &     !day    of the first field
-                                    hour,   &     !hour   of the first field
+                                      day,    &     !day    of the first field
+                                      hour,   &     !hour   of the first field
                                     minute,   &     !minute of the first field
                                     tstep,    &     !time step (in seconds
-                    'zonal velocity, m/s',  &     !title of dataset
-                                    'u'    )      !variable name
+                      'zonal velocity, m/s',  &     !title of dataset
+                                      'u'    )      !variable name
             endif
         endif
     
@@ -540,25 +549,25 @@ module output_routes
                                     nx_loc_local,   &     !x-dimension
                                     ny_loc_local + 1,   &     !y-dimension
                                             1,   &     !z-dimension
-                                        nrec,   &     !t-dimension
-                                    xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                                    xt(m1loc_local:m2loc_local),   &     !first x-value (if linear) or x-array (if levels)
+                                         nrec,   &     !t-dimension
+                                     xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                      xtm1loc,   &     !first x-value (if linear) or x-array (if levels)
                                         dxst,    &     !x-step (if linear)
                                     ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                                yv(n1loc_local-1:n2loc_local),   &     !first y-value (if linear) or x-array (if levels)
+                                      yvn1loc,   &     !first y-value (if linear) or x-array (if levels)
                                         dyst,    &     !y-step (if linear)
                                         0,       &     !z-grid type (0 - linear, 1 - levels)
                                         z0,      &     !first z-value (if linear) or x-array (if levels)
                                         1.0d0,   &     !z-step (if linear)
-                                    calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
-                                        year,   &     !year   of the first field
+                                     calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                         year,   &     !year   of the first field
                                         month,   &     !month  of the first field
-                                        day,   &     !day    of the first field
-                                        hour,   &     !hour   of the first field
-                                    minute,   &     !minute of the first field
+                                          day,   &     !day    of the first field
+                                         hour,   &     !hour   of the first field
+                                       minute,   &     !minute of the first field
                                         tstep,   &     !time step (in seconds
                     'meridional velocity, m/s',  &     !title of dataset
-                                        'v'   )      !variable name
+                                          'v'   )      !variable name
             endif
         else 
             !writing on T-grid
@@ -581,31 +590,30 @@ module output_routes
                                     undef,     &     !value for undefined points
                                     nx_loc_local,    &     !x-dimension
                                     ny_loc_local,    &     !y-dimension
-                                        1,     &     !z-dimension
+                                      1,     &     !z-dimension
                                     nrec,    &     !t-dimension
                                 xgr_type,    &     !x-grid type (0 - linear, 1 - levels)
-                                xt(m1loc_local:m2loc_local),   &     !first x-value (if linear) or x-array (if levels)
+                                  xtm1loc,   &     !first x-value (if linear) or x-array (if levels)
                                     dxst,    &     !x-step (if linear)
                                 ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                                yt(n1loc_local:n2loc_local),   &     !first y-value (if linear) or x-array (if levels)
+                                  ytn1loc,   &     !first y-value (if linear) or x-array (if levels)
                                     dyst,    &     !y-step (if linear)
                                         0,   &     !z-grid type (0 - linear, 1 - levels)
-                                        z0,    &     !first z-value (if linear) or x-array (if levels)
+                                      z0,    &     !first z-value (if linear) or x-array (if levels)
                                     1.0d0,   &     !z-step (if linear)
                                 calendar,    &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
                                     year,    &     !year   of the first field
                                     month,   &     !month  of the first field
-                                        day,   &     !day    of the first field
+                                      day,   &     !day    of the first field
                                     hour,    &     !hour   of the first field
-                                    minute,    &     !minute of the first field
+                                  minute,    &     !minute of the first field
                                     tstep,   &     !time step (in seconds
                 'meridional velocity, m/s',  &     !title of dataset
-                                        'v'   )      !variable name
+                                      'v'   )      !variable name
             endif
         endif
     endif
     
     endsubroutine parallel_local_output
     
-    endmodule output_routes
-    
+endmodule output_routes
