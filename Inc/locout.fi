@@ -16,12 +16,12 @@ integer, parameter:: m1loc_local=4500-2,     &                   !left  point nu
 
 ! Flags for output
 integer, parameter:: uv_output=0,  &
-                    ssh_output=0,  &
+                    ssh_output=1,  &
                  energy_output=0,  &
-                 points_output=1,  &
-               uv_local_output=1,  &
+                 points_output=0,  &
+               uv_local_output=0,  &
               ssh_local_output=1,  &
-           energy_local_output=1
+           energy_local_output=0
 
 integer, parameter:: grid_shift=1                     !0 - output velocity at model grid, 1 - interpolation to T-grid
 

@@ -182,16 +182,43 @@ module output_routes
     real(8) z0(1), z1(1)
     real(8) xtm1(1), ytn1(1), xum1(1), yvn1(1)
     real(8) xtm1loc(1), ytn1loc(1), xum1loc(1), yvn1loc(1)
+    integer r, locr
     
-    xtm1 = xt(m1loc)
-    ytn1 = yt(n1loc)
-    xum1 = xu(m1loc-1)
-    yvn1 = yv(n1loc-1)
+    ! First point of area for output
+    r = get_rank_by_point(m1loc, n1loc)
+    if (r < 0) then
+        print *, "Parallel output error! Wrong values of m1loc or n1loc"
+        call mpi_abort(cart_comm, 1, ierr)
+        stop
+    endif
+    if (rank .eq. r) then
+        xtm1 = xt(m1loc)
+        ytn1 = yt(n1loc)
+        xum1 = xu(m1loc-1)
+        yvn1 = yv(n1loc-1)
+    endif
+    call mpi_bcast(xtm1, 1, mpi_real8, r, cart_comm, ierr)
+    call mpi_bcast(ytn1, 1, mpi_real8, r, cart_comm, ierr)
+    call mpi_bcast(xum1, 1, mpi_real8, r, cart_comm, ierr)
+    call mpi_bcast(yvn1, 1, mpi_real8, r, cart_comm, ierr)
 
-    xtm1loc = xt(m1loc_local)
-    ytn1loc = yt(n1loc_local)
-    xum1loc = xu(m1loc_local-1)
-    yvn1loc = yv(n1loc_local-1)
+    ! First point of local area for output
+    locr = get_rank_by_point(m1loc_local, n1loc_local)
+    if (locr < 0) then
+        print *, "Parallel output error! Wrong values of m1loc_local or n1loc_local"
+        call mpi_abort(cart_comm, 1, ierr)
+        stop
+    endif
+    if (rank .eq. locr) then
+        xtm1loc = xt(m1loc_local)
+        ytn1loc = yt(n1loc_local)
+        xum1loc = xu(m1loc_local-1)
+        yvn1loc = yv(n1loc_local-1)
+    endif
+    call mpi_bcast(xtm1loc, 1, mpi_real8, locr, cart_comm, ierr)
+    call mpi_bcast(ytn1loc, 1, mpi_real8, locr, cart_comm, ierr)
+    call mpi_bcast(xum1loc, 1, mpi_real8, locr, cart_comm, ierr)
+    call mpi_bcast(yvn1loc, 1, mpi_real8, locr, cart_comm, ierr)
     
     z0 = 0.0d0; z1 = 1.0d0
     
