@@ -15,12 +15,12 @@ integer, parameter:: m1loc_local=50,      &                   !left  point numbe
                      ny_loc_local=n2loc_local - n1loc_local + 1             !local array dimension on Y
 
 ! Flags for output
-integer, parameter:: uv_output=1,  &
+integer, parameter:: uv_output=0,  &
                     ssh_output=1,  &
                  energy_output=0,  &
                  points_output=0,  &
                uv_local_output=0,  &
-              ssh_local_output=0,  &
+              ssh_local_output=1,  &
            energy_local_output=0
 
 integer, parameter:: grid_shift=1                     !0 - output velocity at model grid, 1 - interpolation to T-grid

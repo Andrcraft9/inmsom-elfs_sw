@@ -5,4 +5,4 @@
 
  real, parameter :: undef=-1.0e+32    !missing data value
 
- integer, parameter:: optimized_io = 0  !Optimized input/output, see pdrstd and pwdstd
+ integer, parameter:: optimized_io = 1  !Optimized input/output, see pdrstd and pwdstd
