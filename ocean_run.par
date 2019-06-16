@@ -5,7 +5,7 @@
          2007   : Initial year (i4.4)
            60   : Periodicity for writing local instantaneous data (in minutes). If >1440.0, then output is once per day. If <=0 then no local output is done
             1   : Periodicity for writing points data (in minutes)
-           30   : Periodicity for writing global data (in minutes)
+          720   : Periodicity for writing global data (in minutes)
 CP0                             : Path to the checkpoints and results
 NONE                            : Path to the sea surface data on the oceanic grid
 sst.dat                         : Sea surface temperature
