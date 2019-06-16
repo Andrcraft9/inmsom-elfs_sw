@@ -12,4 +12,4 @@
   0.025      :Bottom friction coeff (Manning's roughness)
 mask4km.txt        :file with temperature mask(0-ocean,1-land)(a32)
 topo.dat           :file with bottom topography[m](a32)
-NONE               :file with temperature mask for LOCAL area(0-ocean,1-land)(a32)
+mask4kmloc.txt     :file with temperature mask for LOCAL area(0-ocean,1-land)(a32)

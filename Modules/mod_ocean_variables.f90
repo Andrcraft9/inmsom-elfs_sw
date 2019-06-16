@@ -90,5 +90,9 @@ real(8), allocatable:: amuv2d(:,:),     &    !depth mean lateral viscosity
              RHSx2d_bfc(:, :),          &
              RHSy2d_bfc(:, :)
 
+real(8), allocatable :: ssh_max_amplitude(:, :),    &
+                        ubrtr_max_amplitude(:, :),  &
+                        vbrtr_max_amplitude(:, :)
+                        
 endmodule ocean_variables
 !-------------end module for description common ogcm variables and task control parameters---------

@@ -55,5 +55,10 @@ real(8), allocatable:: hhh(:,:),      &  !ocean depth on luh (h-points)
                           geo_lon_h(:,:),   &    !geographical longitudes of H-points
                           geo_lat_h(:,:),   &    !geographical latitudes  of H-points
                        rotvec_coeff(:,:,:)       !cos and sin of angles between coordinate lines
+
+ ! First points of area and local area for output
+ real(8) :: xtm1(1), ytn1(1), xum1(1), yvn1(1)
+ real(8) :: xtm1loc(1), ytn1loc(1), xum1loc(1), yvn1loc(1)
+
 endmodule basin_grid
 !---------------------end module for definition of basin grid arrays-----------------

@@ -3,6 +3,54 @@ module output_routes
     
     contains
     
+    subroutine init_model_output()
+        use main_basin_pars
+        use mpi_parallel_tools
+        use basin_grid
+        implicit none
+        include 'locout.fi'
+
+        integer :: ierr
+        integer :: r, locr
+    
+        ! First point of area for output
+        r = get_rank_by_point(m1loc, n1loc)
+        if (r < 0) then
+            print *, "Parallel output error! Wrong values of m1loc or n1loc"
+            call mpi_abort(cart_comm, 1, ierr)
+            stop
+        endif
+        if (rank .eq. r) then
+            xtm1 = xt(m1loc)
+            ytn1 = yt(n1loc)
+            xum1 = xu(m1loc-1)
+            yvn1 = yv(n1loc-1)
+        endif
+        call mpi_bcast(xtm1, 1, mpi_real8, r, cart_comm, ierr)
+        call mpi_bcast(ytn1, 1, mpi_real8, r, cart_comm, ierr)
+        call mpi_bcast(xum1, 1, mpi_real8, r, cart_comm, ierr)
+        call mpi_bcast(yvn1, 1, mpi_real8, r, cart_comm, ierr)
+        
+        ! First point of local area for output
+        locr = get_rank_by_point(m1loc_local, n1loc_local)
+        if (locr < 0) then
+            print *, "Parallel output error! Wrong values of m1loc_local or n1loc_local"
+            call mpi_abort(cart_comm, 1, ierr)
+            stop
+        endif
+        if (rank .eq. locr) then
+            xtm1loc = xt(m1loc_local)
+            ytn1loc = yt(n1loc_local)
+            xum1loc = xu(m1loc_local-1)
+            yvn1loc = yv(n1loc_local-1)
+        endif
+        call mpi_bcast(xtm1loc, 1, mpi_real8, locr, cart_comm, ierr)
+        call mpi_bcast(ytn1loc, 1, mpi_real8, locr, cart_comm, ierr)
+        call mpi_bcast(xum1loc, 1, mpi_real8, locr, cart_comm, ierr)
+        call mpi_bcast(yvn1loc, 1, mpi_real8, locr, cart_comm, ierr)
+
+    end subroutine
+
     subroutine parallel_check_point()
         use main_basin_pars
         use mpi_parallel_tools
@@ -33,7 +81,6 @@ module output_routes
         endif
     
     end subroutine
-    
     
     subroutine parallel_point_output(path2data, point_time)
         use main_basin_pars
@@ -180,45 +227,6 @@ module output_routes
     real(4) tstep
     integer m,n,k
     real(8) z0(1), z1(1)
-    real(8) xtm1(1), ytn1(1), xum1(1), yvn1(1)
-    real(8) xtm1loc(1), ytn1loc(1), xum1loc(1), yvn1loc(1)
-    integer r, locr
-    
-    ! First point of area for output
-    r = get_rank_by_point(m1loc, n1loc)
-    if (r < 0) then
-        print *, "Parallel output error! Wrong values of m1loc or n1loc"
-        call mpi_abort(cart_comm, 1, ierr)
-        stop
-    endif
-    if (rank .eq. r) then
-        xtm1 = xt(m1loc)
-        ytn1 = yt(n1loc)
-        xum1 = xu(m1loc-1)
-        yvn1 = yv(n1loc-1)
-    endif
-    call mpi_bcast(xtm1, 1, mpi_real8, r, cart_comm, ierr)
-    call mpi_bcast(ytn1, 1, mpi_real8, r, cart_comm, ierr)
-    call mpi_bcast(xum1, 1, mpi_real8, r, cart_comm, ierr)
-    call mpi_bcast(yvn1, 1, mpi_real8, r, cart_comm, ierr)
-
-    ! First point of local area for output
-    locr = get_rank_by_point(m1loc_local, n1loc_local)
-    if (locr < 0) then
-        print *, "Parallel output error! Wrong values of m1loc_local or n1loc_local"
-        call mpi_abort(cart_comm, 1, ierr)
-        stop
-    endif
-    if (rank .eq. locr) then
-        xtm1loc = xt(m1loc_local)
-        ytn1loc = yt(n1loc_local)
-        xum1loc = xu(m1loc_local-1)
-        yvn1loc = yv(n1loc_local-1)
-    endif
-    call mpi_bcast(xtm1loc, 1, mpi_real8, locr, cart_comm, ierr)
-    call mpi_bcast(ytn1loc, 1, mpi_real8, locr, cart_comm, ierr)
-    call mpi_bcast(xum1loc, 1, mpi_real8, locr, cart_comm, ierr)
-    call mpi_bcast(yvn1loc, 1, mpi_real8, locr, cart_comm, ierr)
     
     z0 = 0.0d0; z1 = 1.0d0
     
@@ -602,7 +610,7 @@ module output_routes
             do n=ny_start, ny_end
                 do m=nx_start, nx_end
                 if (lu_local(m,n)>0.5) then
-                    array4_2d(m,n) = sngl( (vbrtr(m,n  )*dxh(m,n  )*hhv(m,n  )    &
+                    array4_2d(m,n) = sngl( ( vbrtr(m,n  )*dxh(m,n  )*hhv(m,n  )    &
                                             +vbrtr(m,n-1)*dxh(m,n-1)*hhv(m,n-1))/2.0/hhq(m,n)/dx(m,n) )
                 endif
                 enddo
@@ -640,7 +648,418 @@ module output_routes
             endif
         endif
     endif
-    
     endsubroutine parallel_local_output
     
+
+    subroutine parallel_global_output(path2data,  &
+                                             nrec,       &
+                                             year,       &
+                                            month,       &
+                                              day,       &
+                                             hour,       &
+                                           minute,       &
+                                           tstep,        &
+                                           calendar  )
+    use main_basin_pars
+    use mpi_parallel_tools
+    use basin_grid
+    use ocean_variables
+    use rec_length
+    use iodata_routes
+    use rw_ctl_routes
+    
+    implicit none
+    include 'locout.fi'
+    
+    integer nrec, year, month, day, hour, minute, calendar, ierr
+    character fname*256
+    character*(*) path2data
+    real(4) array4_2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+    real(4) tstep
+    integer m,n,k
+    real(8) z0(1), z1(1)
+    
+    z0 = 0.0d0; z1 = 1.0d0
+    
+    if (rank .eq. 0) write(*,*) 'Writing global output, record number ', nrec
+    
+    if (ssh_max_amplitude_output>0) then
+    ! writing SSH
+     ierr=0
+     array4_2d=sngl(ssh_max_amplitude)
+    ! call wdstd(path2data,'LOCAL/ssh.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,ierr)
+     call pwdstd(path2data,'LOCAL/ssh_max_amplitude.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     call fulfname(fname,path2data,'LOCAL/ssh_max_amplitude.dat',ierr)
+     if (rank .eq. 0) then
+         call ctl_file_write(fname,    &     !file name
+                         undef,    &     !value for undefined points
+                         nx_loc,   &     !x-dimension
+                         ny_loc,   &     !y-dimension
+                              1,   &     !z-dimension
+                           nrec,   &     !t-dimension
+                       xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                           xtm1,   &     !first x-value (if linear) or x-array (if levels)
+                          dxst,    &     !x-step (if linear)
+                      ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                           ytn1,   &     !first y-value (if linear) or x-array (if levels)
+                          dyst,    &     !y-step (if linear)
+                          0,       &     !z-grid type (0 - linear, 1 - levels)
+                          z0,      &     !first z-value (if linear) or x-array (if levels)
+                          1.0d0,   &     !z-step (if linear)
+                       calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                           year,   &     !year   of the first field
+                          month,   &     !month  of the first field
+                            day,   &     !day    of the first field
+                           hour,   &     !hour   of the first field
+                         minute,   &     !minute of the first field
+                          tstep,   &     !time step (in seconds)
+                       'SSH, m',   &     !title of dataset
+                          'ssh'   )      !variable name
+     endif
+    endif
+    
+    if (uv_max_amplitude_output>0) then
+        if (grid_shift == 0) then
+            ! writing on model grid
+            ierr = 0
+            array4_2d=sngl(ubrtr_max_amplitude)
+            call pwdstd(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,llu,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
+            if (rank .eq. 0) then
+                call ctl_file_write(fname,    &     !file name
+                                    undef,    &     !value for undefined points
+                                  nx_loc+1,   &     !x-dimension
+                                    ny_loc,   &     !y-dimension
+                                         1,   &     !z-dimension
+                                      nrec,   &     !t-dimension
+                                  xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                      xum1,   &     !first x-value (if linear) or x-array (if levels)
+                                     dxst,    &     !x-step (if linear)
+                                 ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                                      ytn1,   &     !first y-value (if linear) or x-array (if levels)
+                                     dyst,    &     !y-step (if linear)
+                                     0,       &     !z-grid type (0 - linear, 1 - levels)
+                                     z0,      &     !first z-value (if linear) or x-array (if levels)
+                                     1.0d0,   &     !z-step (if linear)
+                                  calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                      year,   &     !year   of the first field
+                                     month,   &     !month  of the first field
+                                       day,   &     !day    of the first field
+                                      hour,   &     !hour   of the first field
+                                    minute,   &     !minute of the first field
+                                     tstep,   &     !time step (in seconds
+                      'zonal velocity, m/s',  &     !title of dataset
+                                       'u'   )      !variable name
+            endif
+        else 
+            ! writing on T-grid
+            !$omp parallel do 
+            do n=ny_start, ny_end
+              do m=nx_start, nx_end
+                if (lu(m,n)>0.5) then
+                    array4_2d(m, n) = sngl( (ubrtr_max_amplitude(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
+                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) ) 
+                endif
+              enddo
+            enddo
+            !$omp end parallel do
+          
+            call pwdstd(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
+            if (rank == 0) then
+              call ctl_file_write(fname,    &     !file name
+                                  undef,    &     !value for undefined points
+                                  nx_loc,   &     !x-dimension
+                                  ny_loc,   &     !y-dimension
+                                       1,   &     !z-dimension
+                                    nrec,   &     !t-dimension
+                                xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                   xtm1,    &     !first x-value (if linear) or x-array (if levels)
+                                  dxst,     &     !x-step (if linear)
+                              ygr_type,     &     !y-grid type (0 - linear, 1 - levels)
+                                   ytn1,    &     !first y-value (if linear) or x-array (if levels)
+                                  dyst,     &     !y-step (if linear)
+                                      0,    &     !z-grid type (0 - linear, 1 - levels)
+                                      z0,   &     !first z-value (if linear) or x-array (if levels)
+                                  1.0d0,    &     !z-step (if linear)
+                                calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                    year,   &     !year   of the first field
+                                  month,    &     !month  of the first field
+                                    day,    &     !day    of the first field
+                                    hour,   &     !hour   of the first field
+                                  minute,   &     !minute of the first field
+                                  tstep,    &     !time step (in seconds
+                    'zonal velocity, m/s',  &     !title of dataset
+                                    'u'    )      !variable name
+            endif
+        endif
+    
+        if (grid_shift == 0) then
+            ierr=0
+            array4_2d=sngl(vbrtr_max_amplitude)
+            call pwdstd(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,llv,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
+            call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
+            if (rank .eq. 0) then
+                call ctl_file_write(fname,    &     !file name
+                                    undef,    &     !value for undefined points
+                                    nx_loc,   &     !x-dimension
+                                  ny_loc+1,   &     !y-dimension
+                                         1,   &     !z-dimension
+                                      nrec,   &     !t-dimension
+                                  xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                      xtm1,   &     !first x-value (if linear) or x-array (if levels)
+                                     dxst,    &     !x-step (if linear)
+                                 ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                                      yvn1,   &     !first y-value (if linear) or x-array (if levels)
+                                     dyst,    &     !y-step (if linear)
+                                     0,       &     !z-grid type (0 - linear, 1 - levels)
+                                     z0,      &     !first z-value (if linear) or x-array (if levels)
+                                     1.0d0,   &     !z-step (if linear)
+                                  calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                      year,   &     !year   of the first field
+                                     month,   &     !month  of the first field
+                                       day,   &     !day    of the first field
+                                      hour,   &     !hour   of the first field
+                                    minute,   &     !minute of the first field
+                                     tstep,   &     !time step (in seconds
+                 'meridional velocity, m/s',  &     !title of dataset
+                                       'v'   )      !variable name
+            endif
+        else 
+            !writing on T-grid
+            !$omp parallel do 
+            do n=ny_start, ny_end
+              do m=nx_start, nx_end
+                if (lu(m,n)>0.5) then
+                    array4_2d(m,n) = sngl( (vbrtr_max_amplitude(m,n  )*dxh(m,n  )*hhv(m,n  )    &
+                                           +vbrtr_max_amplitude(m,n-1)*dxh(m,n-1)*hhv(m,n-1))/2.0/hhq(m,n)/dx(m,n) )
+                endif
+              enddo
+            enddo
+            !$omp end parallel do
+        
+            call pwdstd(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
+            if (rank == 0) then
+              call ctl_file_write(fname,     &     !file name
+                                  undef,     &     !value for undefined points
+                                  nx_loc,    &     !x-dimension
+                                  ny_loc,    &     !y-dimension
+                                      1,     &     !z-dimension
+                                    nrec,    &     !t-dimension
+                                xgr_type,    &     !x-grid type (0 - linear, 1 - levels)
+                                     xtm1,   &     !first x-value (if linear) or x-array (if levels)
+                                    dxst,    &     !x-step (if linear)
+                                ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                                     ytn1,   &     !first y-value (if linear) or x-array (if levels)
+                                    dyst,    &     !y-step (if linear)
+                                        0,   &     !z-grid type (0 - linear, 1 - levels)
+                                      z0,    &     !first z-value (if linear) or x-array (if levels)
+                                    1.0d0,   &     !z-step (if linear)
+                                calendar,    &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                    year,    &     !year   of the first field
+                                    month,   &     !month  of the first field
+                                      day,   &     !day    of the first field
+                                    hour,    &     !hour   of the first field
+                                  minute,    &     !minute of the first field
+                                    tstep,   &     !time step (in seconds
+                'meridional velocity, m/s',  &     !title of dataset
+                                      'v'   )      !variable name
+            endif
+        endif
+    endif
+    
+    ! ---------- LOCAL OUTPUT -----------------!
+    !------------------------------------------!
+    !------------------------------------------!
+    if (ssh_max_amplitude_local_output>0) then
+        ! writing SSH
+         ierr=0
+         array4_2d=sngl(ssh_max_amplitude)
+         call pwdstd(path2data,'LOCAL/sshloc_max_amplitude.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
+                     m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
+         call fulfname(fname,path2data,'LOCAL/sshloc_max_amplitude.dat',ierr)
+         if (rank .eq. 0) then
+             call ctl_file_write(fname,    &     !file name
+                             undef,    &     !value for undefined points
+                             nx_loc_local,   &     !x-dimension
+                             ny_loc_local,   &     !y-dimension
+                                  1,   &     !z-dimension
+                               nrec,   &     !t-dimension
+                           xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                            xtm1loc,   &     !first x-value (if linear) or x-array (if levels)
+                              dxst,    &     !x-step (if linear)
+                          ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                            ytn1loc,   &     !first y-value (if linear) or x-array (if levels)
+                              dyst,    &     !y-step (if linear)
+                              0,       &     !z-grid type (0 - linear, 1 - levels)
+                              z0,      &     !first z-value (if linear) or x-array (if levels)
+                              1.0d0,   &     !z-step (if linear)
+                           calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                               year,   &     !year   of the first field
+                              month,   &     !month  of the first field
+                                day,   &     !day    of the first field
+                               hour,   &     !hour   of the first field
+                             minute,   &     !minute of the first field
+                              tstep,   &     !time step (in seconds)
+                           'SSH, m',   &     !title of dataset
+                              'ssh'   )      !variable name
+         endif
+    endif
+        
+    if (uv_max_amplitude_local_output>0) then
+        if (grid_shift == 0) then
+            ! writing on model grid
+            ierr = 0
+            array4_2d=sngl(ubrtr_max_amplitude)
+            call pwdstd(path2data,'LOCAL/ubrtrloc_max_amplitude.dat',nrec,array4_2d,llu_local,nx,ny,1,  &
+                        m1loc_local-1,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
+            call fulfname(fname,path2data,'LOCAL/ubrtrloc_max_amplitude.dat',ierr)
+            if (rank .eq. 0) then
+                call ctl_file_write(fname,    &     !file name
+                                    undef,    &     !value for undefined points
+                                    nx_loc_local + 1,   &     !x-dimension
+                                    ny_loc_local,   &     !y-dimension
+                                            1,   &     !z-dimension
+                                         nrec,   &     !t-dimension
+                                     xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                      xum1loc,   &     !first x-value (if linear) or x-array (if levels)
+                                        dxst,    &     !x-step (if linear)
+                                    ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                                      ytn1loc,   &     !first y-value (if linear) or x-array (if levels)
+                                        dyst,    &     !y-step (if linear)
+                                        0,       &     !z-grid type (0 - linear, 1 - levels)
+                                        z0,      &     !first z-value (if linear) or x-array (if levels)
+                                        1.0d0,   &     !z-step (if linear)
+                                     calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                         year,   &     !year   of the first field
+                                        month,   &     !month  of the first field
+                                          day,   &     !day    of the first field
+                                         hour,   &     !hour   of the first field
+                                       minute,   &     !minute of the first field
+                                        tstep,   &     !time step (in seconds
+                         'zonal velocity, m/s',  &     !title of dataset
+                                          'u'   )      !variable name
+            endif
+        else 
+            ! writing on T-grid
+            !$omp parallel do 
+            do n=ny_start, ny_end
+                do m=nx_start, nx_end
+                if (lu_local(m,n)>0.5) then
+                    array4_2d(m, n) = sngl( (ubrtr_max_amplitude(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
+                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) ) 
+                endif
+                enddo
+            enddo
+            !$omp end parallel do
+            
+            call pwdstd(path2data,'LOCAL/ubrtrloc_max_amplitude.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
+                        m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
+            call fulfname(fname,path2data,'LOCAL/ubrtrloc_max_amplitude.dat',ierr)
+            if (rank == 0) then
+                call ctl_file_write(fname,    &     !file name
+                                    undef,    &     !value for undefined points
+                                    nx_loc_local,   &     !x-dimension
+                                    ny_loc_local,   &     !y-dimension
+                                         1,   &     !z-dimension
+                                      nrec,   &     !t-dimension
+                                  xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                  xtm1loc,    &     !first x-value (if linear) or x-array (if levels)
+                                    dxst,     &     !x-step (if linear)
+                                ygr_type,     &     !y-grid type (0 - linear, 1 - levels)
+                                  ytn1loc,    &     !first y-value (if linear) or x-array (if levels)
+                                    dyst,     &     !y-step (if linear)
+                                        0,    &     !z-grid type (0 - linear, 1 - levels)
+                                        z0,   &     !first z-value (if linear) or x-array (if levels)
+                                    1.0d0,    &     !z-step (if linear)
+                                  calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                      year,   &     !year   of the first field
+                                    month,    &     !month  of the first field
+                                      day,    &     !day    of the first field
+                                      hour,   &     !hour   of the first field
+                                    minute,   &     !minute of the first field
+                                    tstep,    &     !time step (in seconds
+                      'zonal velocity, m/s',  &     !title of dataset
+                                      'u'    )      !variable name
+            endif
+        endif
+    
+        if (grid_shift == 0) then
+            ierr=0
+            array4_2d=sngl(vbrtr_max_amplitude)
+            call pwdstd(path2data,'LOCAL/vbrtrloc_max_amplitude.dat',nrec,array4_2d,llv_local,nx,ny,1,  &
+                        m1loc_local,m2loc_local,n1loc_local-1,n2loc_local,1,1, local_output_comm, ierr)
+            call fulfname(fname,path2data,'LOCAL/vbrtrloc_max_amplitude.dat',ierr)
+            if (rank .eq. 0) then
+                call ctl_file_write(fname,    &     !file name
+                                    undef,    &     !value for undefined points
+                                    nx_loc_local,   &     !x-dimension
+                                    ny_loc_local + 1,   &     !y-dimension
+                                            1,   &     !z-dimension
+                                         nrec,   &     !t-dimension
+                                     xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                                      xtm1loc,   &     !first x-value (if linear) or x-array (if levels)
+                                        dxst,    &     !x-step (if linear)
+                                    ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                                      yvn1loc,   &     !first y-value (if linear) or x-array (if levels)
+                                        dyst,    &     !y-step (if linear)
+                                        0,       &     !z-grid type (0 - linear, 1 - levels)
+                                        z0,      &     !first z-value (if linear) or x-array (if levels)
+                                        1.0d0,   &     !z-step (if linear)
+                                     calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                         year,   &     !year   of the first field
+                                        month,   &     !month  of the first field
+                                          day,   &     !day    of the first field
+                                         hour,   &     !hour   of the first field
+                                       minute,   &     !minute of the first field
+                                        tstep,   &     !time step (in seconds
+                    'meridional velocity, m/s',  &     !title of dataset
+                                          'v'   )      !variable name
+            endif
+        else 
+            !writing on T-grid
+            !$omp parallel do 
+            do n=ny_start, ny_end
+                do m=nx_start, nx_end
+                if (lu_local(m,n)>0.5) then
+                    array4_2d(m,n) = sngl( (vbrtr_max_amplitude(m,n  )*dxh(m,n  )*hhv(m,n  )    &
+                                           +vbrtr_max_amplitude(m,n-1)*dxh(m,n-1)*hhv(m,n-1))/2.0/hhq(m,n)/dx(m,n) )
+                endif
+                enddo
+            enddo
+            !$omp end parallel do
+        
+            call pwdstd(path2data,'LOCAL/vbrtrloc_max_amplitude.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
+                        m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
+            call fulfname(fname,path2data,'LOCAL/vbrtrloc_max_amplitude.dat',ierr)
+            if (rank == 0) then
+                call ctl_file_write(fname,     &     !file name
+                                    undef,     &     !value for undefined points
+                                    nx_loc_local,    &     !x-dimension
+                                    ny_loc_local,    &     !y-dimension
+                                      1,     &     !z-dimension
+                                    nrec,    &     !t-dimension
+                                xgr_type,    &     !x-grid type (0 - linear, 1 - levels)
+                                  xtm1loc,   &     !first x-value (if linear) or x-array (if levels)
+                                    dxst,    &     !x-step (if linear)
+                                ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                                  ytn1loc,   &     !first y-value (if linear) or x-array (if levels)
+                                    dyst,    &     !y-step (if linear)
+                                        0,   &     !z-grid type (0 - linear, 1 - levels)
+                                      z0,    &     !first z-value (if linear) or x-array (if levels)
+                                    1.0d0,   &     !z-step (if linear)
+                                calendar,    &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                                    year,    &     !year   of the first field
+                                    month,   &     !month  of the first field
+                                      day,   &     !day    of the first field
+                                    hour,    &     !hour   of the first field
+                                  minute,    &     !minute of the first field
+                                    tstep,   &     !time step (in seconds
+                'meridional velocity, m/s',  &     !title of dataset
+                                      'v'   )      !variable name
+            endif
+        endif
+    endif
+    endsubroutine parallel_global_output
 endmodule output_routes

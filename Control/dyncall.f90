@@ -91,6 +91,29 @@ subroutine shallow_water_model_step(tau)
     !call end_timer(time_count)
     !time_barotrop = time_barotrop + time_count
 
+    ! Compute maximum amplitude
+    do n = ny_start, ny_end
+        do m = nx_start, nx_end
+            if (lu(m, n)>0.5) then
+                if ( ssh_max_amplitude(m, n) < abs(ssh(m, n)) ) then
+                    ssh_max_amplitude(m, n) = abs(ssh(m, n))
+                endif
+            endif
+
+            if (lcu(m, n)>0.5) then
+                if ( ubrtr_max_amplitude(m, n) < abs(ubrtr(m, n)) ) then
+                    ubrtr_max_amplitude(m, n) = abs(ubrtr(m, n))
+                endif
+            endif
+
+            if (lcv(m, n)>0.5) then
+                if ( vbrtr_max_amplitude(m, n) < abs(vbrtr(m, n)) ) then
+                    vbrtr_max_amplitude(m, n) = abs(vbrtr(m, n))
+                endif
+            endif
+        enddo
+    enddo
+
     ! Check errors
     do n=ny_start,ny_end
       do m=nx_start,nx_end

@@ -2,27 +2,32 @@
 module time_integration
 implicit none
 
-integer start_type   !Type of starting run (0 - from TS only, 1 - from the full checkpoint)
+integer start_type  !Type of starting run (0 - from TS only, 1 - from the full checkpoint)
         
 integer(8) num_step,        &  !Number of time step during the run
            num_step_max        !The maximum number of time step for the run
-           
 integer    init_year           !Initial year number for the run
- 
-real(4) run_duration,         &  !Duration of the run in days
-        loc_data_tstep,       &  !Time step for writing  local data
-     points_data_tstep,       &  !Time step for writing points data
-        loc_data_wr_period,   &  !Period for writing local instantaneous data (in minutes; If >1440, then assumed 1440)
-                                 !If <=0 then no local output is done
-        points_data_wr_period    !Period for writing points data (in minutes; If >1440, then assumed 1440)
-                                 !If <=0 then no local output is done
-integer   loc_data_wr_period_step,        &   !period in steps to write to write local data
-          points_data_wr_period_step,     &   !period in steps to write to write global data
+real(4) run_duration           !Duration of the run in days
+
+real(4) loc_data_tstep,        &  !Time step for writing  local data
+        points_data_tstep,     &  !Time step for writing points data
+        global_data_tstep,     &  !Time step for writing global data
+        loc_data_wr_period,    &  !Period for writing local instantaneous data (in minutes; If >1440, then assumed 1440)
+                                  !If <=0 then no local output is done
+        points_data_wr_period, &  !Period for writing points data (in minutes; If >1440, then assumed 1440)
+                                  !If <=0 then no local output is done
+        global_data_wr_period     !Period for writing global data
+
+integer   loc_data_wr_period_step,        &   !period in steps to write local data
+          points_data_wr_period_step,     &   !period in steps to write points
+          global_data_wr_period_step,     &   !period in steps to write global data
           loc_data_nstep,                 &   !Number of record to write local data
-          points_data_nstep,              &   !Number of record to write global data
-          nofcom                             !number of lines in "ocean_run.par" (calculated)
+          points_data_nstep,              &   !Number of record to write points
+          global_data_nstep,              &   !Number of record to write global data
+          nofcom                              !number of lines in "ocean_run.par" (calculated)
 
 integer key_write_local,      &      !Key for write local  data(1 - yes, 0 - no)
+        key_write_global,     &      !Key for write global data(1 - yes, 0 - no)
         key_write_points             !Key for write points data(1 - yes, 0 - no)
 
 real(8) time_step,            &  !Model time step (in seconds)
@@ -85,33 +90,7 @@ character(128)  ss_ocfiles(8),   &          !files with sea surface data on ocea
           ss_ocfiles_fname(8),   &          !files with sea surface data on oceanic grid (fullnames)               
                ss_atmfiles(14),  &          !files with sea surface data on atmospheric grid
          ss_atmfiles_fname(14),  &          !files with sea surface data on atmospheric grid (fullnames)  
-                atmask                       !file with atmospheric sea-land mask (1-land,0-ocean)
-! Files with data on oceanic grid:
-! ss_ocfiles(1) !file with SST 
-! ss_ocfiles(2) !file with SSS 
-! ss_ocfiles(3) !file with river runoff 
-! ss_ocfiles(4) !file with TLBC
-! ss_ocfiles(5) !file with SLBC
-!----------for the future needs
-! ss_ocfiles(6) !file with ULBC
-! ss_ocfiles(7) !file with VLBC
-! ss_ocfiles(8) !file with SSHLBC
-
-! Files with data on atmospheric grid:
-! ss_atmfiles(1) !file with      zonal wind stress (1 and 2 condition)
-! ss_atmfiles(2) !file with meridional wind stress (1 and 2 condition)
-! ss_atmfiles(3) !file with          heat balance (2 condition) 
-! ss_atmfiles(4) !file with shortwave rad balance (2 condition)
-! ss_atmfiles(5) !file with    freshwater balance (2 condition)
-! ss_atmfiles(6) !file with       air temperature (3 condition)
-! ss_atmfiles(7) !file with          air humidity (3 condition)
-! ss_atmfiles(8) !file with wind      zonal speed (3 condition)
-! ss_atmfiles(9) !file with wind meridional speed (3 condition)
-! ss_atmfiles(10) !file with SLP (3 condition)
-! ss_atmfiles(11) !file with downwelling longwave radiation (3 condition)
-! ss_atmfiles(12) !file with downwelling shortwave radiation (3 condition)
-! ss_atmfiles(13) !file with wind liquid precipitation (rain)
-! ss_atmfiles(14) !file with wind solid precipitation (snow)
+                atmask                      !file with atmospheric sea-land mask (1-land,0-ocean)
 
 integer year_loc,       &     !variables for writing local data
          mon_loc,       &
@@ -120,5 +99,11 @@ integer year_loc,       &     !variables for writing local data
          min_loc,       &
         nrec_loc
 
+integer year_global,       &     !variables for writing global data
+         mon_global,       &
+         day_global,       &
+        hour_global,       &
+         min_global,       &
+        nrec_global
 endmodule time_integration
 !------------------------------end module of time integration--------------------------
