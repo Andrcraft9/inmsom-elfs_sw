@@ -8,9 +8,9 @@ integer, parameter:: m1loc=mmm,     &                 !left  point number for lo
 
 ! Local area for output
 integer, parameter:: m1loc_local=4500-2,     &                   !left  point number for local output
-                     m2loc_local=6300+2,     &                   !right point number for local output
+                     m2loc_local=8100+2,     &                   !right point number for local output
                      n1loc_local=1200-2,     &                   !lower point number for local output
-                     n2loc_local=3000+2,     &                   !upper point number for local output
+                     n2loc_local=4200+2,     &                   !upper point number for local output
                      nx_loc_local=m2loc_local - m1loc_local + 1,      &     !local array dimension on X
                      ny_loc_local=n2loc_local - n1loc_local + 1             !local array dimension on Y
 
