@@ -98,6 +98,7 @@ module output_routes
         real*8 :: point_time
         integer :: m, n, r, ierr, k
         real*8 :: lon, lat
+        real*8 :: uuu, vvv
     
         if (points_output > 0) then
             do k = 1, nloc_points
@@ -110,9 +111,14 @@ module output_routes
                 r = get_rank_by_point(m, n)
     
                 if (rank .eq. r) then
+                    uuu = ( ubrtr(m  ,n)*dyh(m  ,n)*hhu(m  ,n)    &
+                           +ubrtr(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n)
+                    vvv = ( vbrtr(m,n  )*dxh(m,n  )*hhv(m,n  )    &
+                           +vbrtr(m,n-1)*dxh(m,n-1)*hhv(m,n-1) )/2.0/hhq(m,n)/dx(m,n)
+
                     call fulfname(fname, path2data, name_points(k), ierr)
                     open(40, file=fname, status='unknown', position='append')
-                    write(40, *) point_time, ssh(m, n)
+                    write(40, *) point_time, ssh(m, n), uuu, vvv
                     close(40)
                 endif
             enddo
