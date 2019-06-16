@@ -53,54 +53,61 @@ if (rank .eq. 0) then
 endif
 call mpi_bcast(comments, 256*256, mpi_character, 0, cart_comm, ierr)
 
-read(comments( 1),*) start_type          !Type of starting run (0 - from TS only, 1 - frim the full checkpoint)
-read(comments( 2),*) time_step           !Model time step (in seconds)
-read(comments( 3),*) run_duration        !Duration of the run in days
-read(comments( 4),*) num_step            !Number of time step during the run
-read(comments( 5),*) init_year           !Initial year number for the run
-read(comments( 6),*) loc_data_wr_period  !Period for writing local instantaneous data (minutes)
-read(comments( 7),*) points_data_wr_period !Period for writing points data (minutes)
+read(comments( 1),*) start_type             !Type of starting run (0 - from TS only, 1 - frim the full checkpoint)
+read(comments( 2),*) time_step              !Model time step (in seconds)
+read(comments( 3),*) run_duration           !Duration of the run in days
+read(comments( 4),*) num_step               !Number of time step during the run
+read(comments( 5),*) init_year              !Initial year number for the run
+read(comments( 6),*) loc_data_wr_period     !Period for writing local instantaneous data (minutes)
+read(comments( 7),*) points_data_wr_period  !Period for writing points data (minutes)
+read(comments( 8),*) global_data_wr_period  !Period for writing global data (minutes)
 
-call get_first_lexeme(comments(8), path2ocp    )  !path to checkpoints(results)
+call get_first_lexeme(comments(9), path2ocp    )  !path to checkpoints(results)
 ! Files with data on oceanic grid:
-call get_first_lexeme(comments(9), path2ocssdata)   !path to ocean SS data
-call get_first_lexeme(comments(10), ss_ocfiles(1)  )  !file with SST
-call get_first_lexeme(comments(11), ss_ocfiles(2)  )  !file with SSS
-call get_first_lexeme(comments(12), ss_ocfiles(3)  )  !file with river runoff
-call get_first_lexeme(comments(13), ss_ocfiles(4)  )  !file with TLBC
-call get_first_lexeme(comments(14), ss_ocfiles(5)  )  !file with SLBC
-call get_first_lexeme(comments(15), ss_ocfiles(6)  )  !file with ULBC
-call get_first_lexeme(comments(16), ss_ocfiles(7)  )  !file with VLBC
-call get_first_lexeme(comments(17), ss_ocfiles(8)  )  !file with SSHLBC
+call get_first_lexeme(comments(10), path2ocssdata)   !path to ocean SS data
+call get_first_lexeme(comments(11), ss_ocfiles(1)  )  !file with SST
+call get_first_lexeme(comments(12), ss_ocfiles(2)  )  !file with SSS
+call get_first_lexeme(comments(13), ss_ocfiles(3)  )  !file with river runoff
+call get_first_lexeme(comments(14), ss_ocfiles(4)  )  !file with TLBC
+call get_first_lexeme(comments(15), ss_ocfiles(5)  )  !file with SLBC
+call get_first_lexeme(comments(16), ss_ocfiles(6)  )  !file with ULBC
+call get_first_lexeme(comments(17), ss_ocfiles(7)  )  !file with VLBC
+call get_first_lexeme(comments(18), ss_ocfiles(8)  )  !file with SSHLBC
 ! Files with data on atmospheric grid:
-call get_first_lexeme(comments(18), path2atmssdata )  !path to atmospheric data
-call get_first_lexeme(comments(19), ss_atmfiles(1) )  !file with      zonal wind stress (1 and 2 condition)
-call get_first_lexeme(comments(20), ss_atmfiles(2) )  !file with meridional wind stress (1 and 2 condition)
-call get_first_lexeme(comments(21), ss_atmfiles(3) )  !file with          heat balance (2 condition)
-call get_first_lexeme(comments(22), ss_atmfiles(4) )  !file with shortwave rad balance (2 condition)
-call get_first_lexeme(comments(23), ss_atmfiles(5) )  !file with    freshwater balance (2 condition)
-call get_first_lexeme(comments(24), ss_atmfiles(6) )  !file with       air temperature (3 condition)
-call get_first_lexeme(comments(25), ss_atmfiles(7) )  !file with          air humidity (3 condition)
-call get_first_lexeme(comments(26), ss_atmfiles(8) )  !file with wind      zonal speed (3 condition)
-call get_first_lexeme(comments(27), ss_atmfiles(9) )  !file with wind meridional speed (3 condition)
-call get_first_lexeme(comments(28), ss_atmfiles(10) )  !file with SLP (3 condition)
-call get_first_lexeme(comments(29), ss_atmfiles(11) )  !file with downwelling longwave radiation (3 condition)
-call get_first_lexeme(comments(30), ss_atmfiles(12) )  !file with downwelling shortwave radiation (3 condition)
-call get_first_lexeme(comments(31), ss_atmfiles(13) )  !file with wind liquid precipitation (rain)
-call get_first_lexeme(comments(32), ss_atmfiles(14) )  !file with wind solid precipitation (snow)
-call get_first_lexeme(comments(33), atmask)
+call get_first_lexeme(comments(19), path2atmssdata )  !path to atmospheric data
+call get_first_lexeme(comments(20), ss_atmfiles(1) )  !file with      zonal wind stress (1 and 2 condition)
+call get_first_lexeme(comments(21), ss_atmfiles(2) )  !file with meridional wind stress (1 and 2 condition)
+call get_first_lexeme(comments(22), ss_atmfiles(3) )  !file with          heat balance (2 condition)
+call get_first_lexeme(comments(23), ss_atmfiles(4) )  !file with shortwave rad balance (2 condition)
+call get_first_lexeme(comments(24), ss_atmfiles(5) )  !file with    freshwater balance (2 condition)
+call get_first_lexeme(comments(25), ss_atmfiles(6) )  !file with       air temperature (3 condition)
+call get_first_lexeme(comments(26), ss_atmfiles(7) )  !file with          air humidity (3 condition)
+call get_first_lexeme(comments(27), ss_atmfiles(8) )  !file with wind      zonal speed (3 condition)
+call get_first_lexeme(comments(28), ss_atmfiles(9) )  !file with wind meridional speed (3 condition)
+call get_first_lexeme(comments(29), ss_atmfiles(10) )  !file with SLP (3 condition)
+call get_first_lexeme(comments(30), ss_atmfiles(11) )  !file with downwelling longwave radiation (3 condition)
+call get_first_lexeme(comments(31), ss_atmfiles(12) )  !file with downwelling shortwave radiation (3 condition)
+call get_first_lexeme(comments(32), ss_atmfiles(13) )  !file with wind liquid precipitation (rain)
+call get_first_lexeme(comments(33), ss_atmfiles(14) )  !file with wind solid precipitation (snow)
+call get_first_lexeme(comments(34), atmask)
 
-if(loc_data_wr_period>0.0001) then
+if(loc_data_wr_period > 0.0) then
  key_write_local=1
 else
  key_write_local=0
 endif
 
-if(points_data_wr_period>0.0001) then
+if(points_data_wr_period > 0.0) then
  key_write_points=1
 else
  key_write_points=0
 endif
+
+if(global_data_wr_period > 0.0) then
+  key_write_global=1
+ else
+  key_write_global=0
+ endif
 
 ! computing some time parameters
 time_step_m = time_step/60.00d0
@@ -112,17 +119,24 @@ nstep_per_day=nint(86400.0d0/time_step)       !NUMBER OF STEP PER DAY
 loc_data_wr_period = max(min(loc_data_wr_period,1440.0),sngl(time_step_m)) !The maximum local output period is 1 day, minimum is time step
 loc_data_wr_period_step = nint(loc_data_wr_period/time_step_m)   !period in steps to write to write local data
 loc_data_tstep = loc_data_wr_period * 60.0                      !Time step in seconds for writing local data
-
-year_loc=init_year
- mon_loc=1
- day_loc=int(loc_data_wr_period/1440.0)+1
- hour_loc=mod(int(loc_data_wr_period/60.0),24)
-  min_loc=mod(int(loc_data_wr_period),60)
+year_loc = init_year
+mon_loc = 1
+day_loc = int(loc_data_wr_period/1440.0)+1
+hour_loc = mod(int(loc_data_wr_period/60.0),24)
+min_loc = mod(int(loc_data_wr_period),60)
 
 ! for points output
-points_data_wr_period = max(min(points_data_wr_period, 1440.0), sngl(time_step_m)) !The maximum local output period is 1 day, minimum is time step
-points_data_wr_period_step = nint(points_data_wr_period / time_step_m)   !period in steps to write to write local data
-points_data_tstep = points_data_wr_period * 60.0                      !Time step in seconds for writing local data
+points_data_wr_period_step = nint(points_data_wr_period / time_step_m)
+points_data_tstep = points_data_wr_period * 60.0
+
+! for global output
+global_data_wr_period_step = nint(global_data_wr_period / time_step_m)
+global_data_tstep = global_data_wr_period * 60.0
+year_global = init_year
+mon_global = 1
+day_global = int(global_data_wr_period/1440.0)+1
+hour_global = mod(int(global_data_wr_period/60.0),24)
+min_global = mod(int(global_data_wr_period),60)
 
 ! Allocating main arrays
 call model_grid_allocate
@@ -150,6 +164,8 @@ if (ksw_atmforc == 1) then
   !constructing matrix for spatial interpolation
   call build_intrp_mtrx(path2atmssdata,atmask)
 endif
+
+call init_model_output()
 
 ! Check points
 call parallel_check_point()
@@ -210,10 +226,14 @@ if (key_write_local>0) then
 
 endif
 
-if (key_write_points > 0 ) then
+if (key_write_points > 0) then
   if (rank == 0) print *, "Output initial points data..."
   call parallel_point_output(path2ocp,  0.0d0)
   call parallel_energy_output(path2ocp, 0.0d0)
+endif
+
+if (key_write_global > 0) then
+  if (rank == 0) print *, "Output global data"
 endif
 
 if (rank .eq. 0) then
@@ -269,45 +289,69 @@ do while(num_step<num_step_max)
                        init_year)                !initial real-time year
 
 !Write local data
+if (key_write_local>0) then
+  if(mod(num_step,loc_data_wr_period_step)==0) then
+    nrec_loc = num_step/loc_data_wr_period_step
+    
+    call start_timer(t_local)
+    call  parallel_local_output(path2ocp,  &
+                            nrec_loc + 1,  &
+                                year_loc,  &
+                                 mon_loc,  &
+                                 day_loc,  &
+                                hour_loc,  &
+                                 min_loc,  &
+                          loc_data_tstep,  &
+                                 yr_type  )
+    call end_timer(t_local)
+    time_output = time_output + t_local
+                      
+    call model_time_print(num_step,         &
+                          m_sec_of_min,     &    !second counter in minute,output
+                          m_min_of_hour,    &    !minute counter in hour  ,output
+                          m_hour_of_day,    &    !hour counter in day     ,output
+                          m_day_of_month,   &    !day counter in month    ,output
+                          m_day_of_year,    &    !day counter in year     ,output
+                          m_day_of_4yr,     &    !day counter in 4-years  ,output
+                          m_month_of_year,  &    !mon counter in year     ,output
+                          m_month,          &    !model elapsed month counter starting from zero
+                          m_year )               !year counter            ,output
+  endif
+endif
 
-if( key_write_local>0) then
- if(mod(num_step,loc_data_wr_period_step)==0) then
+!Write global data
+if (key_write_global>0) then
+  if(mod(num_step,global_data_wr_period_step)==0) then
+    nrec_global = num_step/global_data_wr_period_step
 
-  nrec_loc=num_step/loc_data_wr_period_step
+    call parallel_global_output(       path2ocp,      &
+                                      nrec_global,    &
+                                       year_global,   &
+                                        mon_global,   &
+                                        day_global,   &
+                                       hour_global,   &
+                                        min_global,   &
+                                 global_data_tstep,   &
+                                        yr_type  )
 
-  call start_timer(t_local)
-  call  parallel_local_output(path2ocp,  &
-                          nrec_loc + 1,  &
-                              year_loc,  &
-                               mon_loc,  &
-                               day_loc,  &
-                              hour_loc,  &
-                               min_loc,  &
-                        loc_data_tstep,  &
-                               yr_type  )
-  call end_timer(t_local)
-  time_output = time_output + t_local
-                    
-  call model_time_print(num_step,         &
-                        m_sec_of_min,     &    !second counter in minute,output
-                        m_min_of_hour,    &    !minute counter in hour  ,output
-                        m_hour_of_day,    &    !hour counter in day     ,output
-                        m_day_of_month,   &    !day counter in month    ,output
-                        m_day_of_year,    &    !day counter in year     ,output
-                        m_day_of_4yr,     &    !day counter in 4-years  ,output
-                        m_month_of_year,  &    !mon counter in year     ,output
-                        m_month,          &    !model elapsed month counter starting from zero
-                        m_year )               !year counter            ,output
-
- endif
+    call model_time_print(num_step,         &
+                          m_sec_of_min,     &    !second counter in minute,output
+                          m_min_of_hour,    &    !minute counter in hour  ,output
+                          m_hour_of_day,    &    !hour counter in day     ,output
+                          m_day_of_month,   &    !day counter in month    ,output
+                          m_day_of_year,    &    !day counter in year     ,output
+                          m_day_of_4yr,     &    !day counter in 4-years  ,output
+                          m_month_of_year,  &    !mon counter in year     ,output
+                          m_month,          &    !model elapsed month counter starting from zero
+                          m_year )               !year counter            ,output
+  endif
 endif
 
 if (key_write_points > 0) then
   if (mod(num_step, points_data_wr_period_step)==0) then
- 
+
     call parallel_point_output(path2ocp, num_step*time_step)
     call parallel_energy_output(path2ocp, num_step*time_step)
-                     
   endif
 endif
 

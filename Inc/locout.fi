@@ -19,11 +19,17 @@ integer, parameter:: uv_output=0,  &
                     ssh_output=1,  &
                  energy_output=0,  &
                  points_output=0,  &
-               uv_local_output=0,  &
-              ssh_local_output=1,  &
-           energy_local_output=0
+       uv_max_amplitude_output=1,  &
+      ssh_max_amplitude_output=1
 
-integer, parameter:: grid_shift=1                     !0 - output velocity at model grid, 1 - interpolation to T-grid
+! Output only for local area
+integer, parameter:: uv_local_output=0,  &
+                    ssh_local_output=0,  &
+                 energy_local_output=0,  &
+       uv_max_amplitude_local_output=1,  &
+      ssh_max_amplitude_local_output=1
+
+integer, parameter:: grid_shift=1  !0 - output velocity at model grid, 1 - interpolation to T-grid
 
 ! Sea level output in points
 integer, parameter:: nloc_points = 34

@@ -198,6 +198,9 @@ subroutine ocean_variables_allocate
     RHSx2d_bfc(bnd_x1:bnd_x2,bnd_y1:bnd_y2),           &
     RHSy2d_bfc(bnd_x1:bnd_x2,bnd_y1:bnd_y2))
 
+    allocate(ssh_max_amplitude(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
+             ubrtr_max_amplitude(bnd_x1:bnd_x2,bnd_y1:bnd_y2),  &
+             vbrtr_max_amplitude(bnd_x1:bnd_x2,bnd_y1:bnd_y2))
 
     ssh = 0.0d0;
     pgrx = 0.0d0; pgry = 0.0d0
@@ -233,6 +236,10 @@ subroutine ocean_variables_allocate
 
     RHSx2d_bfc = 0.0d0; RHSy2d_bfc = 0.0d0
 
+    ssh_max_amplitude = 0.0d0
+    ubrtr_max_amplitude = 0.0d0
+    vbrtr_max_amplitude = 0.0d0
+
 endsubroutine ocean_variables_allocate
 !-------------------------------------------------------------------------------
 
@@ -252,6 +259,7 @@ subroutine ocean_variables_deallocate
     deallocate(xxt, yyt)
     deallocate(vbrtrp,vbrtrn,ubrtrp,ubrtrn,sshp,sshn)
     deallocate(RHSy2d,RHSx2d,vbrtr,ubrtr,pgry,pgrx,ssh)
+    deallocate(ssh_max_amplitude, ubrtr_max_amplitude, vbrtr_max_amplitude)
 
 endsubroutine ocean_variables_deallocate
 !-------------------------------------------------------------------------------
