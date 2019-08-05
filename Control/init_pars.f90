@@ -89,13 +89,18 @@ real(8) :: hx2, hy2
      write(*,'(a,a)')  ' file with T-point sea-land mask for LOCAL area: ', t_mask_file_local(1:len_trim (t_mask_file_local))
  endif
 
-! igrzts_surf  = min(IABS(ksw_ssbc),2) ! type of condition for T and S on sea surface
-! igrzts_bot = 2                   ! type of condition for T and S on sea bottom
+   ! Init block grid with sea-land mask
+   call parallel_read_mask(t_mask_file)
+   call parallel_blocks_distribution
+
+   ! Allocating main arrays
+   call model_grid_allocate
+   call ocean_variables_allocate
 
    ! area mask initialization
-   call gridcon(t_mask_file)
+   call gridcon
    if (t_mask_file_local /= 'NONE') then
-        call gridcon_local(t_mask_file_local)
+    call gridcon_local(t_mask_file_local)
    else
         lu_local = lu
         lcu_local = lcu
@@ -103,23 +108,28 @@ real(8) :: hx2, hy2
         llu_local = llu
         llv_local = llv
    endif
-   !if (rank .eq. 0) print *, "--------------------END OF GRIDCON----------------------"
 
    ! define grid geographical coordinates, steps and coriolis parameters
    call basinpar
-   !if (rank .eq. 0) print *, "--------------------END OF BASINPAR----------------------"
 
    if (bottom_topography_file .eq. 'NONE') then
-       if (rank .eq. 0) print *, 'NONE topography !'
-       hhq_rest = 500.0d0
-       if (rank .eq. 0) print *, "!!! HHQ_REST = 500m, topo file was ingored !!!"
+       if (rank .eq. 0) then
+           print *, 'none topography !'
+           print *, "HHQ_REST = 500m, topo file was ingored !"
+       endif
+       do k = 1, bcount
+           hhq_rest(k)%vals = 500.0d0
+       enddo
    else
-       array4=0.0
-       call prdstd(' ',bottom_topography_file,1,array4,lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
-       hhq_rest=dble(array4)
+       call allocate_block2D_real4(array4, 0.0)
+       call prdstd2D(' ', bottom_topography_file, 1, array4, lu, nx, ny, mmm, mm, nnn, nn, ierr)
+       do k = 1, bcount
+           hhq_rest(k)%vals = dble(array4(k)%vals)
+       enddo
+       call deallocate_block2D_real4(array4)
    endif
 
-   call syncborder_real8(hhq_rest, 1)
+   call syncborder_block2D_real8(hhq_rest)
    if(periodicity_x/=0) then
        call cyclize8_x(hhq_rest,nx,ny,1,mmm,mm)
    end if
@@ -127,25 +137,29 @@ real(8) :: hx2, hy2
        call cyclize8_y(hhq_rest,nx,ny,1,nnn,nn)
    end if
 
-   call init_computational_domains(lu)
+    !--------------Rayleigh friction initialization
+    !$omp parallel do
+    do k = 1, bcount
+        call set_block_boundary(k)
+        do n=ny_start,ny_end
+            do m=nx_start,nx_end
+                if (lu(k)%vals(m,n)*lu(k)%vals(m+1,n)>0.5 .and. lu(k)%vals(m,n)*lu(k)%vals(m,n+1)>0.5) then
+                    hx2= ( ((hhq_rest(k)%vals(m+1,n) - hhq_rest(k)%vals(m  ,n))/dxt(k)%vals(m  ,n))**2 * dble(lcu(k)%vals(m  ,n))    &
+                          +((hhq_rest(k)%vals(m  ,n) - hhq_rest(k)%vals(m-1,n))/dxt(k)%vals(m-1,n))**2 * dble(lcu(k)%vals(m-1,n)) )  &
+                          /dble(lcu(k)%vals(m,n)+lcu(k)%vals(m-1,n))
 
-   ! Rayleigh friction initialization
-   !$omp parallel do private(m, n, hx2, hy2)
-   do n=ny_start,ny_end
-       do m=nx_start,nx_end
-           if (lu(m,n)*lu(m+1,n)>0.5 .and. lu(m,n)*lu(m,n+1)>0.5) then
-               hx2= ( ((hhq_rest(m+1,n)-hhq_rest(m  ,n))/dxt(m  ,n))**2 * dble(lcu(m  ,n))    &
-                    +((hhq_rest(m  ,n)-hhq_rest(m-1,n))/dxt(m-1,n))**2 * dble(lcu(m-1,n)) )/dble(lcu(m,n)+lcu(m-1,n))
-               hy2= ( ((hhq_rest(m,n+1)-hhq_rest(m,n  ))/dyt(m,n  ))**2 * dble(lcv(m,n  ))    &
-                    +((hhq_rest(m,n  )-hhq_rest(m,n-1))/dyt(m,n-1))**2 * dble(lcv(m,n-1)) )/dble(lcv(m,n)+lcv(m,n-1))
+                    hy2= ( ((hhq_rest(k)%vals(m,n+1) - hhq_rest(k)%vals(m,n  ))/dyt(k)%vals(m,n  ))**2 * dble(lcv(k)%vals(m,n  ))    &
+                          +((hhq_rest(k)%vals(m,n  ) - hhq_rest(k)%vals(m,n-1))/dyt(k)%vals(m,n-1))**2 * dble(lcv(k)%vals(m,n-1)) )  &
+                          /dble(lcv(k)%vals(m,n)+lcv(k)%vals(m,n-1))
 
-               r_diss(m,n)=r_fric*dsqrt(hx2+hy2)
-           endif
-       enddo
-   enddo
-   !$omp end parallel do
+                    r_diss(k)%vals(m,n) = r_fric*dsqrt(hx2 + hy2)
+                endif
+            enddo
+        enddo
+    enddo
+    !$omp end parallel do
+    call syncborder_block2D_real8(r_diss)
 
-   call syncborder_real8(r_diss, 1)
    if(periodicity_x/=0) then
        call cyclize8_x(r_diss, nx, ny, 1, mmm, mm)
    end if
@@ -162,139 +176,126 @@ subroutine test_init
     use ocean_variables
     implicit none
 
-    integer :: m, n
+    integer :: k, m, n
 
-    ssh = -1
-    do m = nx_start, nx_end
-        do n = ny_start, ny_end
-            ssh(m, n) = rank
+    do k = 1, bcount
+        call set_block_boundary(k)
+        ssh(k)%vals = -1
+        do m = nx_start, nx_end
+            do n = ny_start, ny_end
+                ssh(k)%vals(m, n) = rank
+            enddo
         enddo
     enddo
 
 end subroutine
 
-subroutine sw_test2
+subroutine zero_sw_init
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
-    use depth_routes
-    use ocalg_routes
-    use iodata_routes
+    use depth
     implicit none
-    integer :: m, n, k, ierr
-    real*8 :: hx2, hy2
-    real*8 :: u0
-    real   :: a
-    real*8 :: d2r
 
-    d2r= Pi / 180.0d0
+    integer :: k
 
-    a = 0.0d0
-    u0 = 2d0*Pi*RadEarth / (12.0d0*24*60*60)
+    do k = 1, bcount
+        ubrtr(k)%vals = 0.0
+        ubrtrp(k)%vals = 0.0
 
-    ssh = 0.0d0
-    ubrtr = 0.0d0
-    vbrtr = 0.0d0
+        vbrtr(k)%vals = 0.0
+        vbrtrp(k)%vals = 0.0
 
-    sshp = 0.0d0
-    ubrtrp = 0.0d0
-    vbrtrp = 0.0d0
-
-!---------------------Test 2: --------------------------------------------------!
-    do n=ny_start, ny_end
-      do m=nx_start, nx_end
-          if (lcu(m, n) > 0.5) then
-              ubrtr(m,n) = u0 * (dcos(d2r*geo_lat_u(m, n))*dcos(d2r*a)            &
-                  - dcos(d2r*geo_lon_u(m,n))*dsin(d2r*geo_lat_u(m,n))*dsin(d2r*a))
-          endif
-
-          if (lcv(m, n) > 0.5) then
-              vbrtr(m,n) = u0 * dsin(d2r*geo_lon_v(m, n))*dsin(d2r*a)
-          endif
-
-          if (lu(m ,n) > 0.5) then
-              ssh(m,n) = -(1.0d0 / FreeFallAcc)                                 &
-                * (RadEarth*EarthAngVel*u0 + 0.5d0*u0*u0)                         &
-                  * (( dcos(d2r*geo_lon_t(m,n))*dcos(d2r*geo_lat_t(m,n))*dsin(d2r*a) &
-                      + dsin(d2r*geo_lat_t(m,n))*dcos(d2r*a) )**2)
-          endif
-      enddo
+        ssh(k)%vals = 0.0
+        sshp(k)%vals = 0.0
     enddo
 
-    call syncborder_real8(ubrtr, 1)
-    call syncborder_real8(vbrtr, 1)
-    call syncborder_real8(ssh, 1)
-    if(periodicity_x/=0) then
-        call cyclize8_x(ssh, nx, ny, 1, mmm, mm)
-        call cyclize8_x(ubrtr, nx, ny, 1, mmm, mm)
-        call cyclize8_x(vbrtr, nx, ny, 1, mmm, mm)
-    end if
-    if(periodicity_y/=0) then
-        call cyclize8_y(ssh, nx, ny, 1, nnn, nn)
-        call cyclize8_y(ubrtr, nx, ny, 1, nnn, nn)
-        call cyclize8_y(vbrtr, nx, ny, 1, nnn, nn)
-    end if
+    do k = 1, bcount
+        call set_block_boundary(k)
+        call hh_init(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,     &
+                     hhu(k)%vals, hhup(k)%vals, hhun(k)%vals,     &
+                     hhv(k)%vals, hhvp(k)%vals, hhvn(k)%vals,     &
+                     hhh(k)%vals, hhhp(k)%vals, hhhn(k)%vals,     &
+                     ssh(k)%vals, sshp(k)%vals, hhq_rest(k)%vals, &
+                     dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                     dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                     lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+    enddo
+    call syncborder_block2D_real8(hhu)
+    call syncborder_block2D_real8(hhup)
+    call syncborder_block2D_real8(hhun)
+    call syncborder_block2D_real8(hhv)
+    call syncborder_block2D_real8(hhvp)
+    call syncborder_block2D_real8(hhvn)
+    call syncborder_block2D_real8(hhh)
+    call syncborder_block2D_real8(hhhp)
+    call syncborder_block2D_real8(hhhn)
 
-    ubrtrp = ubrtr
-    vbrtrp = vbrtr
-    sshp = ssh
-
-!initialize depth for internal mode
-    call hh_init(hhq, hhqp, hhqn,    &
-                 hhu, hhup, hhun,    &
-                 hhv, hhvp, hhvn,    &
-                 hhh, hhhp, hhhn,    &
-                 ssh, sshp, hhq_rest)
-
-endsubroutine sw_test2
+end subroutine
 
 subroutine sw_only_inicond(flag_init, path2ocp)
     use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
-    use depth_routes
-    use ocalg_routes
+    use depth
     use iodata_routes
     implicit none
     integer :: flag_init
     character*(*) path2ocp
+    type(block2D_real4), dimension(:), pointer :: array4
 
-    integer :: ierr
-    real(4) array4(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
+    integer :: k, ierr
+    !real(4) array4(bnd_x1:bnd_x2, bnd_y1:bnd_y2)
 
-    ubrtr = 0.0d0
-    vbrtr = 0.0d0
+    do k = 1, bcount
+        ubrtr(k)%vals = 0.0d0
+        vbrtr(k)%vals = 0.0d0
+    enddo
 
-! Read init sea level
+    ! Read init sea level
     if (flag_init > 0) then
-        if (rank.eq.0) print *, "Read init sea level"
-        array4 = 0.0
-        call prdstd(path2ocp, 'slf.dat', 1, array4, lu,nx,ny,1, mmm,mm,nnn,nn,1,1,ierr)
-        ssh = dble(array4)
+        if (rank .eq. 0) print *, "Read init sea level"
+        call allocate_block2D_real4(array4, 0.0)
+        call prdstd2D(path2ocp, 'slf.dat', 1, array4, lu, nx, ny, mmm, mm, nnn, nn, ierr)
+        do k = 1, bcount
+            ssh(k)%vals = dble(array4(k)%vals)
+        enddo
+        call deallocate_block2D_real4(array4)
+        call syncborder_block2D_real8(ssh)
     else
         if (rank.eq.0) print *, "Init sea level is zero"
-        ssh = 0.0d0
+        do k = 1, bcount
+            ssh(k)%vals = 0.0d0
+        enddo
     endif
 
-    call syncborder_real8(ssh, 1)
-    if(periodicity_x/=0) then
-        call cyclize8_x(ssh, nx, ny, 1, mmm, mm)
-    end if
-    if(periodicity_y/=0) then
-        call cyclize8_y(ssh, nx, ny, 1, nnn, nn)
-    end if
+    do k = 1, bcount
+        ubrtrp(k)%vals = ubrtr(k)%vals
+        vbrtrp(k)%vals = vbrtr(k)%vals
+        sshp(k)%vals = ssh(k)%vals
+    enddo
 
-    ubrtrp = ubrtr
-    vbrtrp = vbrtr
-    sshp = ssh
-
-    !initialize depth for internal mode
-    call hh_init(hhq, hhqp, hhqn,    &
-                 hhu, hhup, hhun,    &
-                 hhv, hhvp, hhvn,    &
-                 hhh, hhhp, hhhn,    &
-                 ssh, sshp, hhq_rest)
+    do k = 1, bcount
+        call set_block_boundary(k)
+        call hh_init(hhq(k)%vals, hhqp(k)%vals, hhqn(k)%vals,     &
+                     hhu(k)%vals, hhup(k)%vals, hhun(k)%vals,     &
+                     hhv(k)%vals, hhvp(k)%vals, hhvn(k)%vals,     &
+                     hhh(k)%vals, hhhp(k)%vals, hhhn(k)%vals,     &
+                     ssh(k)%vals, sshp(k)%vals, hhq_rest(k)%vals, &
+                     dx(k)%vals, dy(k)%vals, dxt(k)%vals, dyt(k)%vals,   &
+                     dxh(k)%vals, dyh(k)%vals, dxb(k)%vals, dyb(k)%vals, &
+                     lu(k)%vals, llu(k)%vals, llv(k)%vals, luh(k)%vals)
+    enddo
+    call syncborder_block2D_real8(hhu)
+    call syncborder_block2D_real8(hhup)
+    call syncborder_block2D_real8(hhun)
+    call syncborder_block2D_real8(hhv)
+    call syncborder_block2D_real8(hhvp)
+    call syncborder_block2D_real8(hhvn)
+    call syncborder_block2D_real8(hhh)
+    call syncborder_block2D_real8(hhhp)
+    call syncborder_block2D_real8(hhhn)
 
 endsubroutine sw_only_inicond

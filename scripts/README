@@ -1,0 +1,20 @@
+1. hilbert_curve.py - tools for building hilbert curves
+
+2. show_hc.py - just draws hilbert curve in 2D space
+
+3. mesh_metis_graph.py model_block_mesh [metis_decomposition]
+    Arguments:
+        model_block_mesh - block mesh in model format:
+            bnx, bny, pnx, pny
+            bm,   bn,   bglob_proc(bm, bn),   bglob_weight(bm, bn)
+            ...
+        metis_decomposition - file with decomposition from METIS program (just a output from METIS)
+    Description:
+        If only 1 argument is given then program transform model_block_mesh to METIS graph format. 
+            You can use this graph as input for METIS.
+        If 2 arguments are given then program reads decomposition from METIS and print this decomposition in model format
+            You can use this as input for model (in mode 2)
+
+4. decomposition model_block_mesh [marker_size] - draws decomposition with colors
+
+5. gpmetis [options] graphfile nparts - METIS decomposition. See details in METIS manual.

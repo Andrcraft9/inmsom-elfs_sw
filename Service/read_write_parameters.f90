@@ -5,7 +5,6 @@ contains
 
 !======================================================================
 subroutine readpar(filename,comments,nofcom)
-use mpi_parallel_tools
 implicit none
 
 integer, parameter:: maxnumpar=256
@@ -25,13 +24,13 @@ open (90,file=filename,status='old',err=190)
 
  nofcom=n-1
 
- if (rank .eq. 0) then
-     write(*,'(a,a)')' Input ocean task parameters from ', filename(1:len_trim (filename))
-     do n=1,nofcom
-      write(*,'(1x,a)') comments(n)(1:len_trim (comments(n)))
-     end do
-     write(*,*)
- endif
+ 
+ write(*,'(a,a)')' Input ocean task parameters from ', filename(1:len_trim (filename))
+ do n=1,nofcom
+ write(*,'(1x,a)') comments(n)(1:len_trim (comments(n)))
+ end do
+ write(*,*)
+
  return
 
 190   write(*,*) ' error in open file: ',  &
