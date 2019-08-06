@@ -1,5 +1,7 @@
 module mpi_parallel_tools
+!#include <petsc/finclude/petscksp.h>
     use hilbert_curve
+    !use petscksp
     use mpi
     implicit none
 
@@ -16,7 +18,7 @@ module mpi_parallel_tools
                bnd_y1,      &   !bottom array boundary in y-direction
                bnd_y2           !top    array boundary in y-direction
 
-    integer :: nzmax 
+    integer :: nzmax
 
     integer :: mod_decomposition
     character(128) :: file_decomposition
@@ -122,11 +124,18 @@ module mpi_parallel_tools
     type(block1D_real4), dimension(:), pointer :: sync_edge_buf4_recv_nxm_nym_3D
 
     ! Timers
-    real*8 :: time_model_step,  &
-              time_barotrop,    &
-              time_output, time_sync
+    real*8 :: time_model_step,     &
+              time_fluxes,         &
+              time_tt_ss,          &
+              time_uv_tran_diff,   &
+              time_baroclinic,     &
+              time_barotrop,       &
+              time_output,         &
+              time_sync,           &
+              time_atm,            &
+              time_global
 
-    contains
+contains
 
     subroutine parallel_check_err(err)
         implicit none
@@ -151,6 +160,8 @@ module mpi_parallel_tools
         character(128) :: comments(128)
 
         call mpi_init(ierr)
+        call PetscInitialize(PETSC_NULL_CHARACTER, ierr)
+
         call mpi_comm_rank(mpi_comm_world, rank, ierr)
         if (rank .eq. 0) then
             print *, 'Read parallel.par...'
@@ -290,7 +301,7 @@ module mpi_parallel_tools
             allocate(sync_edge_buf4_recv_nxm_nyp_3D(k)%vals(nzmax))
             allocate(sync_edge_buf4_recv_nxm_nym_3D(k)%vals(nzmax))
         enddo
-        
+
         allocate(reqsts(2*8*bcount), statuses(MPI_STATUS_SIZE, 2*8*bcount))
     end subroutine
 
@@ -377,7 +388,7 @@ module mpi_parallel_tools
 
     subroutine parallel_finalize
         implicit none
-        integer :: k, ierr
+        integer :: ierr
 
         if (allocated(bnx_start)) deallocate(bnx_start)
         if (allocated(bnx_end)) deallocate(bnx_end)
@@ -398,10 +409,11 @@ module mpi_parallel_tools
             call deallocate_mpi_buffers()
         endif
 
+        call PETScFinalize(ierr)
         call mpi_finalize(ierr)
     end subroutine
 
-    subroutine set_block_boundary(k)
+    subroutine set_block(k)
         implicit none
         integer :: k
         nx_start = bnx_start(k); nx_end = bnx_end(k)
@@ -411,9 +423,10 @@ module mpi_parallel_tools
     end subroutine
 
     subroutine parallel_read_mask(ftemask)
-        use main_basin_pars
-        use rec_length
         implicit none
+        include 'reclen.fi'
+        include 'basinpar.fi'
+
         character*(*) ftemask
         character frmt*16,comment*80
         integer :: m, n, ierr
@@ -445,8 +458,8 @@ module mpi_parallel_tools
 ! ------------------------------------------------------------------------------- !
 ! ------------------------------------------------------------------------------- !
     subroutine parallel_blocks_distribution()
-        use main_basin_pars
         implicit none
+        include 'basinpar.fi'
 
         real*8, allocatable :: bglob_weight(:, :)
         real*8 :: bweight, max_bweight
@@ -464,11 +477,10 @@ module mpi_parallel_tools
         integer :: ierr
 
         integer :: itot, ishared
-        integer, dimension(2) :: rankblock
         real*8 :: icomm_metric, max_icomm_metric
 
         ! Set maximum levels in z direction (for MPI buffers)
-        nzmax = nz
+        nzmax = nz + 1
 
         ! Set Cart grid of blocks
         bnx = bppnx * p_size(1)
@@ -561,7 +573,7 @@ module mpi_parallel_tools
         else
             if (rank == 0) print *, "Unknown mode!"
             call mpi_abort(cart_comm, 1, ierr)
-            stop   
+            stop
         endif
 
         ! Debug Output
@@ -572,7 +584,7 @@ module mpi_parallel_tools
                 do m = 1, bnx
                     do n = 1, bny
                         write(90, *) m, n, bglob_proc(m, n), bglob_weight(m, n)
-                    enddo 
+                    enddo
                 enddo
                 !call flush()
                 close(90)
@@ -651,28 +663,28 @@ module mpi_parallel_tools
         do k = 1, bcount
             m =  bindx(k, 1)
             n =  bindx(k, 2)
-            
+
             kblock(1) = m - 1; kblock(2) = n
             call check_block_status(kblock, i)
             if (i /= rank) then
                 bshared = bshared + 1
                 cycle
             endif
-            
+
             kblock(1) = m + 1; kblock(2) = n
             call check_block_status(kblock, i)
             if (i /= rank) then
                 bshared = bshared + 1
                 cycle
             endif
-            
+
             kblock(1) = m; kblock(2) = n - 1
             call check_block_status(kblock, i)
             if (i /= rank) then
                 bshared = bshared + 1
                 cycle
             endif
-            
+
             kblock(1) = m; kblock(2) = n + 1
             call check_block_status(kblock, i)
             if (i /= rank) then
@@ -680,7 +692,7 @@ module mpi_parallel_tools
                 cycle
             endif
         enddo
-        bcomm_metric = dble(bshared) / dble(bcount) 
+        bcomm_metric = dble(bshared) / dble(bcount)
         call mpi_allreduce(bcomm_metric, max_bcomm_metric, 1, mpi_real8, mpi_max, cart_comm, ierr)
         if (rank == 0) print *, 'Partition quality:', max_bcomm_metric
         call mpi_barrier(cart_comm, ierr)
@@ -694,21 +706,21 @@ module mpi_parallel_tools
             kblock(1) = m - 1; kblock(2) = n
             call check_block_status(kblock, i)
             if (i >= 0 .and. i /= rank) ishared = ishared + bny_end(k) - bny_start(k) + 1
-            
+
             kblock(1) = m + 1; kblock(2) = n
             call check_block_status(kblock, i)
             if (i >= 0 .and. i /= rank) ishared = ishared + bny_end(k) - bny_start(k) + 1
-            
+
             kblock(1) = m; kblock(2) = n - 1
             call check_block_status(kblock, i)
             if (i >= 0 .and. i /= rank) ishared = ishared + bnx_end(k) - bnx_start(k) + 1
-            
+
             kblock(1) = m; kblock(2) = n + 1
             call check_block_status(kblock, i)
             if (i >= 0 .and. i /= rank) ishared = ishared + bnx_end(k) - bnx_start(k) + 1
-            
+
             do n = bny_start(k), bny_end(k)
-                do m = bnx_start(k), bnx_end(k) 
+                do m = bnx_start(k), bnx_end(k)
                     itot = itot + 1
                 enddo
             enddo
@@ -723,10 +735,17 @@ module mpi_parallel_tools
             print *, rank, 'icomm_metric, itot, ishared', icomm_metric, itot, ishared
             call mpi_barrier(cart_comm, ierr)
         endif
-    
+
         deallocate(bglob_weight)
         deallocate(glob_bnx_start, glob_bnx_end, glob_bny_start, glob_bny_end)
         deallocate(glob_bbnd_x1, glob_bbnd_x2, glob_bbnd_y1, glob_bbnd_y2)
+
+        if (rank == 0) then
+            do k = 1, bcount
+                write(*, '(i5, i5,i5,i5,i5)') k, bnx_start(k), bnx_end(k), bny_start(k), bny_end(k)
+            enddo
+        endif
+
     end subroutine
 
     subroutine parallel_uniform_decomposition(bgproc, bgweight, bnx, bny)
@@ -810,7 +829,7 @@ module mpi_parallel_tools
         do k = 1, bnx*bny
             call hilbert_d2xy(hilbert_index, k-1, hilbert_coord_x, hilbert_coord_y)
             hilbert_coord_x = hilbert_coord_x + 1; hilbert_coord_y = hilbert_coord_y + 1
-            
+
             ! Skip land blocks
             if (bgweight(hilbert_coord_x, hilbert_coord_y) == 0.0d0) then
                 bgproc(hilbert_coord_x, hilbert_coord_y) = -1
@@ -820,7 +839,7 @@ module mpi_parallel_tools
             endif
 
             weight = weight + bgweight(hilbert_coord_x, hilbert_coord_y)
-            
+
             !if (sea_blocks - ks >= procs - i - 1) then
                 if (weight + (weight - bgweight(hilbert_coord_x, hilbert_coord_y)) > 2.0*mean_weight) then
                     ! Recompute mean value
@@ -856,20 +875,20 @@ module mpi_parallel_tools
         integer :: file_bnx, file_bny, file_pnx, file_pny
         integer :: k, m, n, bgp, ierr
         real*8 :: bgw
-        
-        if (rank == 0) then 
+
+        if (rank == 0) then
             open(90, file=file_decomposition, status='old')
             read(90,*) file_bnx, file_bny, file_pnx, file_pny
 
             if (file_bnx /= bnx .or. file_bny /= bny) then
                 if (rank == 0) print *, 'incorrect bnx or bny in decomposition file!'
                 call mpi_abort(cart_comm, 1, ierr)
-                stop    
+                stop
             endif
             if (file_pnx /= p_size(1) .or. file_pny /= p_size(2)) then
                 if (rank == 0) print *, 'incorrect pnx or pny in decomposition file!'
                 call mpi_abort(cart_comm, 1, ierr)
-                stop    
+                stop
             endif
             do k = 1, bnx*bny
                 read(90,*) m, n, bgp, bgw
@@ -914,6 +933,48 @@ module mpi_parallel_tools
 !                            de/allocate block data                               !
 ! ------------------------------------------------------------------------------- !
 ! ------------------------------------------------------------------------------- !
+    subroutine allocate_block1D_real8(blks, nz, val)
+        implicit none
+        type(block1D_real8), dimension(:), pointer :: blks
+        real*8 :: val
+        integer :: nz, k
+        allocate(blks(bcount))
+        do k = 1, bcount
+            allocate(blks(k)%vals(1:nz))
+            blks(k)%vals = val
+        enddo
+    end subroutine
+    subroutine deallocate_block1D_real8(blks)
+        implicit none
+        type(block1D_real8), dimension(:), pointer :: blks
+        integer :: k
+        do k = 1, bcount
+            deallocate(blks(k)%vals)
+        enddo
+        deallocate(blks)
+    end subroutine
+
+    subroutine allocate_block1D_real4(blks, nz, val)
+        implicit none
+        type(block1D_real4), dimension(:), pointer :: blks
+        real*4 :: val
+        integer :: nz, k
+        allocate(blks(bcount))
+        do k = 1, bcount
+            allocate(blks(k)%vals(1:nz))
+            blks(k)%vals = val
+        enddo
+    end subroutine
+    subroutine deallocate_block1D_real4(blks)
+        implicit none
+        type(block1D_real4), dimension(:), pointer :: blks
+        integer :: k
+        do k = 1, bcount
+            deallocate(blks(k)%vals)
+        enddo
+        deallocate(blks)
+    end subroutine
+
     subroutine allocate_block2D_real8(blks, val)
         implicit none
         type(block2D_real8), dimension(:), pointer :: blks
@@ -956,7 +1017,7 @@ module mpi_parallel_tools
         deallocate(blks)
     end subroutine
 
-    subroutine allocate_block3D_real8(blks, val, nz)
+    subroutine allocate_block3D_real8(blks, nz, val)
         implicit none
         type(block3D_real8), dimension(:), pointer :: blks
         real*8 :: val
@@ -977,10 +1038,10 @@ module mpi_parallel_tools
         deallocate(blks)
     end subroutine
 
-    subroutine allocate_block3D_real4(blks, val, nz)
+    subroutine allocate_block3D_real4(blks, nz, val)
         implicit none
         type(block3D_real4), dimension(:), pointer :: blks
-        real*8 :: val
+        real*4 :: val
         integer :: nz, k
         allocate(blks(bcount))
         do k = 1, bcount
@@ -1006,20 +1067,73 @@ module mpi_parallel_tools
     subroutine init_times
         implicit none
         time_model_step = 0.0d0
+        time_fluxes = 0.0d0
+        time_tt_ss = 0.0d0
+        time_uv_tran_diff = 0.0d0
+        time_baroclinic = 0.0d0
         time_barotrop = 0.0d0
-        time_sync = 0.0d0
         time_output = 0.0d0
+        time_sync = 0.0d0
+        time_atm = 0.0d0
+        time_global = 0.0d0
         return
     end subroutine
 
     subroutine print_times
         implicit none
-        if (rank .eq. 0) then
-            print *, "Time model step: ", time_model_step
-            print *, "Time barotropic: ", time_barotrop
-            print *, "Time sync: ", time_sync
-            print *, "Time output: ", time_output
-        endif
+        integer :: ierr
+        real*8 :: maxtime_model_step, mintime_model_step
+        real*8 :: maxtime_fluxes, mintime_fluxes
+        real*8 :: maxtime_tt_ss, mintime_tt_ss
+        real*8 :: maxtime_uv_tran_diff, mintime_uv_tran_diff
+        real*8 :: maxtime_baroclinic, mintime_baroclinic
+        real*8 :: maxtime_barotrop, mintime_barotrop
+        real*8 :: maxtime_output, mintime_output
+        real*8 :: maxtime_sync, mintime_sync
+        real*8 :: maxtime_atm, mintime_atm
+        real*8 :: maxtime_global, mintime_global
+        call mpi_allreduce(time_model_step, maxtime_model_step, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_model_step, mintime_model_step, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time full of model step (max and min): ", maxtime_model_step, mintime_model_step
+
+        call mpi_allreduce(time_fluxes, maxtime_fluxes, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_fluxes, mintime_fluxes, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time fluxes (max and min): ", maxtime_fluxes, mintime_fluxes
+
+        call mpi_allreduce(time_tt_ss, maxtime_tt_ss, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_tt_ss, mintime_tt_ss, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time tt and ss tracers (max and min): ", maxtime_tt_ss, mintime_tt_ss
+
+        call mpi_allreduce(time_uv_tran_diff, maxtime_uv_tran_diff, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_uv_tran_diff, mintime_uv_tran_diff, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time uv transport and diffusion (max and min): ", maxtime_uv_tran_diff, mintime_uv_tran_diff
+
+        call mpi_allreduce(time_baroclinic, maxtime_baroclinic, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_baroclinic, mintime_baroclinic, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time baroclinic step (max and min): ", maxtime_baroclinic, mintime_baroclinic
+
+        call mpi_allreduce(time_barotrop, maxtime_barotrop, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_barotrop, mintime_barotrop, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time barotropic step (max and min): ", maxtime_barotrop, mintime_barotrop
+
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time rest of model step: ",  &
+            maxtime_model_step - maxtime_fluxes - maxtime_tt_ss - maxtime_uv_tran_diff - maxtime_baroclinic - maxtime_barotrop
+
+        call mpi_allreduce(time_output, maxtime_output, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_output, mintime_output, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time output (max and min): ", maxtime_output, mintime_output
+
+        call mpi_allreduce(time_sync, maxtime_sync, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_sync, mintime_sync, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time sync (max and min): ", maxtime_sync, mintime_sync
+
+        call mpi_allreduce(time_atm, maxtime_atm, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_atm, mintime_atm, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time atmosphere interpolation (max and min): ", maxtime_atm, mintime_atm
+
+        call mpi_allreduce(time_global, maxtime_global, 1, mpi_real8, mpi_max, cart_comm, ierr)
+        call mpi_allreduce(time_global, mintime_global, 1, mpi_real8, mpi_min, cart_comm, ierr)
+        if (rank == 0) write(*,'(a50, F12.2, F12.2)') "Time global (max and min): ", maxtime_global, mintime_global
         return
     end subroutine
 
@@ -1033,12 +1147,7 @@ module mpi_parallel_tools
     subroutine end_timer(time)
         implicit none
         real*8, intent(inout) :: time
-        real*8 :: outtime
-        integer :: ierr
         time = mpi_wtime() - time
-        call mpi_allreduce(time, outtime, 1, mpi_real8,      &
-                            mpi_max, cart_comm, ierr)
-        time = outtime
         return
     end subroutine
 
@@ -1169,7 +1278,7 @@ module mpi_parallel_tools
 #define _MPI_TYPE_ mpi_real8
 #define _IRECV_ irecv_real8
 #define _ISEND_ isend_real8
-        
+
 #define _SYNC_BUF_SEND_NYP_ sync_buf8_send_nyp
 #define _SYNC_BUF_SEND_NXP_ sync_buf8_send_nxp
 #define _SYNC_BUF_SEND_NYM_ sync_buf8_send_nym
@@ -1184,7 +1293,7 @@ module mpi_parallel_tools
 #define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf8_recv_nxp_nym
 #define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf8_recv_nxm_nyp
 #define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf8_recv_nxm_nym
-        
+
         implicit none
         type(block2D_real8), dimension(:), pointer :: blks
 
@@ -1242,7 +1351,7 @@ module mpi_parallel_tools
 #define _MPI_TYPE_ mpi_real4
 #define _IRECV_ irecv_real4
 #define _ISEND_ isend_real4
-        
+
 #define _SYNC_BUF_SEND_NYP_ sync_buf4_send_nyp
 #define _SYNC_BUF_SEND_NXP_ sync_buf4_send_nxp
 #define _SYNC_BUF_SEND_NYM_ sync_buf4_send_nym
@@ -1257,10 +1366,10 @@ module mpi_parallel_tools
 #define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf4_recv_nxp_nym
 #define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf4_recv_nxm_nyp
 #define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf4_recv_nxm_nym
-        
+
         implicit none
         type(block2D_real4), dimension(:), pointer :: blks
-        
+
 #include "syncborder_block2D_gen.fi"
 
 #undef _MPI_TYPE_
@@ -1320,7 +1429,7 @@ module mpi_parallel_tools
 #define _MPI_TYPE_ mpi_real8
 #define _IRECV_ irecv3D_real8
 #define _ISEND_ isend3D_real8
-        
+
 #define _SYNC_BUF_SEND_NYP_ sync_buf8_send_nyp_3D
 #define _SYNC_BUF_SEND_NXP_ sync_buf8_send_nxp_3D
 #define _SYNC_BUF_SEND_NYM_ sync_buf8_send_nym_3D
@@ -1335,7 +1444,7 @@ module mpi_parallel_tools
 #define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf8_recv_nxp_nym_3D
 #define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf8_recv_nxm_nyp_3D
 #define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf8_recv_nxm_nym_3D
-        
+
         implicit none
         type(block3D_real8), dimension(:), pointer :: blks
         integer :: nz
@@ -1394,7 +1503,7 @@ module mpi_parallel_tools
 #define _MPI_TYPE_ mpi_real4
 #define _IRECV_ irecv3D_real4
 #define _ISEND_ isend3D_real4
-        
+
 #define _SYNC_BUF_SEND_NYP_ sync_buf4_send_nyp_3D
 #define _SYNC_BUF_SEND_NXP_ sync_buf4_send_nxp_3D
 #define _SYNC_BUF_SEND_NYM_ sync_buf4_send_nym_3D
@@ -1409,11 +1518,11 @@ module mpi_parallel_tools
 #define _SYNC_EDGE_BUF_RECV_NXP_NYM_ sync_edge_buf4_recv_nxp_nym_3D
 #define _SYNC_EDGE_BUF_RECV_NXM_NYP_ sync_edge_buf4_recv_nxm_nyp_3D
 #define _SYNC_EDGE_BUF_RECV_NXM_NYM_ sync_edge_buf4_recv_nxm_nym_3D
-        
+
         implicit none
         type(block3D_real4), dimension(:), pointer :: blks
         integer :: nz
-        
+
 #include "syncborder_block3D_gen.fi"
 
 #undef _MPI_TYPE_

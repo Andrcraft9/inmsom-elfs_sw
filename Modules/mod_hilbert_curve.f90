@@ -36,23 +36,23 @@ contains
 
         do while (s < n)
 
-            rx = mod(t / 2, 2)
-            if ( rx == 0 ) then
-                ry = mod(t, 2)
-            else
-                ry = mod(ieor(t, rx), 2)
-            end if
-            call hilbert_rot(s, x, y, rx, ry)
-            x = x + s * rx
-            y = y + s * ry
-            t = t / 4
+          rx = mod(t / 2, 2)
+          if ( rx == 0 ) then
+            ry = mod(t, 2)
+          else
+            ry = mod(ieor(t, rx), 2)
+          end if
+          call hilbert_rot(s, x, y, rx, ry)
+          x = x + s * rx
+          y = y + s * ry
+          t = t / 4
 
-            s = s * 2
+          s = s * 2
 
         end do
 
         return
-    end subroutine
+    end subroutine hilbert_d2xy
 
     subroutine hilbert_rot(n, x, y, rx, ry)
         !  ROT rotates and flips a quadrant appropriately.
@@ -74,20 +74,20 @@ contains
         integer :: y
 
         if (ry == 0) then
-            ! Reflect
-            if (rx == 1) then
-                x = n - 1 - x
-                y = n - 1 - y
-            end if
-            ! Flip
-            t = x
-            x = y
-            y = t
+          ! Reflect
+          if (rx == 1) then
+            x = n - 1 - x
+            y = n - 1 - y
+          end if
+          ! Flip
+          t = x
+          x = y
+          y = t
 
         end if
 
         return
-    end subroutine
+    end subroutine hilbert_rot
 
     subroutine hilbert_xy2d(m, x, y, d)
         !  XY2D converts a 2D Cartesian coordinate to a 1D Hilbert coordinate.
@@ -131,27 +131,27 @@ contains
 
         do while (0 < s)
 
-            if (iand(xcopy, s) > 0) then
-                rx = 1
-            else
-                rx = 0
-            end if
+          if (iand(xcopy, s) > 0) then
+            rx = 1
+          else
+            rx = 0
+          end if
 
-            if (iand(ycopy, s) > 0) then
-                ry = 1
-            else
-                ry = 0
-            end if
+          if (iand(ycopy, s) > 0) then
+            ry = 1
+          else
+            ry = 0
+          end if
 
-            d = d + s * s * (ieor(3 * rx, ry))
+          d = d + s * s * (ieor(3 * rx, ry))
 
-            call hilbert_rot(s, xcopy, ycopy, rx, ry)
+          call hilbert_rot(s, xcopy, ycopy, rx, ry)
 
-            s = s / 2
+          s = s / 2
 
         end do
 
         return
-    end subroutine
+    end subroutine hilbert_xy2d
 
 end module hilbert_curve

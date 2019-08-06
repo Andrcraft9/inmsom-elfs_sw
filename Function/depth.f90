@@ -26,8 +26,7 @@ subroutine hh_init(hq, hqp, hqn,    &
        hq =h_r + sh *dfloat(full_free_surface)
        hqp=h_r + shp*dfloat(full_free_surface)
        hqn=h_r
-
-!$omp parallel do private(m,n,slu)
+       
       !do n=ny_start-2, ny_end+1
       !do m=nx_start-2, nx_end+1
       do n=ny_start-1,ny_end
@@ -74,41 +73,7 @@ subroutine hh_init(hq, hqp, hqn,    &
 
        end do
     end do
-!$omp end parallel do
 
-      call syncborder_real8(hu, 1)
-      call syncborder_real8(hup, 1)
-      call syncborder_real8(hun, 1)
-      call syncborder_real8(hv, 1)
-      call syncborder_real8(hvp, 1)
-      call syncborder_real8(hvn, 1)
-      call syncborder_real8(hh, 1)
-      call syncborder_real8(hhp, 1)
-      call syncborder_real8(hhn, 1)
-
-      if(periodicity_x/=0) then
-        call cyclize8_x(hu, nx,ny,1,mmm,mm)
-        call cyclize8_x(hup,nx,ny,1,mmm,mm)
-        call cyclize8_x(hun,nx,ny,1,mmm,mm)
-        call cyclize8_x(hv, nx,ny,1,mmm,mm)
-        call cyclize8_x(hvp,nx,ny,1,mmm,mm)
-        call cyclize8_x(hvn,nx,ny,1,mmm,mm)
-        call cyclize8_x(hh, nx,ny,1,mmm,mm)
-        call cyclize8_x(hhp,nx,ny,1,mmm,mm)
-        call cyclize8_x(hhn,nx,ny,1,mmm,mm)
-      end if
-
-      if(periodicity_y/=0) then
-        call cyclize8_y(hu, nx,ny,1,nnn,nn)
-        call cyclize8_y(hup,nx,ny,1,nnn,nn)
-        call cyclize8_y(hun,nx,ny,1,nnn,nn)
-        call cyclize8_y(hv, nx,ny,1,nnn,nn)
-        call cyclize8_y(hvp,nx,ny,1,nnn,nn)
-        call cyclize8_y(hvn,nx,ny,1,nnn,nn)
-        call cyclize8_y(hh, nx,ny,1,nnn,nn)
-        call cyclize8_y(hhp,nx,ny,1,nnn,nn)
-        call cyclize8_y(hhn,nx,ny,1,nnn,nn)
-      end if
 endsubroutine hh_init
 
 subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)

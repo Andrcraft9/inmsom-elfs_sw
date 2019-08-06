@@ -10,7 +10,7 @@ subroutine shallow_water_model_step(tau)
     use flux_routes
     use time_integration
     use key_switches
-    
+
     implicit none
     integer :: m, n, k, ierr
     real*8 :: diffslpr, tau
@@ -33,13 +33,33 @@ subroutine shallow_water_model_step(tau)
         !    call sea_bottom_fluxes
         !endif
 
-        wf_tot(k)%vals = 0.0d0
-        call compute_rhs(diffslpr, surf_stress, RHSx2d(k)%vals, RHSy2d(k)%vals,   &
-                            hhu(k)%vals, hhv(k)%vals,                             &
-                            dxt(k)%vals, dyt(k)%vals, dxh(k)%vals, dyh(k)%vals, lu(k)%vals)
-        amuv2d(k)%vals  = lvisc_2
-        amuv42d(k)%vals = lvisc_4
-    enddo
+        do n=ny_start,ny_end
+            do m=nx_start,nx_end
+                if(lu(m,n)>0.5) then
+                    !RHSx2d(m, n) = ( surf_stress_x(m,n)+bot_stress_x(m,n) )*dxt(m,n)*dyh(m,n)    &
+                    RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n)    &
+                             -(slpr(m+1,n)-slpr(m,n))*hhu(m,n)*dyh(m,n)/RefDen
+
+                    !RHSy2d(m, n) = ( surf_stress_y(m,n)+bot_stress_y(m,n) )*dyt(m,n)*dxh(m,n)    &
+                    RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n)    &
+                             -(slpr(m,n+1)-slpr(m,n))*hhv(m,n)*dxh(m,n)/RefDen
+                endif
+            enddo
+        enddo
+    else
+        wf_tot = 0.0d0
+        do n=ny_start,ny_end
+            do m=nx_start,nx_end
+                if(lu(m,n)>0.5) then
+                    RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n) -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
+                    RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n) -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
+                endif
+            enddo
+        enddo
+    endif
+
+    amuv2d  = lvisc_2
+    amuv42d = lvisc_4
 
     call expl_shallow_water(tau,     &
                             ubrtr,   &
@@ -59,6 +79,8 @@ subroutine shallow_water_model_step(tau)
                           r_vort2d,  &
                         stress_t2d,  &
                         stress_s2d,  &
+                               xxt,  &
+                               yyt,  &
                             r_diss,  &
                   RHSx2d_tran_disp,  &
                   RHSy2d_tran_disp,  &
@@ -100,7 +122,6 @@ subroutine shallow_water_model_step(tau)
 
 endsubroutine shallow_water_model_step
 
-
 subroutine check_ssh_err(ssh, lu)
     use mpi_parallel_tools
     implicit none
@@ -119,7 +140,7 @@ subroutine check_ssh_err(ssh, lu)
                     write(*,*) rank, 'ERROR!!! In the point m=', m, 'n=', n, 'ssh=', ssh(m,n)
                     !write(*,*) rank, 'ERR: Block k=', k, 'In the point m=', m, 'n=', n, 'ssh=', ssh(k)%vals(m,n),   &
                     !    'step: ', num_step, 'lon: ', geo_lon_t(k)%vals(m, n), 'lat: ', geo_lat_t(k)%vals(m, n)
-                    
+
                     call mpi_abort(cart_comm, 1, ierr)
                     stop
                 endif

@@ -2,16 +2,12 @@ module bc_time_routes
 implicit none
 
 contains
-
 !======================================================================
 ! atmospheric data time interpolation on atmospheric grid
 subroutine atm_data_time_interpol
-use atm_pars
-use atm_forcing
 use time_integration
+use atm_forcing
 use key_switches
-implicit none
-
 ! Forming full file names once a year
 
    if(m_time_changed(6)>0) then ! if new year comes
@@ -352,28 +348,27 @@ endsubroutine atm_data_time_interpol
 
 !============================================================================
 ! subroutine for forming full file name for atmospheric forcing
- subroutine bc_full_name(filename,    & ! original file name
+subroutine bc_full_name(filename,    & ! original file name
                     full_filename,    & ! full file name
                         path2flux,    & ! path to flux data
                          ind_clim,    & ! index of climaticity (0-climatic data, 1 - real year data)
                            m_year)      ! current year number
- use iodata_routes
- implicit none
+    use iodata_routes
+    character*(*) path2flux,filename,full_filename
+    character fname*64,chyear*4
+    integer ind_clim, m_year, m_time_changed(7), ierr
 
- character*(*) path2flux,filename,full_filename
- character fname*64,chyear*4
- integer ind_clim, m_year, m_time_changed(7), ierr
-
-           if(ind_clim==0) then
-             call fulfname(fname,'CLIM',filename,ierr)
-             call fulfname(full_filename,path2flux,fname,ierr)
-           else
-           write(chyear(1:4),'(i4.4)') m_year
-             call fulfname(fname,chyear,filename,ierr)
-             call fulfname(full_filename,path2flux,fname,ierr)
-           end if
+    if(ind_clim==0) then
+        call fulfname(fname,'CLIM',filename,ierr)
+        call fulfname(full_filename,path2flux,fname,ierr)
+    else
+        write(chyear(1:4),'(i4.4)') m_year
+        call fulfname(fname,chyear,filename,ierr)
+        call fulfname(full_filename,path2flux,fname,ierr)
+    end if
 
 endsubroutine bc_full_name
+
 !-----------------------------------------------------------
 subroutine check_bc_field_change(time_resolution,    &
                                            ftype,    &
@@ -382,29 +377,29 @@ subroutine check_bc_field_change(time_resolution,    &
                                    m_hour_of_day,    &
                                    num_rec,          &
                                    ind_change      )
-implicit none
 
-integer m_month_of_year,           &
-        m_day_of_year,             &
-        m_hour_of_day
+    integer m_month_of_year,           &
+            m_day_of_year,             &
+            m_hour_of_day
 
-integer ftype, time_resolution, ind_change
-integer num_rec, num_rec_old
+    integer ftype, time_resolution, ind_change
+    integer num_rec, num_rec_old
 
-num_rec_old = num_rec
-ind_change=0
+    num_rec_old = num_rec
+    ind_change=0
 
-      if(ftype.eq.0) then
+    if(ftype.eq.0) then
         num_rec=m_month_of_year
-      else
+    else
         num_rec=(m_day_of_year-1)*24/time_resolution + m_hour_of_day/time_resolution +1
-      end if
+    end if
 
-   if(num_rec/=num_rec_old) then
-      ind_change=1
-   endif
+    if(num_rec/=num_rec_old) then
+        ind_change=1
+    endif
 
 endsubroutine check_bc_field_change
+
 !=================================================================================
 subroutine bc_data_read(filename,      &
                            field,      &
@@ -413,44 +408,41 @@ subroutine bc_data_read(filename,      &
                             m1,m2,     &
                             n1,n2,     &
                              nrec  )
-use rec_length
-use mpi_parallel_tools
-implicit none
 
-! external parameters
+    use mpi_parallel_tools
+
+    include 'reclen.fi'
+    ! external parameters
     character*(*) filename              !forcing data file
 
     integer nx, ny, m1, m2, n1, n2, nrec      !its dimensions
     real(4) field(nx,ny) !data array
-    integer m, n, ierr
+    integer m,n
+    integer ierr
 
-    if (rank .eq. 0) then
+    if (rank == 0) then
         open (17,file=filename,status='old',access='direct', form='unformatted',     &
-                      recl=(m2-m1+1)*(n2-n1+1)*lrecl,err=117)
+                               recl=(m2-m1+1)*(n2-n1+1)*lrecl,err=117)
 
-        if (rank .eq. 0) then
-           write(*,*) 'read boundary data: ', filename(1:len_trim (filename))
-           write(*,'(2(a,i4),a,i6)') 'dimension is ',m2-m1+1,' x',n2-n1+1, ', number of record is ',nrec
-        endif
+        write(*,*) 'read boundary data: ', filename(1:len_trim (filename))
+        write(*,'(2(a,i4),a,i6)') 'dimension is ',m2-m1+1,' x',n2-n1+1, ', number of record is ',nrec
 
         read(17,rec=nrec,err=119) ((field(m,n),m=m1,m2),n=n1,n2)
 
         close(17)
     endif
-
     call mpi_bcast(field, nx*ny, mpi_real4, 0, cart_comm, ierr)
 
     return
 
-117    write(*,'(1x,a)')'   error in opening file:'
-       write(*,'(5x,a)') filename(1:len_trim(filename))
-       call mpi_abort(cart_comm, 1, ierr)
-       stop
-119    write(*,'(1x,a)')'   error in reading file:'
-       write(*,'(5x,a)') filename(1:len_trim(filename))
-       call mpi_abort(cart_comm, 1, ierr)
-       stop
-
+117 write(*,'(1x,a)')'   error in opening file:'
+    write(*,'(5x,a)') filename(1:len_trim(filename))
+    call mpi_abort(cart_comm, 1, ierr)
+    stop
+119 write(*,'(1x,a)')'   error in reading file:'
+    write(*,'(5x,a)') filename(1:len_trim(filename))
+    call mpi_abort(cart_comm, 1, ierr)
+    stop
 endsubroutine bc_data_read
 
 endmodule bc_time_routes

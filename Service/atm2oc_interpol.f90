@@ -1,8 +1,7 @@
 module atm2oc_routes
 implicit none
-  
-contains
 
+contains
 !=====================================================================
 subroutine weight_matrix_intrp(xin,           & !array(1-D) of input x-grid values (input)
                                yin,           & !array(1-D) of input y-grid values (input)
@@ -29,8 +28,7 @@ subroutine weight_matrix_intrp(xin,           & !array(1-D) of input x-grid valu
                                     nn_out)     ! last significant point in y-direction for output grid  (input)
 
 !  definition of data parameters
-implicit none
-include 'crdfnc.fi'
+!implicit none
 
 integer indper !index of periodicity:=0 -nonperiodic,=1 -periodic case
 
@@ -39,7 +37,7 @@ integer nxin,nyin,nxout1,nxout2,nyout1,nyout2,fillmiss
 integer maskin(nxin,nyin)
 real(4) maskout(nxout1:nxout2,nyout1:nyout2)
 
-integer i_input(nxout1:nxout2,nyout1:nyout2,4),      &  !x-grid numbers of input grid for output grid
+real(4) i_input(nxout1:nxout2,nyout1:nyout2,4),      &  !x-grid numbers of input grid for output grid
         j_input(nxout1:nxout2,nyout1:nyout2,4)          !y-grid numbers of input grid for output grid
 
 real(8) matrx_elmnt_intrp(nxout1:nxout2,nyout1:nyout2,4)
@@ -156,14 +154,14 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
           i_input(i,j,1)= i_left + (mm_in-mmm_in+1)
         i_input(i,j,3)= i_left + (mm_in-mmm_in+1)
 
-        x_left = xinp(i_input(i,j,1))-360.
+        x_left = xinp( int(i_input(i,j,1)) ) - 360.
 
          else
 
         i_input(i,j,1)=i_left
           i_input(i,j,3)=i_left
 
-          x_left =xinp(i_input(i,j,1))
+          x_left =xinp( int(i_input(i,j,1)) )
 
        end if
 
@@ -173,14 +171,14 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
         i_input(i,j,2)=i_right-(mm_in-mmm_in+1)
         i_input(i,j,4)=i_right-(mm_in-mmm_in+1)
 
-        x_right=xinp(i_input(i,j,2))+360.
+        x_right=xinp( int(i_input(i,j,2)) ) + 360.
 
        else
 
         i_input(i,j,2)=i_right
         i_input(i,j,4)=i_right
 
-          x_right=xinp(i_input(i,j,2))
+          x_right=xinp( int(i_input(i,j,2)) )
 
        end if
 
@@ -190,14 +188,14 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
        j_input(i,j,3)=j_up
        j_input(i,j,4)=j_up
 
-       y_down =yinp(j_input(i,j,1))
-       y_up   =yinp(j_input(i,j,3))
+       y_down =yinp( int(j_input(i,j,1)) )
+       y_up   =yinp( int(j_input(i,j,3)) )
 
 !---------if all 4 points are undefined moving bounds of rectangle
-       if((maskin(i_input(i,j,1),j_input(i,j,1))*        &
-             maskin(i_input(i,j,2),j_input(i,j,2))*        &
-             maskin(i_input(i,j,3),j_input(i,j,3))*        &
-             maskin(i_input(i,j,4),j_input(i,j,4)))/=0) then
+       if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )*        &
+             maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )*        &
+             maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )*        &
+             maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) ))/=0) then
 
            if(fillmiss==0) then
            matrx_elmnt_intrp(i,j,1:4)=0.25d0
@@ -271,10 +269,10 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
           end if
 
 !---------- procedure if 4 points are defined---------
-        if((maskin(i_input(i,j,1),j_input(i,j,1))+       &
-              maskin(i_input(i,j,2),j_input(i,j,2))+       &
-              maskin(i_input(i,j,3),j_input(i,j,3))+       &
-              maskin(i_input(i,j,4),j_input(i,j,4)))==0) then
+        if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )+       &
+              maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )+       &
+              maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )+       &
+              maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) ))==0) then
 
             do k=1,4
              matrx_elmnt_intrp(i,j,k)=temp(k)
@@ -283,13 +281,13 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
 
         else
 !---------- procedure if 3 points are defined---------
-           if((maskin(i_input(i,j,1),j_input(i,j,1))+     &
-                 maskin(i_input(i,j,2),j_input(i,j,2))+     &
-                 maskin(i_input(i,j,3),j_input(i,j,3))+     &
-                 maskin(i_input(i,j,4),j_input(i,j,4)))==1) then
+           if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )+     &
+                 maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )+     &
+                 maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )+     &
+                 maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) ))==1) then
 
              !the 1-st point is undefined
-             if(maskin(i_input(i,j,1),j_input(i,j,1))==1) then
+             if(maskin( int(i_input(i,j,1)) , int(j_input(i,j,1)) )==1) then
                 matrx_elmnt_intrp(i,j,1)=0.0d0
                 matrx_elmnt_intrp(i,j,2)=temp(2)+temp(1)
                 matrx_elmnt_intrp(i,j,3)=temp(3)+temp(1)
@@ -297,7 +295,7 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
                end if
 
              !the 2-nd point is undefined
-             if(maskin(i_input(i,j,2),j_input(i,j,2))==1) then
+             if(maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )==1) then
                 matrx_elmnt_intrp(i,j,1)=temp(1)+temp(2)
                 matrx_elmnt_intrp(i,j,2)=0.0d0
                 matrx_elmnt_intrp(i,j,3)=temp(3)-temp(2)
@@ -305,7 +303,7 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 3-rd point is undefined
-             if(maskin(i_input(i,j,3),j_input(i,j,3))==1) then
+             if(maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )==1) then
                 matrx_elmnt_intrp(i,j,1)=temp(1)+temp(3)
                 matrx_elmnt_intrp(i,j,2)=temp(2)-temp(3)
                 matrx_elmnt_intrp(i,j,3)=0.0d0
@@ -313,7 +311,7 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 4-th point is undefined
-             if(maskin(i_input(i,j,4),j_input(i,j,4))==1) then
+             if(maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) )==1) then
                 matrx_elmnt_intrp(i,j,1)=temp(1)-temp(4)
                 matrx_elmnt_intrp(i,j,2)=temp(2)+temp(4)
                 matrx_elmnt_intrp(i,j,3)=temp(3)+temp(4)
@@ -323,14 +321,14 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
 
            else
 !---------- procedure if 2 points are defined---------
-              if((maskin(i_input(i,j,1),j_input(i,j,1))+          &
-                    maskin(i_input(i,j,2),j_input(i,j,2))+          &
-                    maskin(i_input(i,j,3),j_input(i,j,3))+          &
-                    maskin(i_input(i,j,4),j_input(i,j,4)))==2) then
+              if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )+          &
+                    maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )+          &
+                    maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )+          &
+                    maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) ))==2) then
 
              !the 1-st and the 2-nd points are undefined
-             if((maskin(i_input(i,j,1),j_input(i,j,1))==1).and.     &
-                    (maskin(i_input(i,j,2),j_input(i,j,2))==1)) then
+             if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )==1).and.     &
+                  (maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )==1)) then
                  matrx_elmnt_intrp(i,j,1)=0.0d0
                  matrx_elmnt_intrp(i,j,2)=0.0d0
                  matrx_elmnt_intrp(i,j,3)=temp(1)+temp(3)
@@ -338,8 +336,8 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 1-st and the 3-rd points are undefined
-             if((maskin(i_input(i,j,1),j_input(i,j,1))==1).and.     &
-                    (maskin(i_input(i,j,3),j_input(i,j,3))==1)) then
+             if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )==1).and.     &
+                  (maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )==1)) then
                  matrx_elmnt_intrp(i,j,1)=0.0d0
                  matrx_elmnt_intrp(i,j,2)=temp(1)+temp(2)
                  matrx_elmnt_intrp(i,j,3)=0.0d0
@@ -347,8 +345,8 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 3-rd and the 4-th points are undefined
-             if((maskin(i_input(i,j,3),j_input(i,j,3))==1).and.     &
-                    (maskin(i_input(i,j,4),j_input(i,j,4))==1)) then
+             if  ((maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )==1).and.     &
+                  (maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) )==1)) then
                  matrx_elmnt_intrp(i,j,1)=temp(1)+temp(3)
                  matrx_elmnt_intrp(i,j,2)=temp(2)+temp(4)
                  matrx_elmnt_intrp(i,j,3)=0.0d0
@@ -356,8 +354,8 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 4-th and the 2-nd points are undefined
-             if((maskin(i_input(i,j,4),j_input(i,j,4))==1).and.     &
-                    (maskin(i_input(i,j,2),j_input(i,j,2))==1)) then
+             if  ((maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) )==1).and.     &
+                  (maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )==1)) then
                  matrx_elmnt_intrp(i,j,1)=temp(1)+temp(2)
                  matrx_elmnt_intrp(i,j,2)=0.0d0
                  matrx_elmnt_intrp(i,j,3)=temp(3)+temp(4)
@@ -365,8 +363,8 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 1-st and the 4-th points are undefined
-             if((maskin(i_input(i,j,1),j_input(i,j,1))==1).and.     &
-                    (maskin(i_input(i,j,4),j_input(i,j,4))==1)) then
+             if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )==1).and.     &
+                  (maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) )==1)) then
                  matrx_elmnt_intrp(i,j,1)=0.0d0
                  matrx_elmnt_intrp(i,j,2)=temp(1)+temp(2)
                  matrx_elmnt_intrp(i,j,3)=temp(3)+temp(4)
@@ -374,8 +372,8 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
              end if
 
              !the 2-nd and the 3-rd points are undefined
-             if((maskin(i_input(i,j,3),j_input(i,j,3))==1).and.     &
-                    (maskin(i_input(i,j,2),j_input(i,j,2))==1)) then
+             if  ((maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )==1).and.     &
+                  (maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )==1)) then
                    matrx_elmnt_intrp(i,j,1)=temp(1)+temp(2)
                  matrx_elmnt_intrp(i,j,2)=0.0d0
                  matrx_elmnt_intrp(i,j,3)=0.0d0
@@ -388,7 +386,7 @@ integer mmm_in,  mm_in,  nnn_in,  nn_in, mmm_out, mm_out, nnn_out, nn_out
 !---------- procedure if 1 points is defined---------
 
               do k=1,4
-               if(maskin(i_input(i,j,k),j_input(i,j,k))==0) then
+               if(maskin( int(i_input(i,j,k)), int(j_input(i,j,k)) )==0) then
                  matrx_elmnt_intrp(i,j,k)=1.0d0
                else
                  matrx_elmnt_intrp(i,j,k)=0.0d0
@@ -447,15 +445,15 @@ subroutine interpolrot_scal(     nxin,          & !number of x-grid points(input
                                  mm_out,        & ! last significant point in x-direction (output)
                                  nnn_out,       & !first significant point in y-direction (output)
                                  nn_out)          ! last significant point in y-direction (output)
-implicit none
+!implicit none
 
 integer nxin,nyin,nxout1,nxout2,nyout1,nyout2
 integer mmm_out, mm_out, nnn_out, nn_out
 
 real(4) funcin(nxin,nyin)
-real(8) funcout(nxout1:nxout2,nyout1:nyout2)
+real(4) funcout(nxout1:nxout2,nyout1:nyout2),undefout
 
-real(8) coefficient(nxout1:nxout2,nyout1:nyout2,4),undefout
+real(8) coefficient(nxout1:nxout2,nyout1:nyout2,4)
 
 integer i_input(nxout1:nxout2,nyout1:nyout2,4),     &     !x-grid numbers of input grid for output grid
         j_input(nxout1:nxout2,nyout1:nyout2,4)            !y-grid numbers of input grid for output grid
@@ -463,21 +461,19 @@ real(4) maskout(nxout1:nxout2,nyout1:nyout2)
 
 integer i,j
 
-!$omp parallel do private(i,j)
      do j=nnn_out,nn_out
       do i=mmm_out,mm_out
          if (maskout(i,j)<=0.5) then
           funcout(i,j)=undefout
        else
 
-        funcout(i,j)= coefficient(i,j,1)*dble(funcin(i_input(i,j,1),j_input(i,j,1)))+   &
-                        coefficient(i,j,2)*dble(funcin(i_input(i,j,2),j_input(i,j,2)))+   &
-                        coefficient(i,j,3)*dble(funcin(i_input(i,j,3),j_input(i,j,3)))+   &
-                        coefficient(i,j,4)*dble(funcin(i_input(i,j,4),j_input(i,j,4)))
+        funcout(i,j)= sngl( coefficient(i,j,1)*dble(funcin(i_input(i,j,1),j_input(i,j,1)))+   &
+                              coefficient(i,j,2)*dble(funcin(i_input(i,j,2),j_input(i,j,2)))+   &
+                              coefficient(i,j,3)*dble(funcin(i_input(i,j,3),j_input(i,j,3)))+   &
+                              coefficient(i,j,4)*dble(funcin(i_input(i,j,4),j_input(i,j,4)))  )
          end if
       end do
      end do
-!$omp end parallel do
 
 endsubroutine interpolrot_scal
 !===================================================================
@@ -506,11 +502,11 @@ integer nxin,nyin,nxout1,nxout2,nyout1,nyout2
 integer mmm_out, mm_out, nnn_out, nn_out
 
 real(4) funcin_z(nxin,nyin),  funcin_m(nxin,nyin)
-real(8) funcout_z(nxout1:nxout2,nyout1:nyout2),funcout_m(nxout1:nxout2,nyout1:nyout2),     &
-        func_zon_unrot,func_mer_unrot
+real(4) funcout_z(nxout1:nxout2,nyout1:nyout2),funcout_m(nxout1:nxout2,nyout1:nyout2), undefout
 
 real(8) coefficient(nxout1:nxout2,nyout1:nyout2,4),     &
-        rotvec_coeff(nxout1:nxout2,nyout1:nyout2,4), undefout
+        rotvec_coeff(nxout1:nxout2,nyout1:nyout2,4),    &
+        func_zon_unrot,func_mer_unrot
 
 integer i_input(nxout1:nxout2,nyout1:nyout2,4),       &  !x-grid numbers of input grid for output grid
         j_input(nxout1:nxout2,nyout1:nyout2,4)           !y-grid numbers of input grid for output grid
@@ -518,33 +514,31 @@ real(4) maskout(nxout1:nxout2,nyout1:nyout2)
 
 integer i,j
 
-!$omp parallel do private(i,j,func_zon_unrot,func_mer_unrot)
      do j=nnn_out,nn_out
       do i=mmm_out,mm_out
-         if (maskout(i,j).le.0.5) then
+         if (maskout(i,j)<=0.5) then
           funcout_z(i,j)=undefout
-        funcout_m(i,j)=undefout
-       else
+          funcout_m(i,j)=undefout
+         else
           func_zon_unrot= coefficient(i,j,1)*dble(funcin_z(i_input(i,j,1),j_input(i,j,1)))+      &
                           coefficient(i,j,2)*dble(funcin_z(i_input(i,j,2),j_input(i,j,2)))+      &
                           coefficient(i,j,3)*dble(funcin_z(i_input(i,j,3),j_input(i,j,3)))+      &
                           coefficient(i,j,4)*dble(funcin_z(i_input(i,j,4),j_input(i,j,4)))
 
-        func_mer_unrot= coefficient(i,j,1)*dble(funcin_m(i_input(i,j,1),j_input(i,j,1)))+    &
+          func_mer_unrot= coefficient(i,j,1)*dble(funcin_m(i_input(i,j,1),j_input(i,j,1)))+    &
                           coefficient(i,j,2)*dble(funcin_m(i_input(i,j,2),j_input(i,j,2)))+    &
                           coefficient(i,j,3)*dble(funcin_m(i_input(i,j,3),j_input(i,j,3)))+    &
                           coefficient(i,j,4)*dble(funcin_m(i_input(i,j,4),j_input(i,j,4)))
 
-          funcout_z(i,j)=rotvec_coeff(i,j,1)*func_zon_unrot+     &
-                           rotvec_coeff(i,j,2)*func_mer_unrot
+          funcout_z(i,j)=sngl( rotvec_coeff(i,j,1)*func_zon_unrot+     &
+                                 rotvec_coeff(i,j,2)*func_mer_unrot )
 
-          funcout_m(i,j)=rotvec_coeff(i,j,3)*func_zon_unrot+     &
-                           rotvec_coeff(i,j,4)*func_mer_unrot
+          funcout_m(i,j)=sngl( rotvec_coeff(i,j,3)*func_zon_unrot+     &
+                                 rotvec_coeff(i,j,4)*func_mer_unrot )
 
          end if
       end do
      end do
-!$omp end parallel do
 
 endsubroutine interpolrot_vec
 !=====================================================================
@@ -573,8 +567,9 @@ subroutine weight_matrix_intrp_next(xin,           & !array(1-D) of input x-grid
                                          nn_out)     ! last significant point in y-direction for output grid  (input)
 
 !  definition of data parameters
-implicit none
-real(8), parameter:: pi=3.1415926535897d0, pip180=pi/180.0d0
+!implicit none
+use math_tools
+
 integer indper !index of periodicity:=0 -nonperiodic,=1 -periodic case
 
 integer nxin,nyin,nxout1,nxout2,nyout1,nyout2,fillmiss
@@ -582,7 +577,7 @@ integer nxin,nyin,nxout1,nxout2,nyout1,nyout2,fillmiss
 integer maskin(nxin,nyin)
 real(4) maskout(nxout1:nxout2,nyout1:nyout2)
 
-integer i_input(nxout1:nxout2,nyout1:nyout2,4),      &  !x-grid numbers of input grid for output grid
+real(4) i_input(nxout1:nxout2,nyout1:nyout2,4),      &  !x-grid numbers of input grid for output grid
         j_input(nxout1:nxout2,nyout1:nyout2,4)          !y-grid numbers of input grid for output grid
 
 real(8) matrx_elmnt_intrp(nxout1:nxout2,nyout1:nyout2,4)
@@ -621,9 +616,9 @@ allocate(xd(nxin,nyin),yd(nxin,nyin),zd(nxin,nyin))
 
 do j=nnn_in, nn_in
  do i=mmm_in, mm_in
-     xd(i,j)=dcos(xin(i)*pip180)*dcos(yin(j)*pip180)
-     yd(i,j)=dsin(xin(i)*pip180)*dcos(yin(j)*pip180)
-     zd(i,j)=dsin(yin(j)*pip180)
+     xd(i,j)=dcosd(xin(i))*dcosd(yin(j))
+     yd(i,j)=dsind(xin(i))*dcosd(yin(j))
+     zd(i,j)=dsind(yin(j))
  enddo
 enddo
 
@@ -764,14 +759,14 @@ enddo
           i_input(i,j,1)= i_left + (mm_in-mmm_in+1)
         i_input(i,j,3)= i_left + (mm_in-mmm_in+1)
 
-        x_left = xinp(i_input(i,j,1))-360.
+        x_left = xinp( int(i_input(i,j,1)) ) - 360.
 
          else
 
         i_input(i,j,1)=i_left
           i_input(i,j,3)=i_left
 
-          x_left =xinp(i_input(i,j,1))
+          x_left =xinp( int(i_input(i,j,1)) )
 
        end if
 
@@ -781,14 +776,14 @@ enddo
         i_input(i,j,2)=i_right-(mm_in-mmm_in+1)
         i_input(i,j,4)=i_right-(mm_in-mmm_in+1)
 
-        x_right=xinp(i_input(i,j,2))+360.
+        x_right=xinp( int(i_input(i,j,2)) ) + 360.
 
        else
 
         i_input(i,j,2)=i_right
         i_input(i,j,4)=i_right
 
-          x_right=xinp(i_input(i,j,2))
+          x_right=xinp( int(i_input(i,j,2)) )
 
        end if
 
@@ -798,14 +793,14 @@ enddo
        j_input(i,j,3)=j_up
        j_input(i,j,4)=j_up
 
-       y_down =yinp(j_input(i,j,1))
-       y_up   =yinp(j_input(i,j,3))
+       y_down =yinp( int(j_input(i,j,1)) )
+       y_up   =yinp( int(j_input(i,j,3)) )
 
 !---------if all 4 points are undefined checking fillmiss condition
-       if((maskin(i_input(i,j,1),j_input(i,j,1))*        &
-             maskin(i_input(i,j,2),j_input(i,j,2))*        &
-             maskin(i_input(i,j,3),j_input(i,j,3))*        &
-             maskin(i_input(i,j,4),j_input(i,j,4)))/=0) then
+       if  ((maskin( int(i_input(i,j,1)), int(j_input(i,j,1)) )*        &
+             maskin( int(i_input(i,j,2)), int(j_input(i,j,2)) )*        &
+             maskin( int(i_input(i,j,3)), int(j_input(i,j,3)) )*        &
+             maskin( int(i_input(i,j,4)), int(j_input(i,j,4)) ))/=0) then
 
            if(fillmiss==0) then
             matrx_elmnt_intrp(i,j,1:4)=0.25d0
@@ -826,8 +821,8 @@ enddo
 
            temp(1)= temp(1)*(fnclon(x_right) - fnclon(ret_lon))
            temp(2)= temp(2)*(fnclon(ret_lon) - fnclon(x_left) )
-         temp(3)= temp(3)*(fnclon(x_right) - fnclon(ret_lon))
-         temp(4)= temp(4)*(fnclon(ret_lon) - fnclon(x_left) )
+           temp(3)= temp(3)*(fnclon(x_right) - fnclon(ret_lon))
+           temp(4)= temp(4)*(fnclon(ret_lon) - fnclon(x_left) )
 
           end if
 
@@ -835,15 +830,15 @@ enddo
 
            temp(1)= temp(1)*(fnclat(y_up)    - fnclat(ret_lat))
            temp(2)= temp(2)*(fnclat(y_up)    - fnclat(ret_lat))
-         temp(3)= temp(3)*(fnclat(ret_lat) - fnclat(y_down) )
-         temp(4)= temp(4)*(fnclat(ret_lat) - fnclat(y_down) )
+           temp(3)= temp(3)*(fnclat(ret_lat) - fnclat(y_down) )
+           temp(4)= temp(4)*(fnclat(ret_lat) - fnclat(y_down) )
 
           end if
 
           do k=1,4
            matrx_elmnt_intrp(i,j,k)=temp(k)
-           inxt=i_next(i_input(i,j,k),j_input(i,j,k))
-           jnxt=j_next(i_input(i,j,k),j_input(i,j,k))
+           inxt=i_next( int(i_input(i,j,k)), int(j_input(i,j,k)) )
+           jnxt=j_next( int(i_input(i,j,k)), int(j_input(i,j,k)) )
            i_input(i,j,k)=inxt
            j_input(i,j,k)=jnxt
           enddo
@@ -876,21 +871,22 @@ endsubroutine weight_matrix_intrp_next
 
 !================================================
 function fnclat(latitude)
-implicit none
+use math_tools
+
+include 'constants.fi'
+!implicit none
 !  interpolation weight functions for grid coordinates
       real(8) latitude,fnclat,lat
-      real(8), parameter:: dpip180=3.1415926535897/180.0d0, lat_extr=89.999999d0
-!   bilinear interpolation
-!     fnclat(latitude) =latitude
+
       lat=max(min(latitude,lat_extr),-lat_extr)
 !   harmonic interpolation
-      fnclat=dlog(   (1d0+dsin(dpip180*lat))  &
-                   / (1d0-dsin(dpip180*lat))   )
+      fnclat=dlog(   (1d0+dsind(lat))  &
+                   / (1d0-dsind(lat))   )
 endfunction fnclat
 
 !================================================
 function fnclon(longitude)
-implicit none
+!implicit none
 !  interpolation weight functions for grid coordinates
       real(8) longitude,fnclon
 !   bilinear interpolation

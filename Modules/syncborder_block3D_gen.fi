@@ -8,6 +8,11 @@ integer :: send_size, recv_size
 integer :: ierr
 integer :: tag, icount
 
+real*8 :: t_local
+
+! TIMER
+call start_timer(t_local)
+
 icount = 1
 
 ! Non-blocking Recv calls
@@ -23,7 +28,7 @@ do k = 1, bcount
     if (src_p >= 0) then
         if (src_p /= rank) then
             recv_size = (bnx_end(k) - bnx_start(k) + 1)*nz
-            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NYP_(k)%vals, recv_size, tag, reqst)
+            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NYP_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz), recv_size, tag, reqst)
             !call _IRECV_(k, src_block, src_p, blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y1(k) + 1), recv_size, bn, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
@@ -37,7 +42,7 @@ do k = 1, bcount
     if (src_p >= 0) then
         if (src_p /= rank) then
             recv_size = (bny_end(k) - bny_start(k) + 1)*nz
-            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NXP_(k)%vals, recv_size, tag, reqst)
+            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NXP_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz), recv_size, tag, reqst)
             !call _IRECV_(k, src_block, src_p, blks(k)%vals(bbnd_x1(k) + 1, bny_start(k):bny_end(k)), recv_size, bn, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
@@ -51,7 +56,7 @@ do k = 1, bcount
     if (src_p >= 0) then
         if (src_p /= rank) then
             recv_size = (bnx_end(k) - bnx_start(k) + 1)*nz
-            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NYM_(k)%vals, recv_size, tag, reqst)
+            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NYM_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz), recv_size, tag, reqst)
             !call _IRECV_(k, src_block, src_p, blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y2(k) - 1), recv_size, bn, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
@@ -65,7 +70,7 @@ do k = 1, bcount
     if (src_p >= 0) then
         if (src_p /= rank) then
             recv_size = (bny_end(k) - bny_start(k) + 1)*nz
-            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NXM_(k)%vals, recv_size, tag, reqst)
+            call _IRECV_(k, src_block, src_p, _SYNC_BUF_RECV_NXM_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz), recv_size, tag, reqst)
             !call _IRECV_(k, src_block, src_p, blks(k)%vals(bbnd_x2(k) - 1, bny_start(k):bny_end(k)), recv_size, bn, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
@@ -80,7 +85,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXP_NYP_(k)%vals, nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
+            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXP_NYP_(k)%vals(1:nz), nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
             if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
             reqsts(icount) = reqst
             icount = icount + 1
@@ -93,7 +98,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXP_NYM_(k)%vals, nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
+            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXP_NYM_(k)%vals(1:nz), nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
             if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
             reqsts(icount) = reqst
             icount = icount + 1
@@ -106,7 +111,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXM_NYP_(k)%vals, nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
+            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXM_NYP_(k)%vals(1:nz), nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
             if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
             reqsts(icount) = reqst
             icount = icount + 1
@@ -119,7 +124,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXM_NYM_(k)%vals, nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
+            call mpi_irecv(_SYNC_EDGE_BUF_RECV_NXM_NYM_(k)%vals(1:nz), nz, _MPI_TYPE_, src_p, tag, cart_comm, reqst, ierr)
             if (parallel_dbg >= 5) print *, rank, 'IRECV EDGE. block: ', bindx(k, 1), bindx(k, 2), 'src_block:', src_block(1), src_block(2), 'src_p:', src_p, 'tag', tag
             reqsts(icount) = reqst
             icount = icount + 1
@@ -143,8 +148,8 @@ do k = 1, bcount
     if (dist_p >= 0) then
         if (dist_p /= rank) then
             send_size = (bnx_end(k) - bnx_start(k) + 1)*nz
-            _SYNC_BUF_SEND_NYP_(k)%vals = blks(k)%vals(bnx_start(k):bnx_end(k), bny_end(k), 1:nz)
-            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NYP_(k)%vals, send_size, tag, reqst)
+            _SYNC_BUF_SEND_NYP_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz) = blks(k)%vals(bnx_start(k):bnx_end(k), bny_end(k), 1:nz)
+            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NYP_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz), send_size, tag, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
         else
@@ -159,8 +164,8 @@ do k = 1, bcount
     if (dist_p >= 0) then
         if (dist_p /= rank) then
             send_size = (bny_end(k) - bny_start(k) + 1)*nz
-            _SYNC_BUF_SEND_NXP_(k)%vals = blks(k)%vals(bnx_end(k), bny_start(k):bny_end(k), 1:nz)
-            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NXP_(k)%vals, send_size, tag, reqst)
+            _SYNC_BUF_SEND_NXP_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz) = blks(k)%vals(bnx_end(k), bny_start(k):bny_end(k), 1:nz)
+            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NXP_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz), send_size, tag, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
         else
@@ -175,8 +180,8 @@ do k = 1, bcount
     if (dist_p >= 0) then
         if (dist_p /= rank) then
             send_size = (bnx_end(k) - bnx_start(k) + 1)*nz
-            _SYNC_BUF_SEND_NYM_(k)%vals = blks(k)%vals(bnx_start(k):bnx_end(k), bny_start(k), 1:nz)
-            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NYM_(k)%vals, send_size, tag, reqst)
+            _SYNC_BUF_SEND_NYM_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz) = blks(k)%vals(bnx_start(k):bnx_end(k), bny_start(k), 1:nz)
+            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NYM_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz), send_size, tag, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
         else
@@ -191,8 +196,8 @@ do k = 1, bcount
     if (dist_p >= 0) then
         if (dist_p /= rank) then
             send_size = (bny_end(k) - bny_start(k) + 1)*nz
-            _SYNC_BUF_SEND_NXM_(k)%vals = blks(k)%vals(bnx_start(k), bny_start(k):bny_end(k), 1:nz)
-            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NXM_(k)%vals, send_size, tag, reqst)
+            _SYNC_BUF_SEND_NXM_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz) = blks(k)%vals(bnx_start(k), bny_start(k):bny_end(k), 1:nz)
+            call _ISEND_(k, dist_block, dist_p, _SYNC_BUF_SEND_NXM_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz), send_size, tag, reqst)
             reqsts(icount) = reqst
             icount = icount + 1
         else
@@ -280,7 +285,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y1(k) + 1, 1:nz) = _SYNC_BUF_RECV_NYP_(k)%vals
+            blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y1(k) + 1, 1:nz) = _SYNC_BUF_RECV_NYP_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz)
         endif
     endif
     ! nx+
@@ -288,7 +293,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bbnd_x1(k) + 1, bny_start(k):bny_end(k), 1:nz) = _SYNC_BUF_RECV_NXP_(k)%vals
+            blks(k)%vals(bbnd_x1(k) + 1, bny_start(k):bny_end(k), 1:nz) = _SYNC_BUF_RECV_NXP_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz)
         endif
     endif
     ! ny-
@@ -296,7 +301,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y2(k) - 1, 1:nz) = _SYNC_BUF_RECV_NYM_(k)%vals
+            blks(k)%vals(bnx_start(k):bnx_end(k), bbnd_y2(k) - 1, 1:nz) = _SYNC_BUF_RECV_NYM_(k)%vals(1:bnx_end(k) - bnx_start(k) + 1, 1:nz)
         endif
     endif
     ! nx-
@@ -304,7 +309,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bbnd_x2(k) - 1, bny_start(k):bny_end(k), 1:nz) = _SYNC_BUF_RECV_NXM_(k)%vals
+            blks(k)%vals(bbnd_x2(k) - 1, bny_start(k):bny_end(k), 1:nz) = _SYNC_BUF_RECV_NXM_(k)%vals(1:bny_end(k) - bny_start(k) + 1, 1:nz)
         endif
     endif
 
@@ -314,7 +319,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bbnd_x1(k) + 1, bbnd_y1(k) + 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXP_NYP_(k)%vals
+            blks(k)%vals(bbnd_x1(k) + 1, bbnd_y1(k) + 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXP_NYP_(k)%vals(1:nz)
         endif
     endif
     ! Edge in nx+ ny-
@@ -322,7 +327,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bbnd_x1(k) + 1, bbnd_y2(k) - 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXP_NYM_(k)%vals
+            blks(k)%vals(bbnd_x1(k) + 1, bbnd_y2(k) - 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXP_NYM_(k)%vals(1:nz)
         endif
     endif
     ! Edge irecv in nx- ny+
@@ -330,7 +335,7 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bbnd_x2(k) - 1, bbnd_y1(k) + 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXM_NYP_(k)%vals
+            blks(k)%vals(bbnd_x2(k) - 1, bbnd_y1(k) + 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXM_NYP_(k)%vals(1:nz)
         endif
     endif
     ! Edge irecv in nx- ny-
@@ -338,7 +343,11 @@ do k = 1, bcount
     call check_block_status(src_block, src_p)
     if (src_p >= 0) then
         if (src_p /= rank) then
-            blks(k)%vals(bbnd_x2(k) - 1, bbnd_y2(k) - 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXM_NYM_(k)%vals
+            blks(k)%vals(bbnd_x2(k) - 1, bbnd_y2(k) - 1, 1:nz) = _SYNC_EDGE_BUF_RECV_NXM_NYM_(k)%vals(1:nz)
         endif
     endif
 enddo
+
+! TIMER
+call end_timer(t_local)
+time_sync = time_sync + t_local
