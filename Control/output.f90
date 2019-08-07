@@ -197,7 +197,7 @@ contains
        call set_block(k)
        array4_2d(k)%vals = sngl(block_hhq_rest(k)%vals)
      enddo
-     call pwdstd2D(path2data,'LOCAL/hhq.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     call pwdstd2D(path2data,'LOCAL/hhq.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
      call fulfname(fname,path2data,'LOCAL/hhq.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
@@ -235,7 +235,7 @@ contains
        array4_2d(k)%vals = sngl(ssh(k)%vals)
      enddo
     ! call wdstd(path2data,'LOCAL/ssh.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,ierr)
-     call pwdstd2D(path2data,'LOCAL/ssh.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     call pwdstd2D(path2data,'LOCAL/ssh.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
      call fulfname(fname,path2data,'LOCAL/ssh.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
@@ -273,7 +273,7 @@ contains
               call set_block(k)
               array4_2d(k)%vals = sngl(ubrtr(k)%vals)
             enddo
-            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,llu_output,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,block_llu_output,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -318,7 +318,7 @@ contains
                 enddo
             enddo
 
-            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,    &     !file name
@@ -354,7 +354,7 @@ contains
               call set_block(k)
               array4_2d(k)%vals = sngl(vbrtr(k)%vals)
             enddo
-            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,llv_output,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,block_llv_output,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -399,7 +399,7 @@ contains
                 enddo
             enddo
 
-            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,     &     !file name
@@ -468,35 +468,37 @@ contains
     if (ssh_max_amplitude_output>0) then
     ! writing SSH
      ierr=0
-     array4_2d=sngl(ssh_max_amplitude)
-    ! call wdstd(path2data,'LOCAL/ssh.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,ierr)
-     call pwdstd(path2data,'LOCAL/ssh_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     do k = 1, bcount
+       call set_block(k)
+       array4_2d(k)%vals = sngl(ssh_max_amplitude(k)%vals)
+     enddo
+     call pwdstd2D(path2data,'LOCAL/ssh_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
      call fulfname(fname,path2data,'LOCAL/ssh_max_amplitude.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
-                         undef,    &     !value for undefined points
-                         nx_loc,   &     !x-dimension
-                         ny_loc,   &     !y-dimension
-                              1,   &     !z-dimension
-                           nrec,   &     !t-dimension
-                       xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
-                           xtm1,   &     !first x-value (if linear) or x-array (if levels)
-                          dxst,    &     !x-step (if linear)
-                      ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
-                           ytn1,   &     !first y-value (if linear) or x-array (if levels)
-                          dyst,    &     !y-step (if linear)
-                          0,       &     !z-grid type (0 - linear, 1 - levels)
-                          z0,      &     !first z-value (if linear) or x-array (if levels)
-                          1.0d0,   &     !z-step (if linear)
-                       calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
-                           year,   &     !year   of the first field
-                          month,   &     !month  of the first field
-                            day,   &     !day    of the first field
-                           hour,   &     !hour   of the first field
-                         minute,   &     !minute of the first field
-                          tstep,   &     !time step (in seconds)
-                       'SSH, m',   &     !title of dataset
-                          'ssh'   )      !variable name
+                             undef,    &     !value for undefined points
+                             nx_loc,   &     !x-dimension
+                             ny_loc,   &     !y-dimension
+                                  1,   &     !z-dimension
+                               nrec,   &     !t-dimension
+                           xgr_type,   &     !x-grid type (0 - linear, 1 - levels)
+                               xtm1,   &     !first x-value (if linear) or x-array (if levels)
+                              dxst,    &     !x-step (if linear)
+                          ygr_type,    &     !y-grid type (0 - linear, 1 - levels)
+                               ytn1,   &     !first y-value (if linear) or x-array (if levels)
+                              dyst,    &     !y-step (if linear)
+                              0,       &     !z-grid type (0 - linear, 1 - levels)
+                              z0,      &     !first z-value (if linear) or x-array (if levels)
+                              1.0d0,   &     !z-step (if linear)
+                           calendar,   &     !type   of calendar (0 - without leap-year, 1 - with leap-year)
+                               year,   &     !year   of the first field
+                              month,   &     !month  of the first field
+                                day,   &     !day    of the first field
+                               hour,   &     !hour   of the first field
+                             minute,   &     !minute of the first field
+                              tstep,   &     !time step (in seconds)
+                           'SSH, m',   &     !title of dataset
+                              'ssh'   )      !variable name
      endif
     endif
 
@@ -504,8 +506,11 @@ contains
         if (grid_shift == 0) then
             ! writing on model grid
             ierr = 0
-            array4_2d=sngl(ubrtr_max_amplitude)
-            call pwdstd(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,llu_output,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            do k = 1, bcount
+              call set_block(k)
+              array4_2d(k)%vals = sngl(ubrtr_max_amplitude(k)%vals)
+            enddo
+            call pwdstd2D(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,llu_output,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -535,18 +540,22 @@ contains
             endif
         else
             ! writing on T-grid
-            !$omp parallel do
-            do n=ny_start, ny_end
-              do m=nx_start, nx_end
-                if (lu(m,n)>0.5) then
-                    array4_2d(m, n) = sngl( (ubrtr_max_amplitude(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
-                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) )
-                endif
-              enddo
+            do k = 1, bcount
+                call set_block(k)
+                call set_block_lu(k)
+                call set_block_dxdy(k)
+                call set_block_h(k)
+                do n=ny_start, ny_end
+                  do m=nx_start, nx_end
+                    if (lu(m,n)>0.5) then
+                        array4_2d(k)%vals(m, n) = sngl( (ubrtr_max_amplitude(k)%vals(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
+                                                        +ubrtr_max_amplitude(k)%vals(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) )
+                    endif
+                  enddo
+                enddo
             enddo
-            !$omp end parallel do
 
-            call pwdstd(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,    &     !file name
@@ -578,8 +587,11 @@ contains
 
         if (grid_shift == 0) then
             ierr=0
-            array4_2d=sngl(vbrtr_max_amplitude)
-            call pwdstd(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,llv_output,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
+            do k = 1, bcount
+              call set_block(k)
+              array4_2d(k)%vals = sngl(vbrtr_max_amplitude(k)%vals)
+            enddo
+            call pwdstd2D(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,llv_output,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -609,18 +621,22 @@ contains
             endif
         else
             !writing on T-grid
-            !$omp parallel do
-            do n=ny_start, ny_end
-              do m=nx_start, nx_end
-                if (lu(m,n)>0.5) then
-                    array4_2d(m,n) = sngl( (vbrtr_max_amplitude(m,n  )*dxh(m,n  )*hhv(m,n  )    &
-                                           +vbrtr_max_amplitude(m,n-1)*dxh(m,n-1)*hhv(m,n-1))/2.0/hhq(m,n)/dx(m,n) )
-                endif
-              enddo
+            do k = 1, bcount
+                call set_block(k)
+                call set_block_lu(k)
+                call set_block_dxdy(k)
+                call set_block_h(k)
+                do n=ny_start, ny_end
+                  do m=nx_start, nx_end
+                    if (lu(m,n)>0.5) then
+                        array4_2d(k)%vals(m,n) = sngl( (vbrtr_max_amplitude(k)%vals(m,n  )*dxh(m,n  )*hhv(m,n  )    &
+                                                       +vbrtr_max_amplitude(k)%vals(m,n-1)*dxh(m,n-1)*hhv(m,n-1))/2.0/hhq(m,n)/dx(m,n) )
+                    endif
+                  enddo
+                enddo
             enddo
-            !$omp end parallel do
 
-            call pwdstd(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,     &     !file name
@@ -651,5 +667,5 @@ contains
         endif
     endif
     endsubroutine parallel_global_output
-    
+
 endmodule output_routes

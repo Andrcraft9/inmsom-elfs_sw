@@ -130,7 +130,7 @@ contains
                 hhq_rest = 500.0d0
             enddo
         else
-            call prdstd2D(' ', bottom_topography_file, 1, array4_2d, lu, nx, ny, mmm, mm, nnn, nn, ierr)
+            call prdstd2D(' ', bottom_topography_file, 1, array4_2d, block_lu, nx, ny, mmm, mm, nnn, nn, ierr)
             do k = 1, bcount
                 call set_block(k)
                 call set_block_lu(k)
@@ -139,12 +139,12 @@ contains
             enddo
         endif
 
-        call syncborder_block2D_real8(hhq_rest)
+        call syncborder_block2D_real8(block_hhq_rest)
         if (periodicity_x /= 0) then
-            call cyclize_x_block2D_real8(hhq_rest)
+            call cyclize_x_block2D_real8(block_hhq_rest)
         endif
         if (periodicity_y /= 0) then
-            call cyclize_y_block2D_real8(hhq_rest)
+            call cyclize_y_block2D_real8(block_hhq_rest)
         endif
 
         ! Rayleigh friction initialization
@@ -200,7 +200,7 @@ contains
         ! Read init sea level
         if (flag_init > 0) then
             if (rank .eq. 0) print *, "Read init sea level"
-            call prdstd2D(path2ocp, 'slf.dat', 1, array4_2d, lu, nx, ny, mmm, mm, nnn, nn, ierr)
+            call prdstd2D(path2ocp, 'slf.dat', 1, array4_2d, block_lu, nx, ny, mmm, mm, nnn, nn, ierr)
             do k = 1, bcount
                 call set_block(k)
                 ssh(k)%vals = dble(array4_2d(k)%vals)
@@ -233,7 +233,6 @@ contains
             call set_block_lu(k)
             call set_block_h(k)
             call set_block_dxdy(k)
-
             call hh_init(hhq, hhqp, hhqn, &
                          hhu, hhup, hhun, &
                          hhv, hhvp, hhvn, &
@@ -241,36 +240,36 @@ contains
                          ssh(k)%vals, sshp(k)%vals, &
                          hhq_rest)
         enddo
-        call syncborder_block2D_real8(hhu)
-        call syncborder_block2D_real8(hhup)
-        call syncborder_block2D_real8(hhun)
-        call syncborder_block2D_real8(hhv)
-        call syncborder_block2D_real8(hhvp)
-        call syncborder_block2D_real8(hhvn)
-        call syncborder_block2D_real8(hhh)
-        call syncborder_block2D_real8(hhhp)
-        call syncborder_block2D_real8(hhhn)
+        call syncborder_block2D_real8(block_hhu)
+        call syncborder_block2D_real8(block_hhup)
+        call syncborder_block2D_real8(block_hhun)
+        call syncborder_block2D_real8(block_hhv)
+        call syncborder_block2D_real8(block_hhvp)
+        call syncborder_block2D_real8(block_hhvn)
+        call syncborder_block2D_real8(block_hhh)
+        call syncborder_block2D_real8(block_hhhp)
+        call syncborder_block2D_real8(block_hhhn)
         if(periodicity_x/=0) then
-            call cyclize_x_block2D_real8(hhu )
-            call cyclize_x_block2D_real8(hhup)
-            call cyclize_x_block2D_real8(hhun)
-            call cyclize_x_block2D_real8(hhv )
-            call cyclize_x_block2D_real8(hhvp)
-            call cyclize_x_block2D_real8(hhvn)
-            call cyclize_x_block2D_real8(hhh )
-            call cyclize_x_block2D_real8(hhhp)
-            call cyclize_x_block2D_real8(hhhn)
+            call cyclize_x_block2D_real8(block_hhu )
+            call cyclize_x_block2D_real8(block_hhup)
+            call cyclize_x_block2D_real8(block_hhun)
+            call cyclize_x_block2D_real8(block_hhv )
+            call cyclize_x_block2D_real8(block_hhvp)
+            call cyclize_x_block2D_real8(block_hhvn)
+            call cyclize_x_block2D_real8(block_hhh )
+            call cyclize_x_block2D_real8(block_hhhp)
+            call cyclize_x_block2D_real8(block_hhhn)
         end if
         if(periodicity_y/=0) then
-            call cyclize_y_block2D_real8(hhu )
-            call cyclize_y_block2D_real8(hhup)
-            call cyclize_y_block2D_real8(hhun)
-            call cyclize_y_block2D_real8(hhv )
-            call cyclize_y_block2D_real8(hhvp)
-            call cyclize_y_block2D_real8(hhvn)
-            call cyclize_y_block2D_real8(hhh )
-            call cyclize_y_block2D_real8(hhhp)
-            call cyclize_y_block2D_real8(hhhn)
+            call cyclize_y_block2D_real8(block_hhu )
+            call cyclize_y_block2D_real8(block_hhup)
+            call cyclize_y_block2D_real8(block_hhun)
+            call cyclize_y_block2D_real8(block_hhv )
+            call cyclize_y_block2D_real8(block_hhvp)
+            call cyclize_y_block2D_real8(block_hhvn)
+            call cyclize_y_block2D_real8(block_hhh )
+            call cyclize_y_block2D_real8(block_hhhp)
+            call cyclize_y_block2D_real8(block_hhhn)
         end if
 
     endsubroutine sw_only_inicond

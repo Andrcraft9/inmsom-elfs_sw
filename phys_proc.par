@@ -11,5 +11,5 @@
   0.001d0    :lateral  vicosity(4th order)[undim]
   0.025      :Bottom friction coeff (Manning's roughness)
 mask4km.txt        :file with temperature mask(0-ocean,1-land)(a32)
-topo.dat           :file with bottom topography[m](a32)
-mask4kmloc.txt     :file with temperature mask for LOCAL area(0-ocean,1-land)(a32)
+topo.dat           :file with bottom topography[m](a32) (if NONE is given -> set depth equals 500m for entire basin area)
+mask4kmloc.txt     :file with temperature mask for output area (0-ocean,1-land)(a32) (if NONE is given -> use default t-mask)

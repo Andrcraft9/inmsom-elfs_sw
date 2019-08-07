@@ -1,4 +1,4 @@
-! Global area for output
+! Area for output
 integer, parameter:: m1loc=mmm,     &                 !left  point number for local output
                      m2loc=mm,      &                 !right point number for local output
                      n1loc=nnn,     &                 !lower point number for local output
@@ -6,28 +6,13 @@ integer, parameter:: m1loc=mmm,     &                 !left  point number for lo
                      nx_loc=m2loc-m1loc+1,      &     !local array dimension on X
                      ny_loc=n2loc-n1loc+1             !local array dimension on Y
 
-! Local area for output
-integer, parameter:: m1loc_local=50,      &                   !left  point number for local output
-                     m2loc_local=250,     &                   !right point number for local output
-                     n1loc_local=100,     &                   !lower point number for local output
-                     n2loc_local=nn ,     &                   !upper point number for local output
-                     nx_loc_local=m2loc_local - m1loc_local + 1,      &     !local array dimension on X
-                     ny_loc_local=n2loc_local - n1loc_local + 1             !local array dimension on Y
-
 ! Flags for output
-integer, parameter:: uv_output=0,  &
+integer, parameter:: uv_output=1,  &
                     ssh_output=1,  &
-                 energy_output=0,  &
-                 points_output=0,  &
+                 energy_output=1,  &
+                 points_output=1,  &
        uv_max_amplitude_output=1,  &
       ssh_max_amplitude_output=1
-
-! Output only for local area
-integer, parameter:: uv_local_output=0,  &
-                    ssh_local_output=0,  &
-                 energy_local_output=0,  &
-       uv_max_amplitude_local_output=1,  &
-      ssh_max_amplitude_local_output=1
 
 integer, parameter:: grid_shift=1  !0 - output velocity at model grid, 1 - interpolation to T-grid
 
