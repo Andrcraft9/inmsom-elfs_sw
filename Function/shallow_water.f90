@@ -404,8 +404,8 @@ contains
         implicit none
         real*8 :: var(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
                   varp(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                  varn(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-                  lvar(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+                  varn(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+        real*4 :: lvar(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
         integer :: m, n
 
         do n = ny_start-1,ny_end+1

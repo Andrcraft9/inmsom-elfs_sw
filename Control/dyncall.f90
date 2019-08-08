@@ -77,26 +77,12 @@ subroutine shallow_water_model_step(tau)
     !time_barotrop = time_barotrop + time_count
 
     ! Compute maximum amplitude
-    do n = ny_start, ny_end
-        do m = nx_start, nx_end
-            if (lu(m, n)>0.5) then
-                if ( ssh_max_amplitude(m, n) < abs(ssh(m, n)) ) then
-                    ssh_max_amplitude(m, n) = abs(ssh(m, n))
-                endif
-            endif
-
-            if (lcu(m, n)>0.5) then
-                if ( ubrtr_max_amplitude(m, n) < abs(ubrtr(m, n)) ) then
-                    ubrtr_max_amplitude(m, n) = abs(ubrtr(m, n))
-                endif
-            endif
-
-            if (lcv(m, n)>0.5) then
-                if ( vbrtr_max_amplitude(m, n) < abs(vbrtr(m, n)) ) then
-                    vbrtr_max_amplitude(m, n) = abs(vbrtr(m, n))
-                endif
-            endif
-        enddo
+    do k = 1, bcount
+        call set_block(k)
+        call set_block_lu(k)
+        call compute_max_amplitude(ssh(k)%vals, ssh_max_amplitude(k)%vals, lu)
+        call compute_max_amplitude(ubrtr(k)%vals, ubrtr_max_amplitude(k)%vals, lcu)
+        call compute_max_amplitude(vbrtr(k)%vals, vbrtr_max_amplitude(k)%vals, lcv)
     enddo
 
     ! Check errors
@@ -108,12 +94,31 @@ subroutine shallow_water_model_step(tau)
 
 endsubroutine shallow_water_model_step
 
+subroutine compute_max_amplitude(var, var_max_amplitude, varlu)
+    implicit none
+    real*8 :: var(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
+              var_max_amplitude(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+    real*4 :: varlu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+    integer :: m, n
+
+    do n = ny_start, ny_end
+        do m = nx_start, nx_end
+            if (varlu(m, n)>0.5) then
+                if ( var_max_amplitude(m, n) < abs(var(m, n)) ) then
+                    var_max_amplitude(m, n) = abs(var(m, n))
+                endif
+            endif
+        enddo
+    enddo
+end subroutine
+
+
 subroutine check_ssh_err(ssh, lu)
     use mpi_parallel_tools
     implicit none
 
-    real*8 :: ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2), &
-              lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+    real*8 :: ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+    real*4 :: lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
     integer :: m, n, ierr
 
