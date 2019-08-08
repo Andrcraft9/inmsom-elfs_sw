@@ -26,7 +26,7 @@ subroutine hh_init(hq, hqp, hqn,    &
        hq =h_r + sh *dfloat(full_free_surface)
        hqp=h_r + shp*dfloat(full_free_surface)
        hqn=h_r
-       
+
       !do n=ny_start-2, ny_end+1
       !do m=nx_start-2, nx_end+1
       do n=ny_start-1,ny_end
@@ -92,7 +92,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
 
       hqn =h_r + sh
 
-!$omp parallel do private(m,n,slu)
       !do n=ny_start-2, ny_end+1
       !do m=nx_start-2, nx_end+1
       do n=ny_start-1,ny_end
@@ -123,23 +122,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
 
        end do
     end do
-!$omp end parallel do
-
-      call syncborder_real8(hun, 1)
-      call syncborder_real8(hvn, 1)
-      call syncborder_real8(hhn, 1)
-
-      if(periodicity_x/=0) then
-        call cyclize8_x(hun, nx,ny,1,mmm,mm)
-        call cyclize8_x(hvn, nx,ny,1,mmm,mm)
-        call cyclize8_x(hhn, nx,ny,1,mmm,mm)
-      end if
-
-      if(periodicity_y/=0) then
-        call cyclize8_y(hun, nx,ny,1,nnn,nn)
-        call cyclize8_y(hvn, nx,ny,1,nnn,nn)
-        call cyclize8_y(hhn, nx,ny,1,nnn,nn)
-      end if
 
 endsubroutine hh_update
 
@@ -159,8 +141,6 @@ subroutine hh_shift(hq, hqp, hqn,   &
 
  integer m, n
 
-
-!$omp parallel do private(m,n)
       do n=ny_start-1,ny_end+1
        do m=nx_start-1,nx_end+1
 
@@ -186,7 +166,6 @@ subroutine hh_shift(hq, hqp, hqn,   &
 
        end do
     end do
-!$omp end parallel do
 
 endsubroutine hh_shift
 

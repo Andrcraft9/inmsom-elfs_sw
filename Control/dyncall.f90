@@ -13,10 +13,9 @@ subroutine shallow_water_model_step(tau)
 
     implicit none
     integer :: m, n, k, ierr
-    real*8 :: diffslpr, tau
+    real*8 :: tau
     real*8 :: time_count
 
-    diffslpr = 0.0d0
     !surf_stress_x = 0.0d0
     !surf_stress_y = 0.0d0
 
@@ -32,34 +31,20 @@ subroutine shallow_water_model_step(tau)
         !if(type_fric>0) then
         !    call sea_bottom_fluxes
         !endif
-
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
-                if(lu(m,n)>0.5) then
-                    !RHSx2d(m, n) = ( surf_stress_x(m,n)+bot_stress_x(m,n) )*dxt(m,n)*dyh(m,n)    &
-                    RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n)    &
-                             -(slpr(m+1,n)-slpr(m,n))*hhu(m,n)*dyh(m,n)/RefDen
-
-                    !RHSy2d(m, n) = ( surf_stress_y(m,n)+bot_stress_y(m,n) )*dyt(m,n)*dxh(m,n)    &
-                    RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n)    &
-                             -(slpr(m,n+1)-slpr(m,n))*hhv(m,n)*dxh(m,n)/RefDen
-                endif
-            enddo
-        enddo
-    else
-        wf_tot = 0.0d0
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
-                if(lu(m,n)>0.5) then
-                    RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n) -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
-                    RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n) -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
-                endif
-            enddo
+        do k = 1, bcount
+            call set_block(k)
+            call set_block_lu(k)
+            call set_block_h(k)
+            call set_block_dxdy(k)
+            call compute_fluxes_rhs(surf_stress_x(k)%vals, surf_stress_y(k)%vals, slpr(k)%vals, RHSx2d(k)%vals, RHSy2d(k)%vals)
         enddo
     endif
 
-    amuv2d  = lvisc_2
-    amuv42d = lvisc_4
+    do k = 1, bcount
+        call set_block(k)
+        amuv2d(k)%vals  = lvisc_2
+        amuv42d(k)%vals = lvisc_4
+    enddo
 
     call expl_shallow_water(tau,     &
                             ubrtr,   &
@@ -116,8 +101,9 @@ subroutine shallow_water_model_step(tau)
 
     ! Check errors
     do k = 1, bcount
-        call set_block_boundary(k)
-        call check_ssh_err(ssh(k)%vals, lu(k)%vals)
+        call set_block(k)
+        call set_block_lu(k)
+        call check_ssh_err(ssh(k)%vals, lu)
     enddo
 
 endsubroutine shallow_water_model_step

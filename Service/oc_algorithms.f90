@@ -102,7 +102,7 @@ endsubroutine cyclize8_x
 !=====================================================
 subroutine cyclize_y(ff,nx,ny,nz,nnn,nn)
   use mpi_parallel_tools
-  implicit none 
+  implicit none
 !---------------------------------------------------------------------
 ! adds periodically bottom (n=nnn-1) and top (n=nn+1) for cyclic lines
 !do m=1,nx do k=1,nz
@@ -120,7 +120,7 @@ subroutine cyclize_y(ff,nx,ny,nz,nnn,nn)
 
   if (p_coord(2) .eq. 0) then
 !-------------- proc has mmm-1 area --------------------------------------------
-      p_dist(1) = p_coord(1) 
+      p_dist(1) = p_coord(1)
       p_dist(2) = p_size(2) - 1
       call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
 
@@ -153,7 +153,7 @@ endsubroutine cyclize_y
 !=====================================================
 subroutine cyclize8_y(ff,nx,ny,nz,nnn,nn)
   use mpi_parallel_tools
-  implicit none 
+  implicit none
 !---------------------------------------------------------------------
 ! adds periodically bottom (n=nnn-1) and top (n=nn+1) for cyclic lines
 !do m=1,nx do k=1,nz
@@ -171,7 +171,7 @@ subroutine cyclize8_y(ff,nx,ny,nz,nnn,nn)
 
   if (p_coord(2) .eq. 0) then
 !-------------- proc has mmm-1 area --------------------------------------------
-      p_dist(1) = p_coord(1) 
+      p_dist(1) = p_coord(1)
       p_dist(2) = p_size(2) - 1
       call mpi_cart_rank(cart_comm, p_dist,dist_rank,ierr)
 
