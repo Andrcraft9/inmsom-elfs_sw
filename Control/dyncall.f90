@@ -89,7 +89,7 @@ subroutine shallow_water_model_step(tau)
     do k = 1, bcount
         call set_block(k)
         call set_block_lu(k)
-        call check_ssh_err(ssh(k)%vals, lu)
+        call check_ssh_err(ssh(k)%vals)
     enddo
 
 endsubroutine shallow_water_model_step
@@ -113,13 +113,10 @@ subroutine compute_max_amplitude(var, var_max_amplitude, varlu)
 end subroutine
 
 
-subroutine check_ssh_err(ssh, lu)
+subroutine check_ssh_err(ssh)
     use mpi_parallel_tools
     implicit none
-
     real*8 :: ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-    real*4 :: lu(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
-
     integer :: m, n, ierr
 
     do n = ny_start,ny_end
