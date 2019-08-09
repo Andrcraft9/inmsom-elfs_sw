@@ -1,10 +1,15 @@
+module ocstep_routes
+    use mpi_parallel_tools
+    use basin_grid
+    use ocean_variables
+    implicit none
+
+contains
 !--------------------- SUBROUTINE FOR: -----------------------------------------!
 !----------------- Only shallow water solving ----------------------------------!
 !-------------------------------------------------------------------------------!
 subroutine shallow_water_model_step(tau)
-    use mpi_parallel_tools
-    use basin_grid
-    use ocean_variables
+
     use shallow_water
     use flux_routes
     use time_integration
@@ -135,3 +140,5 @@ subroutine check_ssh_err(ssh)
         enddo
     enddo
 end subroutine
+
+end module

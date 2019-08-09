@@ -1,4 +1,5 @@
 module atm_forcing
+    use atm_pars
     implicit none
     include 'atmforcing.fi'
 

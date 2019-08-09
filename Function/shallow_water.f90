@@ -13,10 +13,11 @@ contains
     ! Compute RHS which includes wind forcing
     subroutine compute_fluxes_rhs(surf_stress_x, surf_stress_y, slpr, RHSx2d, RHSy2d)
         implicit none
-        real(8) surf_stress_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
+        integer :: m, n
+        real(4) surf_stress_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                 surf_stress_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                slpr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),              &
-                RHSx2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2),            &
+                slpr(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+        real(8) RHSx2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2),            &
                 RHSy2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
         do n=ny_start,ny_end
@@ -65,7 +66,7 @@ contains
 
         implicit none
         real(8) tau
-        integer m, n
+        integer m, n, k
         type(block2D_real8), dimension(:), pointer :: ubrtr,        &
                                                       ubrtrp,       &
                                                       ubrtrn,       &
@@ -75,7 +76,6 @@ contains
                                                       ssh,          &
                                                       sshp,         &
                                                       sshn,         &
-                                                      wflux,        &
                                                       RHSx,         &
                                                       RHSy,         &
                                                       mu,           &
@@ -92,6 +92,7 @@ contains
                                                       RHSy_dif,     &
                                                       RHSx_bfc,     &
                                                       RHSy_bfc
+        type(block2D_real4), dimension(:), pointer :: wflux
         real(8) bp, bp0, grx, gry, slx, sly, slxn, slyn
         integer ierr
 
@@ -112,7 +113,7 @@ contains
                 call set_block_lu(k)
                 call set_block_h(k)
                 call set_block_dxdy(k)
-                call hh_update(hhqn, hhun, hhvn, hhhn, sshn, hhq_rest)
+                call hh_update(hhqn, hhun, hhvn, hhhn, sshn(k)%vals, hhq_rest)
             enddo
             call syncborder_block2D_real8(block_hhun)
             call syncborder_block2D_real8(block_hhvn)
@@ -207,7 +208,7 @@ contains
                 call set_block_dxdy(k)
                 call uv_bfc(ubrtrp(k)%vals, vbrtrp(k)%vals,   &
                             hhq, hhu, hhv, hhh,               &
-                            RHSx_bfc(k)%vals, RHSy_bfc(k)%vals)
+                            RHSx_bfc(k)%vals, RHSy_bfc(k)%vals, nbfc)
             enddo
         endif
 
@@ -261,7 +262,7 @@ contains
                              hhu, hhup, hhun,    &
                              hhv, hhvp, hhvn,    &
                              hhh, hhhp, hhhn,    &
-                             ssh, sshp, hhq_rest)
+                             ssh(k)%vals, sshp(k)%vals, hhq_rest)
             enddo
             call syncborder_block2D_real8(block_hhu)
             call syncborder_block2D_real8(block_hhup)
@@ -341,17 +342,15 @@ contains
         enddo
     end subroutine compute_vel
 
-    subroutine compute_ssh(tau, ubrtr, vbrtr, ssh, sshp, sshn, hhu, hhv, wflux)
+    subroutine compute_ssh(tau, ubrtr, vbrtr, ssh, sshp, sshn, wflux)
         implicit none
         real(8)  tau
         real(8)  ubrtr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                  vbrtr(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                    ssh(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
                    sshp(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
-                   sshn(bnd_x1:bnd_x2,bnd_y1:bnd_y2),    &
-                   hhu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                   hhv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &
-                   wflux(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+                   sshn(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
+        real(4)  wflux(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
         integer :: m, n
 
         do n=ny_start,ny_end

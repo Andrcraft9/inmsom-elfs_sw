@@ -28,7 +28,7 @@ subroutine sea_surface_fluxes_simple
                      + uwnd(k)%vals(m+1,n)*dx(m+1,n)*dy(m+1,n))/2.0d0/dxt(m,n)/dyh(m,n)
                 wnd_mod = (wind(k)%vals(m  ,n)*dx(m  ,n)*dy(m  ,n)                          &
                          + wind(k)%vals(m+1,n)*dx(m+1,n)*dy(m+1,n))/2.0d0/dxt(m,n)/dyh(m,n)
-                surf_stress_x(m,n) = wnd * wnd_mod * coeff_surf_fric
+                surf_stress_x(k)%vals(m,n) = wnd * wnd_mod * coeff_surf_fric
             endif
 
             if(lcv(m,n)>0.5) then
@@ -36,7 +36,7 @@ subroutine sea_surface_fluxes_simple
                      + vwnd(k)%vals(m,n+1)*dx(m,n+1)*dy(m,n+1))/2.0d0/dxh(m,n)/dyt(m,n)
                 wnd_mod = (wind(k)%vals(m,n  )*dx(m,n  )*dy(m,n  )                          &
                          + wind(k)%vals(m,n+1)*dx(m,n+1)*dy(m,n+1))/2.0d0/dxh(m,n)/dyt(m,n)
-                surf_stress_y(m,n) = wnd * wnd_mod * coeff_surf_fric
+                surf_stress_y(k)%vals(m,n) = wnd * wnd_mod * coeff_surf_fric
 
             endif
             enddo
@@ -61,13 +61,13 @@ subroutine sea_surface_fluxes
                 do m=nx_start,nx_end
 
                 if(lcu(m,n)>0.5) then
-                    surf_stress_x(m,n)= (taux(k)%vals(m  ,n)*dx(m  ,n)*dy(m  ,n)   &
-                                        +taux(k)%vals(m+1,n)*dx(m+1,n)*dy(m+1,n))/RefDen/2.0d0/dxt(m,n)/dyh(m,n)
+                    surf_stress_x(k)%vals(m,n)= (taux(k)%vals(m  ,n)*dx(m  ,n)*dy(m  ,n)   &
+                                                +taux(k)%vals(m+1,n)*dx(m+1,n)*dy(m+1,n))/RefDen/2.0d0/dxt(m,n)/dyh(m,n)
                 endif
 
                 if(lcv(m,n)>0.5) then
-                    surf_stress_y(m,n)= (tauy(k)%vals(m,n  )*dx(m,n  )*dy(m,n  )   &
-                                        +tauy(k)%vals(m,n+1)*dx(m,n+1)*dy(m,n+1))/RefDen/2.0d0/dxh(m,n)/dyt(m,n)
+                    surf_stress_y(k)%vals(m,n)= (tauy(k)%vals(m,n  )*dx(m,n  )*dy(m,n  )   &
+                                                +tauy(k)%vals(m,n+1)*dx(m,n+1)*dy(m,n+1))/RefDen/2.0d0/dxh(m,n)/dyt(m,n)
                 endif
 
                 enddo
@@ -84,16 +84,16 @@ subroutine sea_surface_fluxes
                 do m=nx_start,nx_end
                     if(lu(m,n)>0.5) then
 
-                        call air_sea_turbulent_fluxes(  wind(k)%vals(m,n),         &   ! wind modulo, m/s
-                                                        slpr(k)%vals(m,n),         &   ! sea level pressure, Pa
-                                                        tatm(k)%vals(m,n),         &   ! air temperature,  �C
-                                                        tatm(k)%vals(m,n),         &   ! sea surface temp, �C
-                                                        qatm(k)%vals(m,n),         &   ! air specific humidity, kg/kg
+                        call air_sea_turbulent_fluxes(  real(wind(k)%vals(m,n), 8),   &   ! wind modulo, m/s
+                                                        real(slpr(k)%vals(m,n), 8),   &   ! sea level pressure, Pa
+                                                        real(tatm(k)%vals(m,n), 8),   &   ! air temperature,  �C
+                                                        real(tatm(k)%vals(m,n), 8),   &   ! sea surface temp, �C
+                                                        real(qatm(k)%vals(m,n), 8),   &   ! air specific humidity, kg/kg
                                                          u_height,                 &   ! height of wind datasets, m
                                                          t_height,                 &   ! height of tair datasets, m
                                                          q_height,                 &   ! height of qair datasets, m
-                                                        taux(k)%vals(m,n),         &   !      zonal wind stress, Pa
-                                                        tauy(k)%vals(m,n)          )   ! meridional wind stress, Pa
+                                                        real(taux(k)%vals(m,n), 8),      &   !      zonal wind stress, Pa
+                                                        real(tauy(k)%vals(m,n), 8) )         ! meridional wind stress, Pa
 
                         wf_tot(k)%vals(m,n) = rain(k)%vals(m,n) + snow(k)%vals(m,n)
 
@@ -102,8 +102,8 @@ subroutine sea_surface_fluxes
             enddo
         enddo
 
-        call syncborder_block2D_real8(taux)
-        call syncborder_block2D_real8(tauy)
+        call syncborder_block2D_real4(taux)
+        call syncborder_block2D_real4(tauy)
 
         wf_ave=0.0d0
         sf_ave=0.0d0
@@ -127,10 +127,12 @@ subroutine sea_surface_fluxes
             tmp_real8 = m_calc
             call mpi_allreduce(tmp_real8, m_calc, 1, mpi_real8, mpi_sum, cart_comm, ierr)
 
-            wf_tot = wf_tot - wf_ave/m_calc
+            do k = 1, bcount
+                wf_tot(k)%vals = wf_tot(k)%vals - wf_ave/m_calc
+            enddo
         endif
 
-        call syncborder_block2D_real8(wf_tot)
+        call syncborder_block2D_real4(wf_tot)
 
         do k = 1, bcount
             call set_block(k)

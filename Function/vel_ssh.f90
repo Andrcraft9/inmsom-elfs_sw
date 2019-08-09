@@ -250,10 +250,10 @@ contains
         implicit none
         real(8) muh_p, muh_m
         real(8) mu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),           &  !lateral viscosity coefficient
-                fx(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),     &  !Temporary array
-                fy(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ) ,    &  !Temporary array
-                str_t(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),  &  !Tension stress
-                str_s(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev )      !Shearing stress
+                fx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),     &  !Temporary array
+                fy(bnd_x1:bnd_x2,bnd_y1:bnd_y2) ,    &  !Temporary array
+                str_t(bnd_x1:bnd_x2,bnd_y1:bnd_y2),  &  !Tension stress
+                str_s(bnd_x1:bnd_x2,bnd_y1:bnd_y2)      !Shearing stress
         real(8) hq(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
                 hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
                 hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
@@ -298,13 +298,13 @@ contains
                         RHSx, RHSy)
         implicit none
         real(8) muh_p, muh_m
-        real(8) mu(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),      & !lateral viscosity coefficient
-                RHSx(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),      & !Zonal source function
-                RHSy(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),      & !meridional source function
-                fx(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),      & !Temporary array
-                fy(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),      & !Temporary array
-                str_t(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev ),      & !Tension stress
-                str_s(bnd_x1:bnd_x2,bnd_y1:bnd_y2,nlev )         !Shearing stress
+        real(8) mu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      & !lateral viscosity coefficient
+                RHSx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      & !Zonal source function
+                RHSy(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      & !meridional source function
+                fx(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      & !Temporary array
+                fy(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      & !Temporary array
+                str_t(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      & !Tension stress
+                str_s(bnd_x1:bnd_x2,bnd_y1:bnd_y2)         !Shearing stress
         real(8) hq(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
                 hu(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &
                 hv(bnd_x1:bnd_x2,bnd_y1:bnd_y2),      &

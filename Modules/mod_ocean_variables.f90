@@ -28,8 +28,8 @@ module ocean_variables
     type(block2D_real8), dimension(:), pointer ::   ssh,     &  !sea surface height (SSH) at current  time step [m]
                                                   ubrtr,     &  !barotropic velocity      zonal[m/s] at current time step
                                                   vbrtr,     &  !barotropic velocity meridional[m/s] at current time step
-                                                  pgrx,      &  !pressure gradient x-component for RHS
-                                                  pgry,      &  !pressure gradient y-component for RHS
+                                                  xxt,       &  !temporary arrays
+                                                  yyt,       &  !temporary arrays
                                                   RHSx2d,    &  !x-component of external force(barotropic)
                                                   RHSy2d        !y-component of external force(barotropic)
 

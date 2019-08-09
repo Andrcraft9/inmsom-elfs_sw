@@ -95,14 +95,14 @@ subroutine model_grid_deallocate
     implicit none
 
     ! Mask of entire basin area
-    call deallocate_block2D_real8(block_lu)
-    call deallocate_block2D_real8(block_lu1)
-    call deallocate_block2D_real8(block_luu)
-    call deallocate_block2D_real8(block_luh)
-    call deallocate_block2D_real8(block_lcu)
-    call deallocate_block2D_real8(block_lcv)
-    call deallocate_block2D_real8(block_llu)
-    call deallocate_block2D_real8(block_llv)
+    call deallocate_block2D_real4(block_lu)
+    call deallocate_block2D_real4(block_lu1)
+    call deallocate_block2D_real4(block_luu)
+    call deallocate_block2D_real4(block_luh)
+    call deallocate_block2D_real4(block_lcu)
+    call deallocate_block2D_real4(block_lcv)
+    call deallocate_block2D_real4(block_llu)
+    call deallocate_block2D_real4(block_llv)
 
     ! Mask of local basin area (regional)
     call deallocate_block2D_real4(block_lu_output)
@@ -167,8 +167,8 @@ subroutine ocean_variables_allocate
     call allocate_block2D_real8(ssh, 0.0d0)
     call allocate_block2D_real8(ubrtr, 0.0d0)
     call allocate_block2D_real8(vbrtr, 0.0d0)
-    call allocate_block2D_real8(pgrx, 0.0d0)
-    call allocate_block2D_real8(pgry, 0.0d0)
+    call allocate_block2D_real8(xxt, 0.0d0)
+    call allocate_block2D_real8(yyt, 0.0d0)
     call allocate_block2D_real8(RHSx2d, 0.0d0)
     call allocate_block2D_real8(RHSy2d, 0.0d0)
 
@@ -247,8 +247,8 @@ subroutine ocean_variables_deallocate
     call deallocate_block2D_real8(ssh)
     call deallocate_block2D_real8(ubrtr)
     call deallocate_block2D_real8(vbrtr)
-    call deallocate_block2D_real8(pgrx)
-    call deallocate_block2D_real8(pgry)
+    call deallocate_block2D_real8(xxt)
+    call deallocate_block2D_real8(yyt)
     call deallocate_block2D_real8(RHSx2d)
     call deallocate_block2D_real8(RHSy2d)
 
