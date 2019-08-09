@@ -2,7 +2,6 @@
 !----------------- Only shallow water solving ----------------------------------!
 !-------------------------------------------------------------------------------!
 subroutine shallow_water_model_step(tau)
-    use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables

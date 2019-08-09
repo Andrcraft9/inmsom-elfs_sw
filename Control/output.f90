@@ -4,7 +4,6 @@ module output_routes
 contains
 
     subroutine init_model_output()
-        use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         implicit none
@@ -20,7 +19,6 @@ contains
     end subroutine
 
     subroutine parallel_check_point()
-        use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         use ocean_variables
@@ -53,7 +51,6 @@ contains
     end subroutine
 
     subroutine parallel_point_output(path2data, point_time)
-        use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         use ocean_variables
@@ -101,7 +98,6 @@ contains
     end subroutine parallel_point_output
 
     subroutine parallel_energy_output(path2data, point_time)
-        use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         use ocean_variables
@@ -165,7 +161,6 @@ contains
                                    minute,       &
                                    tstep,        &
                                    calendar  )
-    use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
@@ -442,7 +437,6 @@ contains
                                            minute,       &
                                            tstep,        &
                                            calendar  )
-    use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables

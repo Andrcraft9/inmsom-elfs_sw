@@ -272,26 +272,24 @@ contains
 
     ! Get point in t-grid with number (m, n)
     subroutine get_tpoint(xtt, ytt, m, n)
-        use basin_grid
         implicit none
         real*8, intent(out) :: xtt, ytt
         integer, intent(in) :: m, n
 
         if (xgr_type==0) then
-            xt = rlon + dfloat(m-mmm)*dxst
+            xtt = rlon + dfloat(m-mmm)*dxst
         else !in case of irregular grid
-            xt = x_levels(m)
+            xtt = x_levels(m)
         endif
         if (ygr_type==0) then
-            yt = rlat + dfloat(n-nnn)*dyst
+            ytt = rlat + dfloat(n-nnn)*dyst
         else !in case of irregular grid
-            yt = y_levels(n)
+            ytt = y_levels(n)
         endif
     end subroutine
 
     ! Get point in uv-grid with number (m, n)
-    subroutine get_uvpoint(xuu, xvv, m, n)
-        use basin_grid
+    subroutine get_uvpoint(xuu, yvv, m, n)
         implicit none
         real*8, intent(out) :: xuu, yvv
         integer, intent(in) :: m, n

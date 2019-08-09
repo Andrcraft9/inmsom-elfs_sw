@@ -2,10 +2,18 @@ module ocpar_routes
     implicit none
 
 contains
+    subroutine model_finalize()
+        use mpi_parallel_tools
+        use init_arrays_routes
+        implicit none
+        ! deallocating the arrays
+        call ocean_variables_deallocate
+        call model_grid_deallocate
+    end subroutine
 
     subroutine ocean_model_parameters(tau)
-        use main_basin_pars
         use mpi_parallel_tools
+        use init_arrays_routes
         use basin_grid
         use ocean_variables
         use key_switches
@@ -106,13 +114,13 @@ contains
 
         ! Read regional mask if necessary
         if (t_mask_file_local /= 'NONE') then
-            call gridcon_local(t_mask_file_local)
+            call gridcon_output(t_mask_file_local)
         else
-            block_lu_local = block_lu
-            block_lcu_local = block_lcu
-            block_lcv_local = block_lcv
-            block_llu_local = block_llu
-            block_llv_local = block_llv
+            block_lu_output = block_lu
+            block_lcu_output = block_lcu
+            block_lcv_output = block_lcv
+            block_llu_output = block_llu
+            block_llv_output = block_llv
         endif
 
         ! Define grid geographical coordinates, steps and coriolis parameters
@@ -138,14 +146,7 @@ contains
                 hhq_rest = dble(array4_2d(k)%vals)
             enddo
         endif
-
         call syncborder_block2D_real8(block_hhq_rest)
-        if (periodicity_x /= 0) then
-            call cyclize_x_block2D_real8(block_hhq_rest)
-        endif
-        if (periodicity_y /= 0) then
-            call cyclize_y_block2D_real8(block_hhq_rest)
-        endif
 
         ! Rayleigh friction initialization
         do k = 1, bcount
@@ -166,12 +167,6 @@ contains
             enddo
         enddo
         call syncborder_block2D_real8(r_diss)
-        if (periodicity_x/=0) then
-            call cyclize_x_block2D_real8(r_diss)
-        endif
-        if (periodicity_y/=0) then
-            call cyclize_y_block2D_real8(r_diss)
-        endif
 
     endsubroutine ocean_model_parameters
 
@@ -179,7 +174,6 @@ contains
     ! If flag_init > 0 then subroutine reads file slf.dat in results dir
     ! else subroutine sets sea level (ssh) equals to zero
     subroutine sw_only_inicond(flag_init, path2ocp)
-        use main_basin_pars
         use mpi_parallel_tools
         use basin_grid
         use ocean_variables
@@ -205,14 +199,8 @@ contains
                 call set_block(k)
                 ssh(k)%vals = dble(array4_2d(k)%vals)
             enddo
-
             call syncborder_block2D_real8(ssh)
-            if(periodicity_x/=0) then
-                call cyclize_x_block2D_real8(ssh)
-            end if
-            if(periodicity_y/=0) then
-                call cyclize_y_block2D_real8(ssh)
-            end if
+
         else
             if (rank .eq. 0) print *, "Init sea level is zero"
             do k = 1, bcount
@@ -249,28 +237,6 @@ contains
         call syncborder_block2D_real8(block_hhh)
         call syncborder_block2D_real8(block_hhhp)
         call syncborder_block2D_real8(block_hhhn)
-        if(periodicity_x/=0) then
-            call cyclize_x_block2D_real8(block_hhu )
-            call cyclize_x_block2D_real8(block_hhup)
-            call cyclize_x_block2D_real8(block_hhun)
-            call cyclize_x_block2D_real8(block_hhv )
-            call cyclize_x_block2D_real8(block_hhvp)
-            call cyclize_x_block2D_real8(block_hhvn)
-            call cyclize_x_block2D_real8(block_hhh )
-            call cyclize_x_block2D_real8(block_hhhp)
-            call cyclize_x_block2D_real8(block_hhhn)
-        end if
-        if(periodicity_y/=0) then
-            call cyclize_y_block2D_real8(block_hhu )
-            call cyclize_y_block2D_real8(block_hhup)
-            call cyclize_y_block2D_real8(block_hhun)
-            call cyclize_y_block2D_real8(block_hhv )
-            call cyclize_y_block2D_real8(block_hhvp)
-            call cyclize_y_block2D_real8(block_hhvn)
-            call cyclize_y_block2D_real8(block_hhh )
-            call cyclize_y_block2D_real8(block_hhhp)
-            call cyclize_y_block2D_real8(block_hhhn)
-        end if
 
     endsubroutine sw_only_inicond
 

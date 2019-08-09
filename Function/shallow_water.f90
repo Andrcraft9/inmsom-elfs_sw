@@ -1,10 +1,7 @@
 module shallow_water
-    use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
-
     use key_switches
-
     use ocalg_routes
     use depth_routes
     use mixing_routes
@@ -107,12 +104,6 @@ contains
             call compute_ssh(tau, ubrtr(k)%vals, vbrtr(k)%vals, ssh(k)%vals, sshp(k)%vals, sshn(k)%vals, wflux(k)%vals)
         enddo
         call syncborder_block2D_real8(sshn)
-        if(periodicity_x/=0) then
-            call cyclize_x_block2D_real8(sshn)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize_y_block2D_real8(sshn)
-        endif
 
         ! Update depths by new sea level
         if (full_free_surface>0) then
@@ -126,16 +117,6 @@ contains
             call syncborder_block2D_real8(block_hhun)
             call syncborder_block2D_real8(block_hhvn)
             call syncborder_block2D_real8(block_hhhn)
-            if(periodicity_x/=0) then
-                call cyclize_x_block2D_real8(block_hhun)
-                call cyclize_x_block2D_real8(block_hhvn)
-                call cyclize_x_block2D_real8(block_hhhn)
-            endif
-            if(periodicity_y/=0) then
-                call cyclize_y_block2D_real8(block_hhun)
-                call cyclize_y_block2D_real8(block_hhvn)
-                call cyclize_y_block2D_real8(block_hhhn)
-            endif
         endif
 
         ! Computing advective and lateral-viscous terms for 2d-velocity
@@ -147,12 +128,6 @@ contains
                 call uv_vort(ubrtr(k)%vals, vbrtr(k)%vals, vort(k)%vals)
             enddo
             call syncborder_block2D_real8(vort)
-            if(periodicity_x/=0) then
-                call cyclize_x_block2D_real8(vort)
-            endif
-            if(periodicity_y/=0) then
-                call cyclize_y_block2D_real8(vort)
-            endif
 
             do k = 1, bcount
                 call set_block(k)
@@ -176,14 +151,6 @@ contains
             enddo
             call syncborder_block2D_real8(str_t2d)
             call syncborder_block2D_real8(str_s2d)
-            if(periodicity_x/=0) then
-                call cyclize_x_block2D_real8(str_t2d)
-                call cyclize_x_block2D_real8(str_s2d)
-            endif
-            if(periodicity_y/=0) then
-                call cyclize_y_block2D_real8(str_t2d)
-                call cyclize_y_block2D_real8(str_s2d)
-            endif
 
             do k = 1, bcount
                 call set_block(k)
@@ -196,10 +163,38 @@ contains
 
             enddo
 
+            ! Computing diffusion terms (4 - order)
             if(ksw_lat4 > 0) then
-                call uv_diff4( mu4, str_t2d, str_s2d,  &
-                               fx, fy, hhq, hhu, hhv, hhh,    &
-                               RHSx_dif, RHSy_dif, 1 )
+                do k = 1, bcount
+                    call set_block(k)
+                    call set_block_lu(k)
+                    call set_block_h(k)
+                    call set_block_dxdy(k)
+                    call uv_diff4_fluxes(mu4(k)%vals, str_t2d(k)%vals, str_s2d(k)%vals,    &
+                                         fx(k)%vals, fy(k)%vals,    &
+                                         hhq, hhu, hhv, hhh)
+                enddo
+                call syncborder_block2D_real8(fx)
+                call syncborder_block2D_real8(fy)
+
+                do k = 1, bcount
+                    call set_block(k)
+                    call set_block_lu(k)
+                    call set_block_dxdy(k)
+                    call stress_components(fx(k)%vals, fy(k)%vals, str_t2d(k)%vals, str_s2d(k)%vals)
+                enddo
+                call syncborder_block2D_real8(str_t2d)
+                call syncborder_block2D_real8(str_s2d)
+
+                do k = 1, bcount
+                    call set_block(k)
+                    call set_block_lu(k)
+                    call set_block_h(k)
+                    call set_block_dxdy(k)
+                    call uv_diff4(mu4(k)%vals, str_t2d(k)%vals, str_s2d(k)%vals,  &
+                                  fx(k)%vals, fy(k)%vals, hhq, hhu, hhv, hhh,    &
+                                  RHSx_dif(k)%vals, RHSy_dif(k)%vals)
+                enddo
             endif
         endif
 
@@ -231,14 +226,6 @@ contains
         enddo
         call syncborder_block2D_real8(ubrtrn)
         call syncborder_block2D_real8(vbrtrn)
-        if(periodicity_x/=0) then
-            call cyclize_x_block2D_real8(ubrtrn)
-            call cyclize_x_block2D_real8(vbrtrn)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize_y_block2D_real8(ubrtrn)
-            call cyclize_y_block2D_real8(vbrtrn)
-        endif
 
         ! Transition to the nex time step for sea level and velocity variables.
         ! Leap-frog scheme with filtration
@@ -285,28 +272,6 @@ contains
             call syncborder_block2D_real8(block_hhh)
             call syncborder_block2D_real8(block_hhhp)
             call syncborder_block2D_real8(block_hhhn)
-            if(periodicity_x/=0) then
-                call cyclize_x_block2D_real8(block_hhu )
-                call cyclize_x_block2D_real8(block_hhup)
-                call cyclize_x_block2D_real8(block_hhun)
-                call cyclize_x_block2D_real8(block_hhv )
-                call cyclize_x_block2D_real8(block_hhvp)
-                call cyclize_x_block2D_real8(block_hhvn)
-                call cyclize_x_block2D_real8(block_hhh )
-                call cyclize_x_block2D_real8(block_hhhp)
-                call cyclize_x_block2D_real8(block_hhhn)
-            end if
-            if(periodicity_y/=0) then
-                call cyclize_y_block2D_real8(block_hhu )
-                call cyclize_y_block2D_real8(block_hhup)
-                call cyclize_y_block2D_real8(block_hhun)
-                call cyclize_y_block2D_real8(block_hhv )
-                call cyclize_y_block2D_real8(block_hhvp)
-                call cyclize_y_block2D_real8(block_hhvn)
-                call cyclize_y_block2D_real8(block_hhh )
-                call cyclize_y_block2D_real8(block_hhhp)
-                call cyclize_y_block2D_real8(block_hhhn)
-            end if
         endif
     endsubroutine expl_shallow_water
 

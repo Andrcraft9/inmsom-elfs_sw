@@ -160,7 +160,7 @@ contains
         character(128) :: comments(128)
 
         call mpi_init(ierr)
-        call PetscInitialize(PETSC_NULL_CHARACTER, ierr)
+        !call PetscInitialize(PETSC_NULL_CHARACTER, ierr)
 
         call mpi_comm_rank(mpi_comm_world, rank, ierr)
         if (rank .eq. 0) then
@@ -409,7 +409,7 @@ contains
             call deallocate_mpi_buffers()
         endif
 
-        call PETScFinalize(ierr)
+        !call PETScFinalize(ierr)
         call mpi_finalize(ierr)
     end subroutine
 

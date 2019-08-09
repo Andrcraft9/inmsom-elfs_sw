@@ -1,16 +1,15 @@
 module flux_routes
-implicit none
-
-contains
-
-subroutine sea_surface_fluxes_simple
-    use main_basin_pars
     use mpi_parallel_tools
     use basin_grid
     use ocean_variables
     use atm_forcing
+    use ocalg_routes
     implicit none
 
+contains
+
+subroutine sea_surface_fluxes_simple
+    implicit none
     integer :: m, n, k
     real*8 :: wnd, wnd_mod
     real*8 :: coeff_surf_fric
@@ -47,16 +46,8 @@ subroutine sea_surface_fluxes_simple
 endsubroutine sea_surface_fluxes_simple
 
 subroutine sea_surface_fluxes
-    use main_basin_pars
-    use mpi_parallel_tools
-    use basin_grid
-    use ocean_variables
-    use atm_forcing
-    use ocalg_routes
     implicit none
-
     integer m,n,k,ierr
-
     real(8) evap_rate
     real(8) wf_ave, sf_ave, m_calc, wf, wnd
     real(8) tmp_real8
@@ -113,12 +104,6 @@ subroutine sea_surface_fluxes
 
         call syncborder_block2D_real8(taux)
         call syncborder_block2D_real8(tauy)
-        if(periodicity_x/=0) then
-            call cyclize_x_block2D_real8(taux)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize_y_block2D_real8(tauy)
-        endif
 
         wf_ave=0.0d0
         sf_ave=0.0d0
@@ -146,12 +131,6 @@ subroutine sea_surface_fluxes
         endif
 
         call syncborder_block2D_real8(wf_tot)
-        if(periodicity_x/=0) then
-            call cyclize_x_block2D_real8(wf_tot)
-        endif
-        if(periodicity_y/=0) then
-            call cyclize_y_block2D_real8(wf_tot)
-        endif
 
         do k = 1, bcount
             call set_block(k)
