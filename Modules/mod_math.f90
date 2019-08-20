@@ -1,60 +1,64 @@
 module math_tools
     implicit none
 
-#ifndef __INTEL_COMPILER
+    ! Math Constants
+    real(8), parameter:: lat_extr= 89.99999d0
+    real(4), parameter:: Pi = 3.1415926,    & !Pi-constant
+                     pip180 = Pi/180.0
+    real(8), parameter:: dPi = 3.14159265358979d0,   &  !Pi-constant(double precision)
+                     dpip180 = dPi/180.0d0
 
-    real*8, parameter:: m_dpi = 3.14159265358979d0
-    real, parameter :: m_pi = 3.14159
+#ifndef __INTEL_COMPILER
 
     contains
 
     function cosd(x)
-        real :: x 
+        real :: x
         real :: cosd
 
-        cosd = cos((x/180.0)*m_pi)
+        cosd = cos((x/180.0)*Pi)
     end function
 
     function sind(x)
-        real :: x 
+        real :: x
         real :: sind
 
-        sind = sin((x/180.0)*m_pi)
+        sind = sin((x/180.0)*Pi)
     end function
-    
+
     function dcosd(x)
-        real*8 :: x 
+        real*8 :: x
         real*8 :: dcosd
 
-        dcosd = cos((x/180.0)*m_pi)
+        dcosd = cos((x/180.0)*Pi)
     end function
 
     function dsind(x)
-        real*8 :: x 
+        real*8 :: x
         real*8 :: dsind
 
-        dsind = sin((x/180.0)*m_pi)
+        dsind = sin((x/180.0)*Pi)
     end function
 
     function dasind(x)
-        real*8 :: x 
+        real*8 :: x
         real*8 :: dasind
 
-        dasind = asin((x/180.0)*m_pi)
+        dasind = asin((x/180.0)*Pi)
     end function
 
     function dacosd(x)
-        real*8 :: x 
+        real*8 :: x
         real*8 :: dacosd
 
-        dacosd = acos((x/180.0)*m_pi)
+        dacosd = acos((x/180.0)*Pi)
     end function
 
     function dtand(x)
-        real*8 :: x 
+        real*8 :: x
         real*8 :: dtand
 
-        dtand = tan((x/180.0)*m_pi)
+        dtand = tan((x/180.0)*Pi)
     end function
 
 #endif

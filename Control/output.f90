@@ -192,7 +192,7 @@ contains
        call set_block(k)
        array4_2d(k)%vals = sngl(block_hhq_rest(k)%vals)
      enddo
-     call pwdstd2D(path2data,'LOCAL/hhq.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     call pwdstd2D(path2data,'LOCAL/hhq.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
      call fulfname(fname,path2data,'LOCAL/hhq.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
@@ -230,7 +230,7 @@ contains
        array4_2d(k)%vals = sngl(ssh(k)%vals)
      enddo
     ! call wdstd(path2data,'LOCAL/ssh.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,ierr)
-     call pwdstd2D(path2data,'LOCAL/ssh.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     call pwdstd2D(path2data,'LOCAL/ssh.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
      call fulfname(fname,path2data,'LOCAL/ssh.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
@@ -268,7 +268,7 @@ contains
               call set_block(k)
               array4_2d(k)%vals = sngl(ubrtr(k)%vals)
             enddo
-            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,block_llu_output,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,block_llu_output,nx,ny,m1loc-1,m2loc,n1loc,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -313,7 +313,7 @@ contains
                 enddo
             enddo
 
-            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,    &     !file name
@@ -349,7 +349,7 @@ contains
               call set_block(k)
               array4_2d(k)%vals = sngl(vbrtr(k)%vals)
             enddo
-            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,block_llv_output,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,block_llv_output,nx,ny,m1loc,m2loc,n1loc-1,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -394,7 +394,7 @@ contains
                 enddo
             enddo
 
-            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,block_lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,     &     !file name
@@ -450,7 +450,6 @@ contains
     integer nrec, year, month, day, hour, minute, calendar, ierr
     character fname*256
     character*(*) path2data
-    real(4) array4_2d(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
     real(4) tstep
     integer m,n,k
     real(8) z0(1), z1(1)
@@ -466,7 +465,7 @@ contains
        call set_block(k)
        array4_2d(k)%vals = sngl(ssh_max_amplitude(k)%vals)
      enddo
-     call pwdstd2D(path2data,'LOCAL/ssh_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+     call pwdstd2D(path2data,'LOCAL/ssh_max_amplitude.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
      call fulfname(fname,path2data,'LOCAL/ssh_max_amplitude.dat',ierr)
      if (rank .eq. 0) then
          call ctl_file_write(fname,    &     !file name
@@ -504,7 +503,7 @@ contains
               call set_block(k)
               array4_2d(k)%vals = sngl(ubrtr_max_amplitude(k)%vals)
             enddo
-            call pwdstd2D(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,llu_output,nx,ny,1,m1loc-1,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,block_llu_output,nx,ny,m1loc-1,m2loc,n1loc,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -549,7 +548,7 @@ contains
                 enddo
             enddo
 
-            call pwdstd2D(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,    &     !file name
@@ -585,7 +584,7 @@ contains
               call set_block(k)
               array4_2d(k)%vals = sngl(vbrtr_max_amplitude(k)%vals)
             enddo
-            call pwdstd2D(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,llv_output,nx,ny,1,m1loc,m2loc,n1loc-1,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,block_llv_output,nx,ny,m1loc,m2loc,n1loc-1,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
             if (rank .eq. 0) then
                 call ctl_file_write(fname,    &     !file name
@@ -630,7 +629,7 @@ contains
                 enddo
             enddo
 
-            call pwdstd2D(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,lu_output,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
+            call pwdstd2D(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,block_lu_output,nx,ny,m1loc,m2loc,n1loc,n2loc,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
             if (rank == 0) then
               call ctl_file_write(fname,     &     !file name

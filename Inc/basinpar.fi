@@ -19,7 +19,7 @@ integer, parameter:: xgr_type=0,   &
 real(8) x_levels(nx), y_levels(ny)
  !if grid is irregular you MUST set levels!!!!!
  ! data x_levels/.../
- ! data y_levels/.../           
+ ! data y_levels/.../
 
 !--------------------------------------------------------------------------------
 ! parameters of basin                   ! =0 - Carthesian coordinates
@@ -44,35 +44,22 @@ real(8), parameter:: x_pole=100.0d0,   &  !lon of new north pole in geographical
 integer, parameter:: full_free_surface = 1
 integer, parameter:: trans_terms = 1
 
-!bottom friction parameters
-! Type_fric - flag:
-!integer, parameter:: type_fric = 2  ! 0 - no bottom fric
-!                                    ! 1 - linear
-!                                    ! 2 - nonlinear
-!Cb_l  - coef of    linear bottom friction (typical value 5d-4 m/s)
-!Cb_nl - coef of nonlinear bottom friction (typical value 1.0d-3 )
-!Ebottom - bottom turbulent kinetic Energy (typical value 0: (5d-2 m/s)**2)
-!real(8), parameter::    Cb_l    = 5d-4,        &
-!                        Cb_nl   = 2.5d-3,      &   !Popov S.K.
-!                       Cb_nl   = 1.0d-3,      &   !FRAM
-!                        Ebottom = 25.0d-4
 !Basic Rayleigh dissipation parameter (1/s) for bottom gradiend equal to 1
 real(8), parameter:: r_fric = 0.0d0 !r_fric=0.0D-06
 
 !--------------------------------------------------------------------------------
 !Physical Constants
-real(8), parameter:: Pi = 3.141592653589793d0,   & !Pi-constant
-               RadEarth = 6371000.0d0,           & !Earth radius[m]
-            EarthAngVel = 7.292115974546454d-5,  & !earth angular velocity[rad/sec]
-           HeatCapWater = 4000.0d0,              & !heat capacity of water[J/kg/�C)]for 35%.
-                 RefDen = 1025.0d0,              & !reference density[kg/m**3]
-            FreeFallAcc = 9.8d0,                 & !free fall acceleration[m/s**2]
-               DenFresh = 1000.0d0                 !Fresh water density[kg/m^3]
+real(8), parameter:: RadEarth = 6371000.0d0,           & !Earth radius[m]
+                  EarthAngVel = 7.292115974546454d-5,  & !earth angular velocity[rad/sec]
+                 HeatCapWater = 4000.0d0,              & !heat capacity of water[J/kg/�C)]for 35%.
+                       RefDen = 1025.0d0,              & !reference density[kg/m**3]
+                  FreeFallAcc = 9.8d0,                 & !free fall acceleration[m/s**2]
+                     DenFresh = 1000.0d0                 !Fresh water density[kg/m^3]
 
 ! Albedo
 real(8), parameter:: AlbOpWater = 0.066d0        ! open water albedo
 real(8), parameter:: StephBoltz = 5.67036713d-8  ! stephan-boltzman (W/m**2/K^4)
-real(8), parameter:: EmissWater =1.0d0           ! water emissitivity
+real(8), parameter:: EmissWater = 1.0d0          ! water emissitivity
 real(8), parameter:: lambda_f = 3.337d5          ! J/kg   Heat of snow fusion
 
 !--------------------------------------------------------------------------------

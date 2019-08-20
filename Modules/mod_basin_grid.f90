@@ -273,7 +273,7 @@ contains
     ! Get point in t-grid with number (m, n)
     subroutine get_tpoint(xtt, ytt, m, n)
         implicit none
-        real*8, intent(out) :: xtt, ytt
+        real*8, intent(out) :: xtt(1), ytt(1)
         integer, intent(in) :: m, n
 
         if (xgr_type==0) then
@@ -291,9 +291,9 @@ contains
     ! Get point in uv-grid with number (m, n)
     subroutine get_uvpoint(xuu, yvv, m, n)
         implicit none
-        real*8, intent(out) :: xuu, yvv
+        real*8, intent(out) :: xuu(1), yvv(1)
         integer, intent(in) :: m, n
-        real*8 :: xtt, ytt, xttp, yttp
+        real*8 :: xtt(1), ytt(1), xttp(1), yttp(1)
 
         call get_tpoint(xtt, ytt, m, n)
         call get_tpoint(xttp, yttp, m+1, n+1)

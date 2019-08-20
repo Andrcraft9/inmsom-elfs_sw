@@ -6,6 +6,7 @@ contains
     ! initializing basin grid parameters
     subroutine basinpar
         use basin_grid
+        use math_tools
         implicit none
 
         integer k, m, n
@@ -111,22 +112,22 @@ contains
             do n=ny_start-1,ny_end+1
               do m=nx_start-1,nx_end+1
                 !-----initialization of t- and v-grid x-steps in metres
-                dxt(m,n)=sngl(xt(m+1)-xt(m))*pip180*RadEarth
-                dxb(m,n)=sngl(xt(m+1)-xt(m))*pip180*RadEarth
+                dxt(m,n)=(xt(m+1)-xt(m))*pip180*RadEarth
+                dxb(m,n)=(xt(m+1)-xt(m))*pip180*RadEarth
                 !-----initialization of u- and h-grid x-steps in metres
-                dx(m,n)=sngl(xu(m)-xu(m-1))*pip180*RadEarth
-                dxh(m,n)=sngl(xu(m)-xu(m-1))*pip180*RadEarth
+                dx(m,n)=(xu(m)-xu(m-1))*pip180*RadEarth
+                dxh(m,n)=(xu(m)-xu(m-1))*pip180*RadEarth
               end do
             end do
           else
             do n=ny_start-1,ny_end+1
               do m=nx_start-1,nx_end+1
                 !-----initialization of t- and v-grid x-steps in centimeters
-                dxt(m,n)=sngl(dxst)*pip180*RadEarth
-                dxb(m,n)=sngl(dxst)*pip180*RadEarth
+                dxt(m,n)=(dxst)*pip180*RadEarth
+                dxb(m,n)=(dxst)*pip180*RadEarth
                 !-----initialization of u- and h-grid x-steps in centimeters
-                dx(m,n)=sngl(dxst)*pip180*RadEarth
-                dxh(m,n)=sngl(dxst)*pip180*RadEarth
+                dx(m,n)=(dxst)*pip180*RadEarth
+                dxh(m,n)=(dxst)*pip180*RadEarth
               end do
             end do
           endif
@@ -135,22 +136,22 @@ contains
             do n=ny_start-1,ny_end+1
               do m=nx_start-1,nx_end+1
                 !-----initialization of t- and u-grid y-steps in centimeters
-                dyt(m,n)=sngl(yt(n+1)-yt(n))*pip180*RadEarth
-                dyb(m,n)=sngl(yt(n+1)-yt(n))*pip180*RadEarth
+                dyt(m,n)=(yt(n+1)-yt(n))*pip180*RadEarth
+                dyb(m,n)=(yt(n+1)-yt(n))*pip180*RadEarth
                 !-----initialization of v- and h-grid y-steps in centimeters
-                dy(m,n)=sngl(yv(n)-yv(n-1))*pip180*RadEarth
-                dyh(m,n)=sngl(yv(n)-yv(n-1))*pip180*RadEarth
+                dy(m,n)=(yv(n)-yv(n-1))*pip180*RadEarth
+                dyh(m,n)=(yv(n)-yv(n-1))*pip180*RadEarth
               end do
             end do
           else
             do n=ny_start-1,ny_end+1
               do m=nx_start-1,nx_end+1
                 !-----initialization of t- and u-grid y-steps in centimeters
-                dyt(m,n)=sngl(dyst)*pip180*RadEarth
-                dyb(m,n)=sngl(dyst)*pip180*RadEarth
+                dyt(m,n)=(dyst)*pip180*RadEarth
+                dyb(m,n)=(dyst)*pip180*RadEarth
                 !-----initialization of v- and h-grid y-steps in centimeters
-                dy(m,n)=sngl(dyst)*pip180*RadEarth
-                dyh(m,n)=sngl(dyst)*pip180*RadEarth
+                dy(m,n)=(dyst)*pip180*RadEarth
+                dyh(m,n)=(dyst)*pip180*RadEarth
               end do
             end do
           endif
@@ -462,21 +463,21 @@ contains
         !-----end of metric initialization------------------------------------------
 
         ! Computing grid areas
-        do k = 1, bcount
-          call set_block(k)
-          call set_block_dxdy(k)
-          call set_block_sq(k)
-          call set_block_cor(k)
-          do n=ny_start-1,ny_end+1
-            do m=nx_start-1,nx_end+1
-              sqt(m,n)=dx(m,n)*dy(m,n)
-              squ(m,n)=dxt(m,n)*dyh(m,n)
-              sqv(m,n)=dxh(m,n)*dyt(m,n)
-              sqh(m,n)=dxb(m,n)*dyb(m,n)
-              rlh_sqh(m,n)=rlh_s(m,n)*sqh(m,n)
-            end do
-          end do
-        enddo
+        !do k = 1, bcount
+        !  call set_block(k)
+        !  call set_block_dxdy(k)
+        !  call set_block_sq(k)
+        !  call set_block_cor(k)
+        !  do n=ny_start-1,ny_end+1
+        !    do m=nx_start-1,nx_end+1
+        !      sqt(m,n)=dx(m,n)*dy(m,n)
+        !      squ(m,n)=dxt(m,n)*dyh(m,n)
+        !      sqv(m,n)=dxh(m,n)*dyt(m,n)
+        !      sqh(m,n)=dxb(m,n)*dyb(m,n)
+        !      rlh_sqh(m,n)=rlh_s(m,n)*sqh(m,n)
+        !    end do
+        !  end do
+        !enddo
 
     endsubroutine basinpar
 
@@ -509,7 +510,7 @@ contains
                 geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
-        real(4) metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+        real(8) metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
@@ -572,9 +573,7 @@ contains
                                           nnn_out,   &   !first significant point in y-direction (output)
                                           nn_out)        !last significant point in y-direction (output)
         use math_tools
-
-        include 'constants.fi'
-
+        implicit none
         integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
         integer mmm_out, mm_out, nnn_out, nn_out
 
@@ -583,7 +582,7 @@ contains
                 geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
-        real(4) metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+        real(8) metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),  &
                 cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
@@ -634,7 +633,7 @@ contains
             !         necessary longitude
             geo_lon(m,n)=dsign(dacosd(cos_lon),sin_lon)
 
-            metr_x(m,n)=metr_x(m,n)*sngl(dcosd(lat_mod))
+            metr_x(m,n)=metr_x(m,n)*(dcosd(lat_mod))
             metr_y(m,n)=metr_y(m,n)*1.0
 
             if(key_rot==1) then
@@ -654,8 +653,8 @@ contains
             endif
 
             if(key_cor==1) then
-              cor_sin(m,n)=cor_sin(m,n)*sngl(sin_lat)
-              cor_cos(m,n)=cor_cos(m,n)*sngl(cos_lat)
+              cor_sin(m,n)=cor_sin(m,n)*(sin_lat)
+              cor_cos(m,n)=cor_cos(m,n)*(cos_lat)
             endif
 
           enddo
@@ -688,9 +687,7 @@ contains
                                             nnn_out,  &   !first significant point in y-direction (output)
                                             nn_out)       !last significant point in y-direction (output)
         use math_tools
-
-        include 'constants.fi'
-
+        implicit none
         integer bnd_x1,bnd_x2,bnd_y1,bnd_y2
         integer mmm_out, mm_out, nnn_out, nn_out
 
@@ -699,7 +696,7 @@ contains
                 geo_lon(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 geo_lat(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
 
-        real(4) metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
+        real(8) metr_x(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 metr_y(bnd_x1:bnd_x2,bnd_y1:bnd_y2),   &
                 cor_sin(bnd_x1:bnd_x2,bnd_y1:bnd_y2),  &
                 cor_cos(bnd_x1:bnd_x2,bnd_y1:bnd_y2)
@@ -885,8 +882,8 @@ contains
             hp_divide_r = dsqrt((dx_dp*cos_lat)**2 + (dy_dp)**2)
             hq_divide_r = dsqrt((dx_dq*cos_lat)**2 + (dy_dq)**2)
 
-            metr_x(m,n)=metr_x(m,n)*sngl(hp_divide_r)
-            metr_y(m,n)=metr_y(m,n)*sngl(hq_divide_r)
+            metr_x(m,n)=metr_x(m,n)*(hp_divide_r)
+            metr_y(m,n)=metr_y(m,n)*(hq_divide_r)
 
             if(key_rot==1) then
               !--------definition of angles between parallels-----------------------
@@ -900,8 +897,8 @@ contains
             endif
 
             if(key_cor==1) then
-              cor_sin(m,n)=cor_sin(m,n)*sngl(sin_lat)
-              cor_cos(m,n)=cor_cos(m,n)*sngl(cos_lat)
+              cor_sin(m,n)=cor_sin(m,n)*(sin_lat)
+              cor_cos(m,n)=cor_cos(m,n)*(cos_lat)
             endif
 
           enddo

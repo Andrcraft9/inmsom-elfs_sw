@@ -29,7 +29,6 @@ subroutine weight_matrix_intrp(xin,           & !array(1-D) of input x-grid valu
 
 !  definition of data parameters
 !implicit none
-
 integer indper !index of periodicity:=0 -nonperiodic,=1 -periodic case
 
 integer nxin,nyin,nxout1,nxout2,nyout1,nyout2,fillmiss
@@ -872,9 +871,7 @@ endsubroutine weight_matrix_intrp_next
 !================================================
 function fnclat(latitude)
 use math_tools
-
-include 'constants.fi'
-!implicit none
+implicit none
 !  interpolation weight functions for grid coordinates
       real(8) latitude,fnclat,lat
 
@@ -886,7 +883,7 @@ endfunction fnclat
 
 !================================================
 function fnclon(longitude)
-!implicit none
+implicit none
 !  interpolation weight functions for grid coordinates
       real(8) longitude,fnclon
 !   bilinear interpolation

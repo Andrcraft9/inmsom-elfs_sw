@@ -7,6 +7,7 @@ subroutine model_grid_allocate
     use mpi_parallel_tools
     use basin_grid
     implicit none
+    integer :: k
 
     ! Mask of entire basin area
     call allocate_block2D_real4(block_lu, 0.0)
@@ -180,22 +181,22 @@ subroutine ocean_variables_allocate
     call allocate_block2D_real8(vbrtrp, 0.0d0)
 
     ! Sea surface boundary condition
-    call allocate_block2D_real4(tflux_surf, 0.0d0)
-    call allocate_block2D_real4(tflux_bot, 0.0d0)
-    call allocate_block2D_real4(sflux_surf, 0.0d0)
-    call allocate_block2D_real4(sflux_bot, 0.0d0)
-    call allocate_block2D_real4(surf_stress_x, 0.0d0)
-    call allocate_block2D_real4(surf_stress_y, 0.0d0)
-    call allocate_block2D_real4(bot_stress_x, 0.0d0)
-    call allocate_block2D_real4(bot_stress_y, 0.0d0)
-    call allocate_block2D_real4(dkft, 0.0d0)
-    call allocate_block2D_real4(dkfs, 0.0d0)
-    call allocate_block2D_real4(sensheat, 0.0d0)
-    call allocate_block2D_real4(latheat, 0.0d0)
-    call allocate_block2D_real4(lw_bal, 0.0d0)
-    call allocate_block2D_real4(sw_bal, 0.0d0)
-    call allocate_block2D_real4(hf_tot, 0.0d0)
-    call allocate_block2D_real4(wf_tot, 0.0d0)
+    call allocate_block2D_real4(tflux_surf, 0.0)
+    call allocate_block2D_real4(tflux_bot, 0.0)
+    call allocate_block2D_real4(sflux_surf, 0.0)
+    call allocate_block2D_real4(sflux_bot, 0.0)
+    call allocate_block2D_real4(surf_stress_x, 0.0)
+    call allocate_block2D_real4(surf_stress_y, 0.0)
+    call allocate_block2D_real4(bot_stress_x, 0.0)
+    call allocate_block2D_real4(bot_stress_y, 0.0)
+    call allocate_block2D_real4(dkft, 0.0)
+    call allocate_block2D_real4(dkfs, 0.0)
+    call allocate_block2D_real4(sensheat, 0.0)
+    call allocate_block2D_real4(latheat, 0.0)
+    call allocate_block2D_real4(lw_bal, 0.0)
+    call allocate_block2D_real4(sw_bal, 0.0)
+    call allocate_block2D_real4(hf_tot, 0.0)
+    call allocate_block2D_real4(wf_tot, 0.0)
 
     ! Atmospheric arrays for bulk-formulae
     call allocate_block2D_real4(tatm, 0.0)

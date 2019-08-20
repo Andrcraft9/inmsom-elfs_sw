@@ -1,18 +1,19 @@
 program INMSOM
+    use basin_grid
     use time_integration
     use key_switches
     use mpi_parallel_tools
     use forc_atm_routes
+    use ocpar_routes
     use bc_time_routes
     use output_routes
     use iodata_routes
     use rwpar_routes
     use time_routes
     use ocstep_routes
+    use init_arrays_routes
 
     implicit none
-
-    include 'basinpar.fi'
 
     character(128) fname
     integer m, ierr
@@ -138,7 +139,7 @@ program INMSOM
     hour_global = mod(int(global_data_wr_period/60.0),24)
     min_global = mod(int(global_data_wr_period),60)
 
-    ! Initializing ocean model parameters
+    ! Initializing ocean model parameters and allocating arrays
     call ocean_model_parameters(time_step)
 
     if (parallel_mod > 0) then
@@ -156,10 +157,6 @@ program INMSOM
             write(*,*)'--------------------ATM FORCING IS TURN ON -----------------------'
             write(*,*)'=================================================================='
         endif
-
-        ! Allocating atmospheric arrays
-        call atm_arrays_allocate
-        call atm2oc_allocate
 
         !constructing matrix for spatial interpolation
         call build_intrp_mtrx(path2atmssdata,atmask)

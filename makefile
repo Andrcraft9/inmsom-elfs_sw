@@ -5,6 +5,7 @@ SRCFIRSTSERVICE =	     \
 
 SRCCONTROL =	\
 	Control/dyncall.f90      \
+	Control/forc_atm.f90     \
 	Control/init_arrays.f90  \
 	Control/init_pars.f90    \
 	Control/output.f90
@@ -28,6 +29,7 @@ SRCFUNCTION =	\
 	Function/shallow_water.f90
 
 SRCMODULES = 	\
+	Modules/mod_math.f90                 \
 	Modules/mod_rec_length.f90           \
 	Modules/mod_hilbert_curve.f90        \
 	Modules/mod_mpi_parallel_tools.f90   \

@@ -14,13 +14,13 @@ contains
     subroutine ocean_model_parameters(tau)
         use mpi_parallel_tools
         use init_arrays_routes
+        use grid_parameters
         use basin_grid
         use ocean_variables
         use key_switches
         use iodata_routes
         use rwpar_routes
         use gridcon_routes
-        use basinpar_routes
         use ocalg_routes
         implicit none
 
@@ -177,7 +177,7 @@ contains
         use mpi_parallel_tools
         use basin_grid
         use ocean_variables
-        use depth
+        use depth_routes
         use iodata_routes
         implicit none
 
