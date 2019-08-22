@@ -319,4 +319,64 @@ subroutine ocean_variables_deallocate
 endsubroutine ocean_variables_deallocate
 !-------------------------------------------------------------------------------
 
+subroutine atm_arrays_allocate
+    use atm_forcing
+    use atm2oc_interpol
+    allocate(xa(nxa),ya(nya))
+    xa=0.0d0; ya=0.0d0
+    allocate(a_hflux(nxa,nya),       &   !heat balance [w/m**2]
+             a_swrad(nxa,nya),       &   !sw radiation balance[w/m**2]
+             a_wflux(nxa,nya),       &   !precipitation-evaporation[m/s]
+             a_stress_x(nxa,nya),    &   !zonal wind stress[pA=n/m**2]
+             a_stress_y(nxa,nya),    &   !meridional wind stress[pA=n/m**2]
+             a_slpr(nxa,nya),        &   !pressure at sea surface
+             a_lwr(nxa,nya),         &   !dw-lw-rad[w/m**2]
+             a_swr(nxa,nya),         &   !dw-sw-rad[w/m**2]
+             a_rain(nxa,nya),        &   !precipit[m/s]
+             a_snow(nxa,nya),        &   !precipit[m/s]
+             a_tatm(nxa,nya),        &   !temp of atmosphere[�c]
+             a_qatm(nxa,nya),        &   !humidity [g/kg]
+             a_uwnd(nxa,nya),        &   !u-wind speed[m/s]
+             a_vwnd(nxa,nya)  )          !v-wind speed[m/s]
+    a_hflux=0.0; a_swrad=0.0; a_wflux=0.0; a_stress_x=0.0; a_stress_y=0.0
+    a_slpr=0.0;  a_lwr=0.0;   a_swr=0.0; a_rain=0.0; a_snow=0.0
+    a_tatm=0.0;  a_qatm=0.0; a_uwnd=0.0; a_vwnd=0.0
+    call allocate_block3D_real8(wght_mtrx_a2o, 4, 0.0d0)
+    call allocate_block3D_real4(i_input_a2o, 4, 0.0)
+    call allocate_block3D_real4(j_input_a2o, 4, 0.0)
+
+    ind_change_heat =0
+    ind_change_water=0
+    ind_change_stress=0
+    ind_change_rad  =0
+    ind_change_prec =0
+    ind_change_tatm =0
+    ind_change_qatm =0
+    ind_change_wind =0
+    ind_change_slpr =0
+
+    num_rec_heat =0
+    num_rec_water=0
+    num_rec_stress=0
+    num_rec_rad  =0
+    num_rec_prec =0
+    num_rec_tatm =0
+    num_rec_qatm =0
+    num_rec_wind =0
+    num_rec_slpr =0
+endsubroutine atm_arrays_allocate
+!-------------------------------------------------------------------------------
+
+subroutine atm_arrays_deallocate
+   use atm_forcing
+   use atm2oc_interpol
+   deallocate(ya,xa)
+   deallocate(a_vwnd,a_uwnd,a_qatm,a_tatm,a_snow,a_rain,a_swr,a_lwr,     &
+              a_slpr,a_stress_y,a_stress_x,a_wflux,a_swrad,a_hflux)
+   call deallocate_block3D_real8(wght_mtrx_a2o)
+   call deallocate_block3D_real4(i_input_a2o)
+   call deallocate_block3D_real4(j_input_a2o)
+endsubroutine atm_arrays_deallocate
+!-------------------------------------------------------------------------------
+
 end module

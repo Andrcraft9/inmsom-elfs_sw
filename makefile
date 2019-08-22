@@ -1,5 +1,8 @@
 include Makefile.inc
 
+#include ${PETSC_DIR}/lib/petsc/conf/variables
+#include ${PETSC_DIR}/lib/petsc/conf/rules
+
 SRCFIRSTSERVICE =	     \
 	Service/read_write_parameters.f90
 
@@ -42,8 +45,13 @@ SRCMODULES = 	\
 
 all: inmsom clean
 
+#inmsom_petsc:
+#	-${FLINKER} -o inmsom $(FCFLAGS) $(SRCFIRSTSERVICE) $(SRCMODULES) $(SRCSERVICE) $(SRCFUNCTION) $(SRCCONTROL) inmsom_head.f90
+#inmsom_petsc_run:
+#	-@${MPIEXEC} -n 4 ./inmsom
+
 inmsom:
-#order is important
 	$(FC) -o inmsom $(FCFLAGS) $(SRCFIRSTSERVICE) $(SRCMODULES) $(SRCSERVICE) $(SRCFUNCTION) $(SRCCONTROL) inmsom_head.f90
-clean:
+
+clean_inmsom:
 	$(RM) *.o *.mod

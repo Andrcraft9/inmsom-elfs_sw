@@ -214,6 +214,7 @@ contains
 
         ! Compute velocities
         do k = 1, bcount
+            call set_block(k)
             call set_block_lu(k)
             call set_block_h(k)
             call set_block_dxdy(k)

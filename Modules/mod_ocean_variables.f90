@@ -92,6 +92,7 @@ module ocean_variables
                                                    vbrtr_max_amplitude       ! Maximum amplitute of meridional velocity
 
     type(block2D_real4), dimension(:), pointer :: array4_2d ! Temporary real4 array
+    !type(block3D_real4), dimension(:), pointer :: array4_3d ! Temporary real4 array
 
 endmodule ocean_variables
 !-------------end module for description common ogcm variables and task control parameters---------

@@ -23,97 +23,97 @@ contains
         !     name=filen
         !     return
         do n=1,len(name)
-          name(n:n)=' '
+            name(n:n)=' '
         end do
         lp=len(path)
         if(lp<1) then
-          ierr=1
-          write(*,'(2x,a)')'error in subroutine fulfname:'
-          write(*,'(2x,a,a)')' error in path to file ',   name(1:len_trim(name))
-          return
+            ierr=1
+            write(*,'(2x,a)')'error in subroutine fulfname:'
+            write(*,'(2x,a,a)')' error in path to file ',   name(1:len_trim(name))
+            return
         end if
         !  fined real initial and last definit position in path without blank
         np1=0
         if(lp>1) then
-          n=1
-          do while(n<lp)
-            if(path(n:n)==' '.and.path(n+1:n+1)/=' ') np1=n
-            if(path(n:n)/=' '.and.path(n+1:n+1)==' ') exit
-            n=n+1
-          end do
-          if(n==lp.and.path(lp:lp)==' ') then
-            np2 = 0
-          else
-            np2 = n
-          end if
+            n=1
+            do while(n<lp)
+                if(path(n:n)==' '.and.path(n+1:n+1)/=' ') np1=n
+                if(path(n:n)/=' '.and.path(n+1:n+1)==' ') exit
+                n=n+1
+            end do
+            if(n==lp.and.path(lp:lp)==' ') then
+                np2 = 0
+            else
+                np2 = n
+            end if
         else
-          if(path(1:1)==' ') then
-            np2=0
-          else
-            np2=1
-          end if
+            if(path(1:1)==' ') then
+                np2=0
+            else
+                np2=1
+            end if
         end if
         lp=np2-np1                !long of real path witout blanks
 
         lf=len(filen)
         if(lf<1) then
-          ierr=1
-          write(*,'(2x,a)') 'error in subroutine fulfname:'
-          write(*,'(2x,a)') 'error in file name: '
-          write(*,*)'path: ', path(1:len_trim(path)), ';  name:',  name(1:len_trim(path))
-          return
+            ierr=1
+            write(*,'(2x,a)') 'error in subroutine fulfname:'
+            write(*,'(2x,a)') 'error in file name: '
+            write(*,*)'path: ', path(1:len_trim(path)), ';  name:',  name(1:len_trim(path))
+            return
         end if
         !  fined real initial and last definit position in filename without blank
         nf1=0
         if(lf>1) then
-          n=1
-          do while(n<lf)
-            if(filen(n:n)==' '.and.filen(n+1:n+1)/=' ') nf1=n
-            if(filen(n:n)/=' '.and.filen(n+1:n+1)==' ') exit
-            n=n+1
-          end do
-          if(n==lf.and.filen(lf:lf)==' ') then
-            nf2=0
-          else
-            nf2 = n
-          end if
+            n=1
+            do while(n<lf)
+                if(filen(n:n)==' '.and.filen(n+1:n+1)/=' ') nf1=n
+                if(filen(n:n)/=' '.and.filen(n+1:n+1)==' ') exit
+                n=n+1
+            end do
+            if(n==lf.and.filen(lf:lf)==' ') then
+                nf2=0
+            else
+                nf2 = n
+            end if
         else
-          if(filen(1:1)==' ') then
-            nf2=0
-          else
-            nf2=1
-          end if
+            if(filen(1:1)==' ') then
+                nf2=0
+            else
+                nf2=1
+            end if
         end if
         lf=nf2-nf1                !long of real filename witout blanks
 
         if(lf<=0) then
-          ierr=1
-          write(*,'(2x,a)')'error in subroutine fulfname:'
-          write(*,'(2x,a)')'there is no file name!'
-          return
+            ierr=1
+            write(*,'(2x,a)')'error in subroutine fulfname:'
+            write(*,'(2x,a)')'there is no file name!'
+            return
         end if
 
         if(lp+lf>len(name)) then
-          ierr=1
-          write(*,'(2x,a)')'error in subroutine fulfname:'
-          write(*,'(2x,a)') 'error in file name: '
-          write(*,*)'path: ', path(1:len_trim(path)), ';  name:',  name(1:len_trim(name))
-          write(*,'(2x,a)')'len of fulname < path+filename:'
-          return
+            ierr=1
+            write(*,'(2x,a)')'error in subroutine fulfname:'
+            write(*,'(2x,a)') 'error in file name: '
+            write(*,*)'path: ', path(1:len_trim(path)), ';  name:',  name(1:len_trim(name))
+            write(*,'(2x,a)')'len of fulname < path+filename:'
+            return
         end if
 
         if(lp>0) then
-          name(1:lp) = path(np1+1:np2)
-          if(name(lp:lp)==fndevider.and.filen(nf1+1:nf1+1)==fndevider) then
-            lp=lp-1
-          end if
-          if(name(lp:lp)/=fndevider.and.filen(nf1+1:nf1+1)/=fndevider) then
-            lp=lp+1
-            name(lp:lp)=fndevider
-          end if
-          name(lp+1:lp+lf) = filen(nf1+1:nf2)
+            name(1:lp) = path(np1+1:np2)
+            if(name(lp:lp)==fndevider.and.filen(nf1+1:nf1+1)==fndevider) then
+                lp=lp-1
+            end if
+            if(name(lp:lp)/=fndevider.and.filen(nf1+1:nf1+1)/=fndevider) then
+                lp=lp+1
+                name(lp:lp)=fndevider
+            end if
+            name(lp+1:lp+lf) = filen(nf1+1:nf2)
         else
-          name(1:lf) = filen(nf1+1:nf2)
+            name(1:lf) = filen(nf1+1:nf2)
         end if
 
     endsubroutine fulfname
@@ -145,16 +145,16 @@ contains
 
         !  check of correctness of grid coordinates of treat array part
         if(nxe>nx.or.nxb<1.or.nxb>nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if(nye>ny.or.nyb<1.or.nyb>nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
         if(nze>nz.or.nzb<1.or.nzb>nze) then
-          ierr=3
-          goto 103
+            ierr=3
+            goto 103
         end if
         !      write(*,'(2x,a)')'open direct file for reading:'
         !      write(*,'(2x,a)')  namofile
@@ -166,20 +166,20 @@ contains
         l=0
         kr=0
         do k=nzb,nze
-          kr=kr+1
-          read(40,rec=nrecf+kr,err=102) ((field(i,j,k),i=nxb,nxe),j=nyb,nye)
+            kr=kr+1
+            read(40,rec=nrecf+kr,err=102) ((field(i,j,k),i=nxb,nxe),j=nyb,nye)
 
-          !  filling undefinite points by zero instead undef
-          do j=nyb,nye
-            do i=nxb,nxe
+            !  filling undefinite points by zero instead undef
+            do j=nyb,nye
+                do i=nxb,nxe
 
-              if(abs(lu(i,j))<0.5) then
-                l=l+1
-                field(i,j,k)=0.0
-              end if
+                    if(abs(lu(i,j))<0.5) then
+                        l=l+1
+                        field(i,j,k)=0.0
+                    end if
 
+                enddo
             enddo
-          enddo
 
         end do
 
@@ -229,9 +229,9 @@ contains
         integer      nxe, nxb, nye, nyb, nzb, nze, l, kr, lprint
 
         if(ierr==0) then
-          lprint=1
+            lprint=1
         else
-          lprint=0
+            lprint=0
         end if
 
         ierr=0
@@ -242,16 +242,16 @@ contains
 
         !  check of correctness of grid coordinates of treat array part
         if(nxe>nx.or.nxb<1.or.nxb>nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if(nye>ny.or.nyb<1.or.nyb>nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
         if(nze>nz.or.nzb<1.or.nzb>nze) then
-          ierr=3
-          goto 103
+            ierr=3
+            goto 103
         end if
         !      write(*,'(2x,a)')'open direct file for writing:'
         !      write(*,'(2x,a)')  namofile
@@ -264,42 +264,42 @@ contains
         ierr=0
         kr=0
         do k=nzb,nze
-          kr=kr+1
-          !  fulling undefinite points by 0ver insted zero
-          do j=nyb,nye
-            do i=nxb,nxe
+            kr=kr+1
+            !  fulling undefinite points by 0ver insted zero
+            do j=nyb,nye
+                do i=nxb,nxe
 
-              if(abs(lu(i,j))<0.5) then
-                l=l+1
-                field(i,j,k)=undef
-              end if
+                    if(abs(lu(i,j))<0.5) then
+                        l=l+1
+                        field(i,j,k)=undef
+                    end if
 
+                enddo
             enddo
-          enddo
 
-          !  writing on the file
-          write(40,rec=nrecf+kr,err=102)((field(i,j,k),i=nxb,nxe),j=nyb,nye)
+            !  writing on the file
+            write(40,rec=nrecf+kr,err=102)((field(i,j,k),i=nxb,nxe),j=nyb,nye)
 
-          !  fulling undefinite points by zero insted undef
-          do j=nyb,nye
-            do i=nxb,nxe
+            !  fulling undefinite points by zero insted undef
+            do j=nyb,nye
+                do i=nxb,nxe
 
-              if(abs(lu(i,j))<0.5) then
-                ierr=ierr+1
-                field(i,j,k)=0.0
-              end if
+                    if(abs(lu(i,j))<0.5) then
+                        ierr=ierr+1
+                        field(i,j,k)=0.0
+                    end if
 
+                enddo
             enddo
-          enddo
         end do
 
 
         l=(nxe-nxb+1)*(nye-nyb+1)-l/kr
 
         if(lprint==1) then
-          ! print information on terminal
-          write(*,'(1x,a,a)')  'output data to ',namofile(1:len_trim (namofile))
-          write(*,'(8x,a,i7,a,i7,a,i8,a)') 'dimension of field =',nxe-nxb+1,' *',nye-nyb+1, ' (',l,'-ocean points)'
+            ! print information on terminal
+            write(*,'(1x,a,a)')  'output data to ',namofile(1:len_trim (namofile))
+            write(*,'(8x,a,i7,a,i7,a,i8,a)') 'dimension of field =',nxe-nxb+1,' *',nye-nyb+1, ' (',l,'-ocean points)'
         end if
 
         close(40)
@@ -308,8 +308,8 @@ contains
 
         ierr=(nxe-nxb+1)*(nye-nyb+1)-ierr/kr-l
         if (ierr/=0) then
-          write(*,'(2x,a)')  namofile
-          write(*,'(i7,a)') ierr, 'errors in number of ocean horizontal grid points.'
+            write(*,'(2x,a)')  namofile
+            write(*,'(i7,a)') ierr, 'errors in number of ocean horizontal grid points.'
         endif
 
         return
@@ -356,16 +356,16 @@ contains
 
         !  check of correctness of grid coordinates of treat array part
         if(nxe>nx.or.nxb<1.or.nxb>nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if(nye>ny.or.nyb<1.or.nyb>nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
         if(nze>nz.or.nzb<1.or.nzb>nze) then
-          ierr=3
-          goto 103
+            ierr=3
+            goto 103
         end if
         !      write(*,'(2x,a)')'open direct file for reading:'
         !      write(*,'(2x,a)')  namofile
@@ -377,20 +377,20 @@ contains
         l=0
         kr=0
         do k=nzb,nze
-          kr=kr+1
-          read(40,rec=nrecf+kr,err=102) ((field(i,j,k),i=nxb,nxe),j=nyb,nye)
+            kr=kr+1
+            read(40,rec=nrecf+kr,err=102) ((field(i,j,k),i=nxb,nxe),j=nyb,nye)
 
-          !  fulling undefinite points by zero insted undef
-          do j=nyb,nye
-            do i=nxb,nxe
+            !  fulling undefinite points by zero insted undef
+            do j=nyb,nye
+                do i=nxb,nxe
 
-              if(abs(lu(i,j))<0.5) then
-                l=l+1
-                field(i,j,k)=0.0
-              end if
+                    if(abs(lu(i,j))<0.5) then
+                        l=l+1
+                        field(i,j,k)=0.0
+                    end if
 
+                enddo
             enddo
-          enddo
 
         end do
 
@@ -445,16 +445,16 @@ contains
 
         !  check of correctness of grid coordinates of treat array part
         if(nxe>nx.or.nxb<1.or.nxb>nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if(nye>ny.or.nyb<1.or.nyb>nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
         if(nze>nz.or.nzb<1.or.nzb>nze) then
-          ierr=3
-          goto 103
+            ierr=3
+            goto 103
         end if
         !      write(*,'(2x,a)')'open direct file for writing:'
         !      write(*,'(2x,a)')  namofile
@@ -467,33 +467,33 @@ contains
         ierr=0
         kr=0
         do k=nzb,nze
-          kr=kr+1
-          !  fulling undefinite points by 0ver insted zero
-          do j=nyb,nye
-            do i=nxb,nxe
+            kr=kr+1
+            !  fulling undefinite points by 0ver insted zero
+            do j=nyb,nye
+                do i=nxb,nxe
 
-              if(abs(lu(i,j))<0.5) then
-                l=l+1
-                field(i,j,k)=dble(undef)
-              end if
+                    if(abs(lu(i,j))<0.5) then
+                        l=l+1
+                        field(i,j,k)=dble(undef)
+                    end if
 
+                enddo
             enddo
-          enddo
 
-          !  writing on the file
-          write(40,rec=nrecf+kr,err=102)((field(i,j,k),i=nxb,nxe),j=nyb,nye)
+            !  writing on the file
+            write(40,rec=nrecf+kr,err=102)((field(i,j,k),i=nxb,nxe),j=nyb,nye)
 
-          !  fulling undefinite points by zero insted undef
-          do j=nyb,nye
-            do i=nxb,nxe
+            !  fulling undefinite points by zero insted undef
+            do j=nyb,nye
+                do i=nxb,nxe
 
-              if(abs(lu(i,j))<0.5) then
-                ierr=ierr+1
-                field(i,j,k)=0.0
-              end if
+                    if(abs(lu(i,j))<0.5) then
+                        ierr=ierr+1
+                        field(i,j,k)=0.0
+                    end if
 
+                enddo
             enddo
-          enddo
         end do
 
 
@@ -506,8 +506,8 @@ contains
 
         ierr=(nxe-nxb+1)*(nye-nyb+1)-ierr/kr-l
         if (ierr/=0) then
-          write(*,'(2x,a)')  namofile
-          write(*,'(i7,a)') ierr,'errors in number of ocean horizontal grid points.'
+            write(*,'(2x,a)')  namofile
+            write(*,'(i7,a)') ierr,'errors in number of ocean horizontal grid points.'
         endif
 
         return
@@ -555,12 +555,12 @@ contains
         if (ierr.ne.0) go to 100
         !  check of correctness of grid coordinates of treat array part
         if (nxe.gt.nx .or. nxb.lt.1 .or. nxb.gt.nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if (nye.gt.ny .or. nyb.lt.1 .or. nyb.gt.nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
 
         disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)
@@ -571,46 +571,46 @@ contains
         if (ierr .ne. mpi_success) goto 101
 
         do kfull = 1, bcount_max
-          if (kfull <= bcount) then
-            k = kfull
-            call set_block(k)
-          else
-            k = 1
-            call set_block(1)
-          endif
+            if (kfull <= bcount) then
+                k = kfull
+                call set_block(k)
+            else
+                k = 1
+                call set_block(1)
+            endif
 
-          offset2 = (/nx_start - nxb, ny_start - nyb/)
-          locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
-          sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
+            offset2 = (/nx_start - nxb, ny_start - nyb/)
+            locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
+            sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
 
-          totsize = locsizes2(1)*locsizes2(2)
+            totsize = locsizes2(1)*locsizes2(2)
 
-          !print *, sizes2, locsizes2, offset2
-          call mpi_type_create_subarray(2, sizes2, locsizes2, offset2,        &
-               mpi_order_fortran, mpi_real, tsubarr, ierr)
+            !print *, sizes2, locsizes2, offset2
+            call mpi_type_create_subarray(2, sizes2, locsizes2, offset2,        &
+                mpi_order_fortran, mpi_real, tsubarr, ierr)
 
-          call mpi_type_commit(tsubarr, ierr)
+            call mpi_type_commit(tsubarr, ierr)
 
-          call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
+            call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
 
-          call mpi_file_read_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end),  &
-               totsize, mpi_real, mpi_status_ignore, ierr)
-          if (ierr .ne. mpi_success) goto 102
+            call mpi_file_read_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end),  &
+                totsize, mpi_real, mpi_status_ignore, ierr)
+            if (ierr .ne. mpi_success) goto 102
 
-          call mpi_type_free(tsubarr, ierr)
+            call mpi_type_free(tsubarr, ierr)
         enddo
         call mpi_file_close(hfile, ierr)
 
         !  filling undefinite points by zero instead undef
         do k = 1, bcount
-          call set_block(k)
-          do j = ny_start-2, ny_end+2
-            do i = nx_start-2, nx_end+2
-              if (abs(lu(k)%vals(i,j)) < 0.5) then
-                fild(k)%vals(i, j) = 0.0
-              end if
+            call set_block(k)
+            do j = ny_start-2, ny_end+2
+                do i = nx_start-2, nx_end+2
+                    if (abs(lu(k)%vals(i,j)) < 0.5) then
+                        fild(k)%vals(i, j) = 0.0
+                    end if
+                enddo
             enddo
-          enddo
         enddo
 
         return
@@ -673,12 +673,12 @@ contains
         if (ierr.ne.0) go to 100
         ! check of correctness of grid coordinates of treat array part
         if (nxe.gt.nx .or. nxb.lt.1 .or. nxb.gt.nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if (nye.gt.ny .or. nyb.lt.1 .or. nyb.gt.nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
 
         disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)
@@ -686,64 +686,64 @@ contains
         !totsize = locsizes(1)*locsizes(2)*locsizes(3)
 
         if (rank == 0) then
-          open(40,file=namofile,status='unknown',access='direct', form='unformatted',recl=(nxe-nxb+1)*(nye-nyb+1)*lrecl,err=101)
-          ! initial number of record
-          nrecf = nfild
-          ! writing on the file
-          write(40,rec=nrecf,err=102)(( undef, i=nxb,nxe), j=nyb,nye )
-          close(40)
+            open(40,file=namofile,status='unknown',access='direct', form='unformatted',recl=(nxe-nxb+1)*(nye-nyb+1)*lrecl,err=101)
+            ! initial number of record
+            nrecf = nfild
+            ! writing on the file
+            write(40,rec=nrecf,err=102)(( undef, i=nxb,nxe), j=nyb,nye )
+            close(40)
         endif
 
         call mpi_file_open(cart_comm, namofile, ior(mpi_mode_wronly,mpi_mode_create), mpi_info_null, hfile, ierr)
         if (ierr .ne. mpi_success) goto 101
 
         do kfull = 1, bcount_max
-          if (kfull <= bcount) then
-            k = kfull
-            call set_block(k)
-          else
-            k = 1
-            call set_block(1)
-          endif
+            if (kfull <= bcount) then
+                k = kfull
+                call set_block(k)
+            else
+                k = 1
+                call set_block(1)
+            endif
 
-          offset2 = (/nx_start - nxb, ny_start - nyb/)
-          locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
-          sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
-          totsize = locsizes2(1)*locsizes2(2)
+            offset2 = (/nx_start - nxb, ny_start - nyb/)
+            locsizes2 = (/nx_end - nx_start + 1, ny_end - ny_start + 1/)
+            sizes2 = (/nxe - nxb + 1, nye - nyb + 1/)
+            totsize = locsizes2(1)*locsizes2(2)
 
-          call mpi_type_create_subarray(2, sizes2, locsizes2, offset2,               &
-               mpi_order_fortran, mpi_real, tsubarr, ierr)
+            call mpi_type_create_subarray(2, sizes2, locsizes2, offset2,               &
+                mpi_order_fortran, mpi_real, tsubarr, ierr)
 
-          call mpi_type_commit(tsubarr, ierr)
+            call mpi_type_commit(tsubarr, ierr)
 
-          call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
+            call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
 
-          do j = ny_start, ny_end
-            do i = nx_start, nx_end
-              if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
-                fild(k)%vals(i, j) = undef
-              end if
+            do j = ny_start, ny_end
+                do i = nx_start, nx_end
+                    if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
+                        fild(k)%vals(i, j) = undef
+                    end if
+                enddo
             enddo
-          enddo
 
-          call mpi_file_write_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end),  &
-               totsize, mpi_real, mpi_status_ignore, ierr)
-          if (ierr.ne.mpi_success) goto 102
+            call mpi_file_write_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end),  &
+                totsize, mpi_real, mpi_status_ignore, ierr)
+            if (ierr.ne.mpi_success) goto 102
 
-          call mpi_type_free(tsubarr, ierr)
+            call mpi_type_free(tsubarr, ierr)
         enddo
 
         call mpi_file_close(hfile, ierr)
 
         do k = 1, bcount
-          call set_block(k)
-          do j = ny_start, ny_end
-            do i = nx_start, nx_end
-              if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
-                fild(k)%vals(i, j) = 0.0
-              end if
+            call set_block(k)
+            do j = ny_start, ny_end
+                do i = nx_start, nx_end
+                    if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
+                        fild(k)%vals(i, j) = 0.0
+                    end if
+                enddo
             enddo
-          enddo
         enddo
 
         return
@@ -791,16 +791,16 @@ contains
         if (ierr.ne.0) go to 100
         !  check of correctness of grid coordinates of treat array part
         if (nxe.gt.nx .or. nxb.lt.1 .or. nxb.gt.nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if (nye.gt.ny .or. nyb.lt.1 .or. nyb.gt.nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
         if (nze.gt.nz .or. nzb.lt.1 .or. nzb.gt.nze) then
-          ierr=3
-          goto 103
+            ierr=3
+            goto 103
         end if
 
         disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
@@ -811,41 +811,41 @@ contains
         if (ierr .ne. mpi_success) goto 101
 
         do kfull = 1, bcount_max
-          if (kfull <= bcount) then
-            k = kfull
-            call set_block(k)
-          else
-            k = 1
-            call set_block(1)
-          endif
-          offset3 = (/nx_start - nxb, ny_start - nyb, 0/)
-          locsizes3 = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
-          sizes3 = (/nxe - nxb + 1, nye - nyb + 1, nze - nzb + 1/)
-          totsize = locsizes3(1)*locsizes3(2)*locsizes3(3)
+            if (kfull <= bcount) then
+                k = kfull
+                call set_block(k)
+            else
+                k = 1
+                call set_block(1)
+            endif
+            offset3 = (/nx_start - nxb, ny_start - nyb, 0/)
+            locsizes3 = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
+            sizes3 = (/nxe - nxb + 1, nye - nyb + 1, nze - nzb + 1/)
+            totsize = locsizes3(1)*locsizes3(2)*locsizes3(3)
 
-          call mpi_type_create_subarray(3, sizes3, locsizes3, offset3, mpi_order_fortran, mpi_real, tsubarr, ierr)
-          call mpi_type_commit(tsubarr, ierr)
+            call mpi_type_create_subarray(3, sizes3, locsizes3, offset3, mpi_order_fortran, mpi_real, tsubarr, ierr)
+            call mpi_type_commit(tsubarr, ierr)
 
-          call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
+            call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
 
-          call mpi_file_read_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
-               totsize, mpi_real, mpi_status_ignore, ierr)
-          if (ierr .ne. mpi_success) goto 102
+            call mpi_file_read_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
+                totsize, mpi_real, mpi_status_ignore, ierr)
+            if (ierr .ne. mpi_success) goto 102
 
-          call mpi_type_free(tsubarr, ierr)
+            call mpi_type_free(tsubarr, ierr)
         enddo
         call mpi_file_close(hfile, ierr)
 
         !  filling undefinite points by zero instead undef
         do k = 1, bcount
-          call set_block(k)
-          do j = ny_start-2, ny_end+2
-            do i = nx_start-2, nx_end+2
-              if (abs(lu(k)%vals(i,j)) < 0.5) then
-                fild(k)%vals(i, j, nzb:nze) = 0.0
-              end if
+            call set_block(k)
+            do j = ny_start-2, ny_end+2
+                do i = nx_start-2, nx_end+2
+                    if (abs(lu(k)%vals(i,j)) < 0.5) then
+                        fild(k)%vals(i, j, nzb:nze) = 0.0
+                    end if
+                enddo
             enddo
-          enddo
         enddo
 
         return
@@ -908,16 +908,16 @@ contains
         if (ierr.ne.0) go to 100
         ! check of correctness of grid coordinates of treat array part
         if (nxe.gt.nx .or. nxb.lt.1 .or. nxb.gt.nxe) then
-          ierr=1
-          goto 103
+            ierr=1
+            goto 103
         end if
         if (nye.gt.ny .or. nyb.lt.1 .or. nyb.gt.nye) then
-          ierr=2
-          goto 103
+            ierr=2
+            goto 103
         end if
         if (nze.gt.nz .or. nzb.lt.1 .or. nzb.gt.nze) then
-          ierr=3
-          goto 103
+            ierr=3
+            goto 103
         end if
 
         disp = (nxe-nxb+1)*(nye-nyb+1)*int(lmpirecl, mpi_offset_kind)*(nfild-1)*(nze-nzb+1)
@@ -925,65 +925,65 @@ contains
         !totsize = locsizes(1)*locsizes(2)*locsizes(3)
 
         if (rank == 0) then
-          open(40,file=namofile,status='unknown',access='direct', form='unformatted',recl=(nxe-nxb+1)*(nye-nyb+1)*lrecl,err=101)
-          ! initial number of record
-          nrecf = (nfild - 1)*(nze - nzb + 1)
-          ! writing on the file
-          kr = 0
-          do k = nzb, nze
-            kr = kr + 1
-            write(40, rec=nrecf+kr, err=102)(( undef, i=nxb,nxe), j=nyb,nye)
-          enddo
-          close(40)
+            open(40,file=namofile,status='unknown',access='direct', form='unformatted',recl=(nxe-nxb+1)*(nye-nyb+1)*lrecl,err=101)
+            ! initial number of record
+            nrecf = (nfild - 1)*(nze - nzb + 1)
+            ! writing on the file
+            kr = 0
+            do k = nzb, nze
+                kr = kr + 1
+                write(40, rec=nrecf+kr, err=102)(( undef, i=nxb,nxe), j=nyb,nye)
+            enddo
+            close(40)
         endif
 
         call mpi_file_open(cart_comm, namofile, ior(mpi_mode_wronly,mpi_mode_create), mpi_info_null, hfile, ierr)
         if (ierr .ne. mpi_success) goto 101
 
         do kfull = 1, bcount_max
-          if (kfull <= bcount) then
-            k = kfull
-            call set_block(k)
-          else
-            k = 1
-            call set_block(1)
-          endif
+            if (kfull <= bcount) then
+                k = kfull
+                call set_block(k)
+            else
+                k = 1
+                call set_block(1)
+            endif
 
-          offset3 = (/nx_start - nxb, ny_start - nyb, 0/)
-          locsizes3 = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
-          sizes3 = (/nxe - nxb + 1, nye - nyb + 1, nze - nzb + 1/)
-          totsize = locsizes3(1)*locsizes3(2)*locsizes3(3)
-          call mpi_type_create_subarray(3, sizes3, locsizes3, offset3, mpi_order_fortran, mpi_real, tsubarr, ierr)
-          call mpi_type_commit(tsubarr, ierr)
+            offset3 = (/nx_start - nxb, ny_start - nyb, 0/)
+            locsizes3 = (/nx_end - nx_start + 1, ny_end - ny_start + 1, nze - nzb + 1/)
+            sizes3 = (/nxe - nxb + 1, nye - nyb + 1, nze - nzb + 1/)
+            totsize = locsizes3(1)*locsizes3(2)*locsizes3(3)
+            call mpi_type_create_subarray(3, sizes3, locsizes3, offset3, mpi_order_fortran, mpi_real, tsubarr, ierr)
+            call mpi_type_commit(tsubarr, ierr)
 
-          call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
+            call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
 
-          do j = ny_start, ny_end
-            do i = nx_start, nx_end
-              if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
-                fild(k)%vals(i, j, nzb:nze) = undef
-              end if
+            do j = ny_start, ny_end
+                do i = nx_start, nx_end
+                    if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
+                        fild(k)%vals(i, j, nzb:nze) = undef
+                    end if
+                enddo
             enddo
-          enddo
 
-          call mpi_file_write_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
-               totsize, mpi_real, mpi_status_ignore, ierr)
-          if (ierr.ne.mpi_success) goto 102
+            call mpi_file_write_all(hfile, fild(k)%vals(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
+                totsize, mpi_real, mpi_status_ignore, ierr)
+            if (ierr.ne.mpi_success) goto 102
 
-          call mpi_type_free(tsubarr, ierr)
+            call mpi_type_free(tsubarr, ierr)
         enddo
 
         call mpi_file_close(hfile, ierr)
 
         do k = 1, bcount
-          call set_block(k)
-          do j = ny_start, ny_end
-            do i = nx_start, nx_end
-              if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
-                fild(k)%vals(i, j, nzb:nze) = 0.0
-              end if
+            call set_block(k)
+            do j = ny_start, ny_end
+                do i = nx_start, nx_end
+                    if (abs(lu(k)%vals(i,j)) .lt. 0.5) then
+                        fild(k)%vals(i, j, nzb:nze) = 0.0
+                    end if
+                enddo
             enddo
-          enddo
         enddo
 
         return

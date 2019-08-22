@@ -9,6 +9,7 @@ contains
         ! deallocating the arrays
         call ocean_variables_deallocate
         call model_grid_deallocate
+        call atm_arrays_deallocate
     end subroutine
 
     subroutine ocean_model_parameters(tau)
@@ -108,6 +109,7 @@ contains
         ! Allocate main data arrays
         call model_grid_allocate
         call ocean_variables_allocate
+        call atm_arrays_allocate
 
         ! Initialization of varios masks of basin area
         call gridcon
@@ -116,11 +118,16 @@ contains
         if (t_mask_file_local /= 'NONE') then
             call gridcon_output(t_mask_file_local)
         else
-            block_lu_output = block_lu
-            block_lcu_output = block_lcu
-            block_lcv_output = block_lcv
-            block_llu_output = block_llu
-            block_llv_output = block_llv
+            do k = 1, bcount
+                call set_block(k)
+                call set_block_lu(k)
+                call set_block_lu_output(k)
+                lu_output = lu
+                lcu_output = lcu
+                lcv_output = lcv
+                llu_output = llu
+                llv_output = llv
+            enddo
         endif
 
         ! Define grid geographical coordinates, steps and coriolis parameters

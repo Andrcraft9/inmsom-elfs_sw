@@ -155,15 +155,17 @@ contains
         use rwpar_routes
         implicit none
         integer :: count_threads, num_thread
-        integer :: ierr, rank_cart
+        integer :: ierr, rank_cart, l
         integer :: nofcom
         character(128) :: comments(128)
+        character(len=mpi_max_library_version_string) :: version
 
         call mpi_init(ierr)
         !call PetscInitialize(PETSC_NULL_CHARACTER, ierr)
-
+        call mpi_get_library_version(version, l, ierr)
         call mpi_comm_rank(mpi_comm_world, rank, ierr)
         if (rank .eq. 0) then
+            print *, "MPI VERSION: ", trim(version)
             print *, 'Read parallel.par...'
             call readpar('parallel.par', comments, nofcom)
             read(comments(1),*) mod_decomposition
