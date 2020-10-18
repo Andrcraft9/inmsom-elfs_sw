@@ -1,12 +1,12 @@
 !Grid parameters for atmospheric data
-integer, parameter::   nxa=10,     &      !atm. array dim. on lon
-                       nya=10             !atm. array dim. on lat
+integer, parameter::   nxa=480,     &      !atm. array dim. on lon
+                       nya=241             !atm. array dim. on lat
 
 real(8), parameter::   dxa=0.75d0,      &   !step on lon (used in case of regular grid)
                        dya=0.75d0,      &   !step on lat (-#-)
                        x0a= 0.0d0,      &   !initial lon point for m=mmma (-#-)
                        y0a=-90.0d0          !initial lat point for n=nnna (-#-)
-            
+
 integer, parameter::   indper=1       !index of periodicity (0 - non-periodic, 1 - periodic)
 
 !-------------------------------------------------------------------------------------------
@@ -15,10 +15,9 @@ integer, parameter:: xagr_type=0,      &   !grid types: 0 - regular, 1 - levels
                      yagr_type=0
 
 !atmospheric grid levels, used if needed
-real(8) xa_levels(10),ya_levels(10)
+real(8) xa_levels(480),ya_levels(241)
 
 ! if grid is irregular you MUST set levels!!!!!
 !data xa_levels/.../
 ! case of irregular grid on latitude
 !data ya_levels/.../
-         

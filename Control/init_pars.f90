@@ -275,7 +275,7 @@ subroutine sw_only_inicond(flag_init, path2ocp)
         ssh = dble(array4)
     else
         if (rank.eq.0) print *, "Init sea level is zero"
-        ssh = 0.0d0
+        ssh = 0.5d0
     endif
 
     call syncborder_real8(ssh, 1)
@@ -289,6 +289,9 @@ subroutine sw_only_inicond(flag_init, path2ocp)
     ubrtrp = ubrtr
     vbrtrp = vbrtr
     sshp = ssh
+
+    amuv2d  = lvisc_2
+    amuv42d = lvisc_4
 
     !initialize depth for internal mode
     call hh_init(hhq, hhqp, hhqn,    &

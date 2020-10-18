@@ -16,7 +16,7 @@ subroutine shallow_water_model_step(tau)
     real*8 :: diffslpr, tau
     real*8 :: time_count
 
-    diffslpr = 0.0d0
+    !diffslpr = 0.0d0
     !surf_stress_x = 0.0d0
     !surf_stress_y = 0.0d0
 
@@ -47,19 +47,16 @@ subroutine shallow_water_model_step(tau)
             enddo
         enddo
     else
-        wf_tot = 0.0d0
-        do n=ny_start,ny_end
-            do m=nx_start,nx_end
-                if(lu(m,n)>0.5) then
-                    RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n) -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
-                    RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n) -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
-                endif
-            enddo
-        enddo
+        !wf_tot = 0.0d0
+        !do n=ny_start,ny_end
+        !    do m=nx_start,nx_end
+        !        if(lu(m,n)>0.5) then
+        !            RHSx2d(m, n) = (surf_stress_x(m,n))*dxt(m,n)*dyh(m,n) -(diffslpr)*hhu(m,n)*dyh(m,n)/RefDen
+        !            RHSy2d(m, n) = (surf_stress_y(m,n))*dyt(m,n)*dxh(m,n) -(diffslpr)*hhv(m,n)*dxh(m,n)/RefDen
+        !        endif
+        !    enddo
+        !enddo
     endif
-
-    amuv2d  = lvisc_2
-    amuv42d = lvisc_4
 
     call expl_shallow_water(tau,     &
                             ubrtr,   &
@@ -92,27 +89,27 @@ subroutine shallow_water_model_step(tau)
     !time_barotrop = time_barotrop + time_count
 
     ! Compute maximum amplitude
-    do n = ny_start, ny_end
-        do m = nx_start, nx_end
-            if (lu(m, n)>0.5) then
-                if ( ssh_max_amplitude(m, n) < abs(ssh(m, n)) ) then
-                    ssh_max_amplitude(m, n) = abs(ssh(m, n))
-                endif
-            endif
-
-            if (lcu(m, n)>0.5) then
-                if ( ubrtr_max_amplitude(m, n) < abs(ubrtr(m, n)) ) then
-                    ubrtr_max_amplitude(m, n) = abs(ubrtr(m, n))
-                endif
-            endif
-
-            if (lcv(m, n)>0.5) then
-                if ( vbrtr_max_amplitude(m, n) < abs(vbrtr(m, n)) ) then
-                    vbrtr_max_amplitude(m, n) = abs(vbrtr(m, n))
-                endif
-            endif
-        enddo
-    enddo
+!    do n = ny_start, ny_end
+!        do m = nx_start, nx_end
+!            if (lu(m, n)>0.5) then
+!                if ( ssh_max_amplitude(m, n) < abs(ssh(m, n)) ) then
+!                    ssh_max_amplitude(m, n) = abs(ssh(m, n))
+!                endif
+!            endif
+!
+!            if (lcu(m, n)>0.5) then
+!                if ( ubrtr_max_amplitude(m, n) < abs(ubrtr(m, n)) ) then
+!                    ubrtr_max_amplitude(m, n) = abs(ubrtr(m, n))
+!                endif
+!            endif
+!
+!            if (lcv(m, n)>0.5) then
+!                if ( vbrtr_max_amplitude(m, n) < abs(vbrtr(m, n)) ) then
+!                    vbrtr_max_amplitude(m, n) = abs(vbrtr(m, n))
+!                endif
+!            endif
+!        enddo
+!    enddo
 
     ! Check errors
     do n=ny_start,ny_end

@@ -1,17 +1,16 @@
 !Parameters of the ocean model
 
-!--------------------------------------------------------------------------------
-! User parameters of area
+!Parameters of the ocean model
 real(8), parameter:: time_smooth=0.05d0
-integer, parameter:: nx=10804,   &     !number of total points in x-direction in base arrays
-                     ny=5404,    &     !number of total points in y-direction in base arrays
-          periodicity_x=1,     &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
-          periodicity_y=0            !Periodicity on y-direction (0 - non-periodic, 1 - periodic)
+integer, parameter:: nx=1525,   &	 !number of total points in x-direction in base arrays !289
+                     ny=1115,   &     !number of total points in y-direction in base arrays !163
+           periodicity_x=0,    &     !Periodicity on x-direction (0 - non-periodic, 1 - periodic)
+           periodicity_y=0           !Periodicity on y-direction (0 - non-periodic, 1 - periodic). (No parallel yet !!!)
 
-real(8), parameter:: rlon =   0.016666666d0,  &     !first calcutable t-point (m=mmm) on latitude  (in degrees) !-178.75d0
-                     rlat = -89.983333d0,     &     !first calcutable t-point (n=nnn) on longitude (in degrees) !-89.00d0
-                     dxst = 0.03333333d0,     &     !longitude step (in degrees) in case of regular grid
-                     dyst = 0.03333333d0            !latitude  step (in degrees) in case of regular grid
+real(8), parameter:: rlon =   34.751560d0,   &     !first calcutable t-point (m=mmm) on latitude  (in degrees)
+                     rlat =   44.801125d0,   &     !first calcutable t-point (n=nnn) on longitude (in degrees)
+                     dxst =   0.00312d0,     &     !longitude step (in degrees) in case of regular grid
+                     dyst =   0.00225d0            !latitude  step (in degrees) in case of regular grid
 
 integer, parameter:: xgr_type=0,   &
                      ygr_type=0          !grid types: 0 - regular, 1 - levels
@@ -19,7 +18,7 @@ integer, parameter:: xgr_type=0,   &
 real(8) x_levels(nx), y_levels(ny)
  !if grid is irregular you MUST set levels!!!!!
  ! data x_levels/.../
- ! data y_levels/.../           
+ ! data y_levels/.../
 
 !--------------------------------------------------------------------------------
 ! parameters of basin                   ! =0 - Carthesian coordinates
