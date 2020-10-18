@@ -28,7 +28,6 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, nbfc)
     real*8 :: k_bfc, s
     real*8 :: k1, k2
 
-    !$omp parallel do private(m, n, k_bfc, s, k1, k2)
     do n=ny_start, ny_end
         do m=nx_start, nx_end
             if (lcu(m,n)>0.5) then
@@ -66,7 +65,6 @@ subroutine uv_bfc(u, v, hq, hu, hv, hh, RHSx, RHSy, nbfc)
             endif
         enddo
     enddo
-    !$omp end parallel do
 
 end subroutine uv_bfc
 
@@ -93,7 +91,6 @@ subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy, nbfc)
     integer :: m, n
     real*8 :: k_bfc, s1, s2
 
-    !$omp parallel do private(m, n, k_bfc, s1, s2)
     do n=ny_start, ny_end
         do m=nx_start, nx_end
             if (lcu(m,n)>0.5) then
@@ -125,7 +122,6 @@ subroutine uv_bfc_v2(u, v, hq, hu, hv, hh, RHSx, RHSy, nbfc)
             endif
         enddo
     enddo
-    !$omp end parallel do
 
 end subroutine uv_bfc_v2
 
@@ -158,7 +154,6 @@ real(8) fx_p,fx_m,fy_p,fy_m   !fluxes through cell edges
 
 integer m,n,k
 
-!$omp parallel do private(m,n,k)
  do n=ny_start, ny_end
    do m=nx_start, nx_end
     if(luu(m,n)>0.5) then
@@ -170,7 +165,6 @@ integer m,n,k
     endif
    enddo
  enddo
-!$omp end parallel do
 
       call syncborder_real8(vort, nlev)
 
@@ -182,7 +176,6 @@ integer m,n,k
        call cyclize8_y(vort,nx,ny,nlev,nnn,nn)
 	  end if
 
-!$omp parallel do private(m,n,k,fx_p,fx_m,fy_p,fy_m)
   do n=ny_start,ny_end
     do m=nx_start,nx_end
 
@@ -237,7 +230,6 @@ integer m,n,k
 
     end do
   end do
-!$omp end parallel do
 
 !  call syncborder_real8(RHSx, nlev)
 !  call syncborder_real8(RHSy, nlev)
@@ -267,7 +259,6 @@ implicit none
 
 integer m,n,k
 
-!$omp parallel do private(muh_p, muh_m)
   do n=ny_start,ny_end
     do m=nx_start,nx_end
 
@@ -305,7 +296,6 @@ integer m,n,k
 
     end do
   end do
-!$omp end parallel do
 
 !  call syncborder_real8(RHSx, nlev)
 !  call syncborder_real8(RHSy, nlev)
@@ -343,7 +333,6 @@ integer m,n,k
 fx=0.0d0
 fy=0.0d0
 
-!$omp parallel do private(muh_p, muh_m)
   do n=ny_start,ny_end
     do m=nx_start,nx_end
 
@@ -384,7 +373,6 @@ fy=0.0d0
 
     end do
   end do
-!$omp end parallel do
 
       call syncborder_real8(fx, nlev)
       call syncborder_real8(fy, nlev)
@@ -401,7 +389,6 @@ fy=0.0d0
 
     call stress_components(fx,fy,str_t,str_s,nlev)
 
-!$omp parallel do private(muh_p, muh_m)
   do n=ny_start,ny_end
     do m=nx_start,nx_end
 
@@ -439,7 +426,6 @@ fy=0.0d0
 
     end do
   end do
-!$omp end parallel do
 
 !  call syncborder_real8(RHSx, nlev)
 !  call syncborder_real8(RHSy, nlev)

@@ -17,7 +17,6 @@ subroutine sea_surface_fluxes_simple
 
     coeff_surf_fric = 3.25d-6
 
-    !$omp parallel do private(m,n,wnd,wnd_mod)
     do n=ny_start,ny_end
         do m=nx_start,nx_end
 
@@ -41,7 +40,6 @@ subroutine sea_surface_fluxes_simple
 
         enddo
     enddo
-    !$omp end parallel do
 
 endsubroutine sea_surface_fluxes_simple
 
@@ -61,7 +59,6 @@ subroutine sea_surface_fluxes
     real(8) tmp_real8
 
     if(ksw_ssbc==1 .or. ksw_ssbc==2) then
-        !$omp parallel do
         do n=ny_start,ny_end
             do m=nx_start,nx_end
 
@@ -77,11 +74,9 @@ subroutine sea_surface_fluxes
 
             enddo
         enddo
-        !$omp end parallel do
     endif
 
     if(ksw_ssbc==3) then
-        !$omp parallel do private(m, n, evap_rate)
         do n=ny_start,ny_end
             do m=nx_start,nx_end
                 if(lu(m,n)>0.5) then
@@ -102,7 +97,6 @@ subroutine sea_surface_fluxes
                 endif
             enddo
         enddo
-        !$omp end parallel do
 
         call syncborder_real8(taux, 1)
         call syncborder_real8(tauy, 1)
@@ -118,7 +112,6 @@ subroutine sea_surface_fluxes
         sf_ave=0.0d0
         m_calc=0.0d0
         if(ksw_wflux>0) then
-            !$omp parallel do private(m,n) reduction(+:wf_ave, m_calc)
             do n=ny_start,ny_end
                 do m=nx_start,nx_end
                     if(lu(m,n)>0.5) then
@@ -127,7 +120,6 @@ subroutine sea_surface_fluxes
                     endif
                 enddo
             enddo
-            !$omp end parallel do
             tmp_real8 = wf_ave
             call mpi_allreduce(tmp_real8, wf_ave, 1, mpi_real8, mpi_sum, cart_comm, ierr)
             tmp_real8 = m_calc
@@ -144,7 +136,6 @@ subroutine sea_surface_fluxes
             call cyclize8_y(wf_tot,nx,ny,1,nnn,nn)
         endif
 
-        !$omp parallel do private(m,n,wf,wnd)
         do n=ny_start,ny_end
             do m=nx_start,nx_end
                 if(lcu(m,n)>0.5) then
@@ -171,7 +162,6 @@ subroutine sea_surface_fluxes
 
             enddo
         enddo
-        !$omp end parallel do
 
     endif
 

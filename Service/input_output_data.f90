@@ -1058,7 +1058,6 @@ subroutine pwdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,comm
 
       call mpi_file_set_view(hfile, disp, mpi_real, tsubarr, "native", mpi_info_null, ierr)
       
-      !$omp parallel do private(i,j,k)
       do j = ny_start, ny_end
             do i = nx_start, nx_end
                   if (abs(lu(i,j)) .lt. 0.5) then
@@ -1066,7 +1065,6 @@ subroutine pwdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,comm
                   end if
             end do
       end do
-      !$omp end parallel do
       
       call mpi_file_write_all(hfile, fild(nxb_out:nxe_out, nyb_out:nye_out, nzb:nze),  &
                               totsize, mpi_real, mpi_status_ignore, ierr)
@@ -1075,7 +1073,6 @@ subroutine pwdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,comm
       call mpi_type_free(tsubarr, ierr)
       call mpi_file_close(hfile, ierr)
 
-      !$omp parallel do private(i,j,k)
       do j = ny_start, ny_end
             do i = nx_start, nx_end
                   if (abs(lu(i,j)) .lt. 0.5) then
@@ -1083,7 +1080,6 @@ subroutine pwdstd(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,comm
                   end if
             end do
       end do
-      !$omp end parallel do
 
       return
       
@@ -1297,7 +1293,6 @@ subroutine pwdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
 
       call mpi_file_set_view(hfile, disp, mpi_real8, tsubarr, "native", mpi_info_null, ierr)
       
-      !$omp parallel do private(i,j,k)
       do j = ny_start, ny_end
             do i = nx_start, nx_end
                   if (abs(lu(i,j)) .lt. 0.5) then
@@ -1305,7 +1300,6 @@ subroutine pwdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
                   end if
             end do
       end do
-      !$omp end parallel do
       
       call mpi_file_write_all(hfile, fild(nx_start:nx_end, ny_start:ny_end, nzb:nze),  &
                               totsize, mpi_real8, mpi_status_ignore, ierr)
@@ -1314,7 +1308,6 @@ subroutine pwdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
       call mpi_type_free(tsubarr, ierr)
       call mpi_file_close(hfile, ierr)
 
-      !$omp parallel do private(i,j,k)
       do j = ny_start, ny_end
             do i = nx_start, nx_end
                   if (abs(lu(i,j)) .lt. 0.5) then
@@ -1322,7 +1315,6 @@ subroutine pwdstd8(path,fname,nfild,fild,lu,nx,ny,nz,nxb,nxe,nyb,nye,nzb,nze,ier
                   end if
             end do
       end do
-      !$omp end parallel do
       
       return
       

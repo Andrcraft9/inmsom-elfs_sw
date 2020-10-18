@@ -81,7 +81,6 @@ module shallow_water
         integer ierr
 
         !computing ssh
-        !$omp parallel do
         do n=ny_start,ny_end
             do m=nx_start,nx_end
 
@@ -93,7 +92,6 @@ module shallow_water
 
             enddo
         enddo
-        !$omp end parallel do
 
         call syncborder_real8(sshn, 1)
         if(periodicity_x/=0) then
@@ -132,7 +130,6 @@ module shallow_water
             call uv_bfc(ubrtrp, vbrtrp, hhq, hhu, hhv, hhh, RHSx_bfc, RHSy_bfc, nbfc)
         endif
 
-        !$omp parallel do private(bp, bp0, grx, gry, slx, sly, slxn, slyn)
         do n=ny_start,ny_end
             do m=nx_start,nx_end
                 !zonal flux
@@ -166,7 +163,6 @@ module shallow_water
                 endif
             enddo
         enddo
-        !$omp end parallel do
 
         call syncborder_real8(ubrtrn, 1)
         call syncborder_real8(vbrtrn, 1)
@@ -180,7 +176,6 @@ module shallow_water
         endif
 
         !shifting time indices
-        !$omp parallel do private(m, n)
         do n=ny_start-1,ny_end+1
             do m=nx_start-1,nx_end+1
 
@@ -201,7 +196,6 @@ module shallow_water
 
             enddo
         enddo
-        !$omp end parallel do
 
         if(full_free_surface>0) then
             call hh_shift(hhq, hhqp, hhqn,   &

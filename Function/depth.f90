@@ -27,7 +27,6 @@ subroutine hh_init(hq, hqp, hqn,    &
        hqp=h_r + shp*dfloat(full_free_surface)
        hqn=h_r
 
-!$omp parallel do private(m,n,slu)
       !do n=ny_start-2, ny_end+1
       !do m=nx_start-2, nx_end+1
       do n=ny_start-1,ny_end
@@ -74,7 +73,6 @@ subroutine hh_init(hq, hqp, hqn,    &
 
        end do
     end do
-!$omp end parallel do
 
       call syncborder_real8(hu, 1)
       call syncborder_real8(hup, 1)
@@ -127,7 +125,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
 
       hqn =h_r + sh
 
-!$omp parallel do private(m,n,slu)
       !do n=ny_start-2, ny_end+1
       !do m=nx_start-2, nx_end+1
       do n=ny_start-1,ny_end
@@ -158,7 +155,6 @@ subroutine hh_update(hqn, hun, hvn, hhn, sh, h_r)
 
        end do
     end do
-!$omp end parallel do
 
       call syncborder_real8(hun, 1)
       call syncborder_real8(hvn, 1)
@@ -195,7 +191,6 @@ subroutine hh_shift(hq, hqp, hqn,   &
  integer m, n
 
 
-!$omp parallel do private(m,n)
       do n=ny_start-1,ny_end+1
        do m=nx_start-1,nx_end+1
 
@@ -221,7 +216,6 @@ subroutine hh_shift(hq, hqp, hqn,   &
 
        end do
     end do
-!$omp end parallel do
 
 endsubroutine hh_shift
 

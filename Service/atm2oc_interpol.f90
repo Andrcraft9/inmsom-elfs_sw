@@ -463,7 +463,6 @@ real(4) maskout(nxout1:nxout2,nyout1:nyout2)
 
 integer i,j
 
-!$omp parallel do private(i,j)
      do j=nnn_out,nn_out
       do i=mmm_out,mm_out
          if (maskout(i,j)<=0.5) then
@@ -477,7 +476,6 @@ integer i,j
          end if
       end do
      end do
-!$omp end parallel do
 
 endsubroutine interpolrot_scal
 !===================================================================
@@ -518,7 +516,6 @@ real(4) maskout(nxout1:nxout2,nyout1:nyout2)
 
 integer i,j
 
-!$omp parallel do private(i,j,func_zon_unrot,func_mer_unrot)
      do j=nnn_out,nn_out
       do i=mmm_out,mm_out
          if (maskout(i,j).le.0.5) then
@@ -544,7 +541,6 @@ integer i,j
          end if
       end do
      end do
-!$omp end parallel do
 
 endsubroutine interpolrot_vec
 !=====================================================================

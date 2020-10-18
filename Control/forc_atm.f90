@@ -406,7 +406,6 @@ implicit none
                     ny_start-1,       &  !first significant point in y-direction (output)
                     ny_end+1 )           ! last significant point in y-direction (output)
 
-!$omp parallel do private(m,n)
   do n=ny_start-1,ny_end+1
     do m=nx_start-1, nx_end+1
      if(lu(m,n)>0.5) then
@@ -414,14 +413,12 @@ implicit none
      endif
     enddo
   enddo
-!$omp end parallel do
 
   endif
 
   if(prec_split==0.and.(ind_change_tatm>0.or.ind_change_prec>0)) then
    if (rank .eq. 0) write(*,*) 'Getting snow data from total precipitation'
 !if rain and snow are mixed
-!$omp parallel do private(m,n)
    do n=ny_start-1, ny_end+1
     do m=nx_start-1, nx_end+1
      if(lu(m,n)>0.5) then
@@ -434,7 +431,6 @@ implicit none
      endif
     enddo
    enddo
-!$omp end parallel do
    endif
   endif
 

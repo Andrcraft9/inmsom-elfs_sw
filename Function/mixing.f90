@@ -18,7 +18,6 @@ subroutine stress_components(u,v,str_t,str_s,nlev)
 
  integer m,n,k
 
- !$omp parallel do private(m,n,k)
  do n=ny_start, ny_end
    do m=nx_start, nx_end
     if(lu(m,n)>0.5) then
@@ -29,9 +28,7 @@ subroutine stress_components(u,v,str_t,str_s,nlev)
     endif
    enddo
  enddo
-!$omp end parallel do
 
-!$omp parallel do private(m,n,k)
  do n=ny_start, ny_end
    do m=nx_start, nx_end
     if(luu(m,n)>0.5) then
@@ -42,7 +39,6 @@ subroutine stress_components(u,v,str_t,str_s,nlev)
     endif
    enddo
  enddo
-!$omp end parallel do
 
       call syncborder_real8(str_t, nlev)
       call syncborder_real8(str_s, nlev)

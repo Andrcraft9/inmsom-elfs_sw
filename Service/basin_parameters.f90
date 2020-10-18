@@ -670,7 +670,6 @@ endif
  integer key_rot, key_cor
  integer m,n
 
- !$omp parallel do private (m,n)
       do n=nnn_out,nn_out
        do m=mmm_out,mm_out
 
@@ -698,7 +697,6 @@ endif
 
        enddo
       enddo
- !$omp end parallel do
 
  endsubroutine grid_parameters_carthesian
 
@@ -756,8 +754,6 @@ endif
   coslat_extr= dcos(dpip180*lat_extr)
   sinlat_extr= dsin(dpip180*lat_extr)
 
- !$omp parallel do private (m,n,sin_lat,cos_lat,free_term_coslon,free_term_sinlon,cos_lon,sin_lon,  &
- !$omp                      sum_rot_coef, sum_sincos, lat_mod)
       do n=nnn_out,nn_out
           lat_mod=max(min(y_mod(n),lat_extr),-lat_extr)
        do m=mmm_out,mm_out
@@ -814,7 +810,6 @@ endif
 
        enddo
       enddo
- !$omp end parallel do
 
  endsubroutine grid_parameters_spherical
 
@@ -945,13 +940,6 @@ endif
 
       !write(*,*) 'alpha-scale is ', alpha_scale
 
-!$omp parallel do private(m,n,s,t,num1,num2,numa,numb,denom1,  &
-!$omp      a,b,cos_lon,sin_lon,cos_lat,sin_lat, &
-!$omp      dx_da,dx_db,dy_da,dy_db,numd1,numd2, &
-!$omp      numd3,numd4,numas,numat,numbs,numbt, &
-!$omp      da_ds,da_dt,db_ds,db_dt,ds_dp,ds_dq,dt_dp,dt_dq,  &
-!$omp      da_dp,da_dq,db_dp,db_dq,dx_dp,dx_dq,dy_dp,dy_dq,  &
-!$omp      dfm1,det,df,hp_divide_r,hq_divide_r, sum_rot_coef, sum_sincos, lat_mod)
       do n=nnn_out,nn_out
           lat_mod=max(min(y_mod(n),lat_extr),-lat_extr)
        do m=mmm_out,mm_out
@@ -1068,7 +1056,6 @@ endif
 
        enddo
       enddo
- !$omp end parallel do
 
  endsubroutine grid_parameters_curvilinear
 

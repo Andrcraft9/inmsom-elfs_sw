@@ -344,19 +344,17 @@ module output_routes
                       'zonal velocity, m/s',  &     !title of dataset
                                        'u'   )      !variable name
             endif
-        else 
+        else
             ! writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
               do m=nx_start, nx_end
                 if (lu(m,n)>0.5) then
                     array4_2d(m, n) = sngl( (ubrtr(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
-                                            +ubrtr(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) ) 
+                                            +ubrtr(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) )
                 endif
               enddo
             enddo
-            !$omp end parallel do
-          
+
             call pwdstd(path2data,'LOCAL/ubrtr.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr.dat',ierr)
             if (rank == 0) then
@@ -418,9 +416,8 @@ module output_routes
                  'meridional velocity, m/s',  &     !title of dataset
                                        'v'   )      !variable name
             endif
-        else 
+        else
             !writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
               do m=nx_start, nx_end
                 if (lu(m,n)>0.5) then
@@ -429,8 +426,7 @@ module output_routes
                 endif
               enddo
             enddo
-            !$omp end parallel do
-        
+
             call pwdstd(path2data,'LOCAL/vbrtr.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr.dat',ierr)
             if (rank == 0) then
@@ -534,19 +530,17 @@ module output_routes
                          'zonal velocity, m/s',  &     !title of dataset
                                           'u'   )      !variable name
             endif
-        else 
+        else
             ! writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
                 do m=nx_start, nx_end
                 if (lu_local(m,n)>0.5) then
                     array4_2d(m, n) = sngl( (ubrtr(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
-                                            +ubrtr(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) ) 
+                                            +ubrtr(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) )
                 endif
                 enddo
             enddo
-            !$omp end parallel do
-            
+
             call pwdstd(path2data,'LOCAL/ubrtrloc.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
                         m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtrloc.dat',ierr)
@@ -610,9 +604,8 @@ module output_routes
                     'meridional velocity, m/s',  &     !title of dataset
                                           'v'   )      !variable name
             endif
-        else 
+        else
             !writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
                 do m=nx_start, nx_end
                 if (lu_local(m,n)>0.5) then
@@ -621,8 +614,7 @@ module output_routes
                 endif
                 enddo
             enddo
-            !$omp end parallel do
-        
+
             call pwdstd(path2data,'LOCAL/vbrtrloc.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
                         m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtrloc.dat',ierr)
@@ -757,19 +749,17 @@ module output_routes
                       'zonal velocity, m/s',  &     !title of dataset
                                        'u'   )      !variable name
             endif
-        else 
+        else
             ! writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
               do m=nx_start, nx_end
                 if (lu(m,n)>0.5) then
                     array4_2d(m, n) = sngl( (ubrtr_max_amplitude(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
-                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) ) 
+                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) )
                 endif
               enddo
             enddo
-            !$omp end parallel do
-          
+
             call pwdstd(path2data,'LOCAL/ubrtr_max_amplitude.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtr_max_amplitude.dat',ierr)
             if (rank == 0) then
@@ -831,9 +821,8 @@ module output_routes
                  'meridional velocity, m/s',  &     !title of dataset
                                        'v'   )      !variable name
             endif
-        else 
+        else
             !writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
               do m=nx_start, nx_end
                 if (lu(m,n)>0.5) then
@@ -842,8 +831,7 @@ module output_routes
                 endif
               enddo
             enddo
-            !$omp end parallel do
-        
+
             call pwdstd(path2data,'LOCAL/vbrtr_max_amplitude.dat',nrec,array4_2d,lu,nx,ny,1,m1loc,m2loc,n1loc,n2loc,1,1,cart_comm,ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtr_max_amplitude.dat',ierr)
             if (rank == 0) then
@@ -947,19 +935,17 @@ module output_routes
                          'zonal velocity, m/s',  &     !title of dataset
                                           'u'   )      !variable name
             endif
-        else 
+        else
             ! writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
                 do m=nx_start, nx_end
                 if (lu_local(m,n)>0.5) then
                     array4_2d(m, n) = sngl( (ubrtr_max_amplitude(m  ,n)*dyh(m  ,n)*hhu(m  ,n)   &
-                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) ) 
+                                            +ubrtr_max_amplitude(m-1,n)*dyh(m-1,n)*hhu(m-1,n) )/2.0/hhq(m,n)/dy(m,n) )
                 endif
                 enddo
             enddo
-            !$omp end parallel do
-            
+
             call pwdstd(path2data,'LOCAL/ubrtrloc_max_amplitude.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
                         m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
             call fulfname(fname,path2data,'LOCAL/ubrtrloc_max_amplitude.dat',ierr)
@@ -1023,9 +1009,8 @@ module output_routes
                     'meridional velocity, m/s',  &     !title of dataset
                                           'v'   )      !variable name
             endif
-        else 
+        else
             !writing on T-grid
-            !$omp parallel do 
             do n=ny_start, ny_end
                 do m=nx_start, nx_end
                 if (lu_local(m,n)>0.5) then
@@ -1034,8 +1019,7 @@ module output_routes
                 endif
                 enddo
             enddo
-            !$omp end parallel do
-        
+
             call pwdstd(path2data,'LOCAL/vbrtrloc_max_amplitude.dat',nrec,array4_2d,lu_local,nx,ny,1,  &
                         m1loc_local,m2loc_local,n1loc_local,n2loc_local,1,1, local_output_comm, ierr)
             call fulfname(fname,path2data,'LOCAL/vbrtrloc_max_amplitude.dat',ierr)
